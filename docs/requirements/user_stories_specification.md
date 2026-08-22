@@ -550,6 +550,62 @@ Guarantee maximum security posture, zero credential leakage, and actionable erro
 
 ---
 
+## Epic 9: Post-Setup Workspace Navigation & GCP Configuration Center
+
+### Epic Goal
+Empower users to switch between multiple production buckets and billing projects on-the-fly and inspect their entire Google Cloud configuration, identity, pricing, and health state from a unified control center.
+
+---
+
+### Story 9.1: Interactive Post-Setup Bucket Switcher & Recent Buckets
+**As a** freelance video editor or VFX lead working across multiple projects,  
+**I want to** quickly switch my active GCS bucket from the Header or Breadcrumb bar without re-running the onboarding wizard,  
+**So that** I can seamlessly jump between dailies, VFX stems, and final master archives.
+
+#### Acceptance Criteria
+1. **Given** the user is inside the main workspace, **When** clicking the Header bucket badge or the root breadcrumb `gs://[bucket-name] ▾`, **Then** an interactive Bucket Switcher Popover opens.
+2. **Given** the popover opens, **When** rendered, **Then** it presents:
+   - Current active bucket with green indicator.
+   - List of recent buckets (`recentBuckets`, capped at 5) with 1-click `[Switch]` buttons.
+   - Inline text input for entering a new `gs://bucket-name` with real-time format validation.
+   - 1-click shortcut: `[⚡ Launch Full Preflight Wizard for New Bucket]`.
+3. **Given** the user selects or inputs a new bucket, **When** confirmed, **Then**:
+   - A background 4-point preflight check executes on-the-fly.
+   - If successful, the directory reloads at `prefix=""`, the bucket is prepended to `recentBuckets`, and a confirmation toast is emitted.
+   - If preflight fails (e.g., missing CORS or IAM denied), an actionable remediation toast is displayed.
+
+---
+
+### Story 9.2: Dynamic Billed Project Switcher
+**As a** client managing multiple GCP billing projects,  
+**I want to** switch my active `userProject` for Requester-Pays billing directly in the workspace,  
+**So that** download egress charges are billed to the correct client or production department.
+
+#### Acceptance Criteria
+1. **Given** the user clicks the "Billed to:" badge in the Header, **When** clicked, **Then** a project switcher popover appears listing all auto-discovered Google Cloud projects.
+2. **Given** the project list, **When** rendered, **Then** each project displays its linked Cloud Billing status (Active / Unlinked).
+3. **Given** the user selects a project, **When** clicked, **Then** `savedProjectId` updates, and all subsequent GCS API calls and CLI generators use the new `userProject`.
+
+---
+
+### Story 9.3: Unified GCP Configuration & Session Inspector
+**As a** studio post-production supervisor or security auditor,  
+**I want to** open a comprehensive configuration inspector to check in on my entire GCP session state at any time,  
+**So that** I have complete transparency into my active identity, token expiration timer, billed project, bucket permissions, rate card overrides, and zero-persistence hygiene.
+
+#### Acceptance Criteria
+1. **Given** the user clicks the Header "GCP Config" button (or presses `Ctrl+G` / `Cmd+G`), **When** triggered, **Then** the **GCP Configuration Center Modal** opens.
+2. **Given** the modal is open, **When** rendered, **Then** it provides 7 distinct inspection sections:
+   - **Google Identity**: User email, display name, avatar, granted scopes, live token TTL countdown timer, and silent renewal status.
+   - **Billed GCP Project**: Project ID, Project Name, Project Number, and Cloud Billing status.
+   - **Target GCS Bucket**: Active URI, region, default storage class, Requester-Pays status, and CORS header exposure.
+   - **Cost Governance & Rates**: Active $/GB retrieval/egress rates, custom rate overrides, and Free Trial credit absorption state.
+   - **4-Point Preflight Health Matrix**: Live green/red diagnostic status of all 4 preflight checks with 1-click re-test button.
+   - **Storage Boundary Security Audit**: Live verification proving zero token persistence in `localStorage` or `IndexedDB`.
+   - **Action Center**: 1-click buttons to Switch Account, Switch Project, Switch Bucket, Export Sanitized Diagnostics JSON, or Disconnect & Purge Session.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -562,3 +618,4 @@ Guarantee maximum security posture, zero credential leakage, and actionable erro
 | **EPIC-6** | Active Download Manager & Telemetry | 2 Stories | Medium | P1 (Core) |
 | **EPIC-7** | Automated Batch & CLI Companion Generator | 2 Stories | Low | P1 (Core) |
 | **EPIC-8** | Security, Resilience & Error Diagnostics | 2 Stories | Medium | P0 (Blocker) |
+| **EPIC-9** | Workspace Navigation, Bucket Switcher & GCP Config Center | 3 Stories | Medium | P1 (Core) |

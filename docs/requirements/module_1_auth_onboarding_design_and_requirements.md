@@ -164,3 +164,11 @@ export interface OnboardingState {
   - Mock GIS popup response and verify token remains in volatile store.
   - Mock CRM API with empty list $\rightarrow$ verify transition to Free Trial Assistant view.
   - Mock preflight HTTP 403 $\rightarrow$ verify actionable IAM diagnosis message.
+
+---
+
+### 8. Relationship with Downstream Modules & Post-Setup Controls
+
+Once initial onboarding completes, configuration management transitions to post-setup controls:
+- **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Provides on-the-fly bucket switching (`BucketSwitcherControl`), project switching (`ProjectSwitcherControl`), and holistic configuration auditing (`GCPConfigCenterModalShell`) without re-running this onboarding wizard.
+- **[Module 8: State Management & Persistence](module_8_state_persistence_design_and_requirements.md)** (`MOD-08-STATE-PERSISTENCE`): Persists `savedProjectId`, `savedBucketName`, and `recentBuckets` across sessions.

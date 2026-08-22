@@ -170,3 +170,9 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
 - **Automated Security Tests**:
   - `test_zero_token_in_localstorage`: Performs `localStorage.getItem('basingse-media-client-prefs')` and asserts that `oauthToken`, `access_token`, and `bearer` keys do NOT exist.
   - `test_clear_auth_flushes_all_state`: Asserts that `clearAuthSession()` resets token to `null` and invokes `abort()`.
+
+---
+
+### 7. Cross-Module Integration with Module 9 (Config Center & Controls)
+
+- **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Directly queries and mutates persistent storage via `usePersistentStore` for `savedBucketName`, `recentBuckets` (capped at 5 FIFO items), `savedProjectId`, and `customPricing` rate card overrides. It also provides the live **Storage Boundary Audit** widget verifying zero token leakage.

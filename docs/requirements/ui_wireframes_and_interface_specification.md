@@ -271,10 +271,75 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ---
 
-## 7. Responsive Layout & Viewport Specifications
+---
+
+## 7. Screen 5: Post-Setup Bucket Switcher & Project Switcher Popovers
+
+**Trigger**: Clicking the Header bucket badge, project badge, or Breadcrumb root segment (`gs://[bucket-name] ▾`).
+
+```
++-------------------------------------------------------------------------+
+| [Layers] gs://partner-raw-master-archives-2026 [▾]                      |
++-------------------------------------------------------------------------+
+| CONNECTED BUCKET                                                        |
+| ● gs://partner-raw-master-archives-2026 (Active)                        |
+|                                                                         |
+| RECENT BUCKETS                                                          |
+| ↳ gs://avatar-fire-nation-stems-2026                 [ Switch ]         |
+| ↳ gs://ba-sing-se-vfx-vault                          [ Switch ]         |
+| ↳ gs://dailies-reel-05-archive                       [ Switch ]         |
+|                                                                         |
+| CONNECT ANOTHER BUCKET                                                  |
+| [ gs://new-production-bucket-2026           ]        [ Connect ]        |
+|                                                                         |
+| ----------------------------------------------------------------------- |
+| [⚡ Launch Full Preflight Wizard for New Bucket]                         |
++-------------------------------------------------------------------------+
+```
+
+---
+
+## 8. Screen 6: Unified GCP Configuration Center & Session Inspector Modal
+
+**Trigger**: Clicking the Header `[GCP Config]` button, settings trigger, or pressing `Ctrl+G` / `Cmd+G`.
+
+```
++---------------------------------------------------------------------------------------+
+|  [Shield] Google Cloud Platform Configuration & Session Inspector                [X]  |
++---------------------------------------------------------------------------------------+
+|                                                                                       |
+|  [ 1. GOOGLE IDENTITY ]                              [ 2. BILLED GCP PROJECT ]        |
+|  User: Taylor (Colorist)                             Project: client-media-prod-2026  |
+|  Email: taylor@freelance-edit.com                    Name: Client Post Studio         |
+|  Scopes: devstorage.read_only, cloud-platform        Number: 891029384712             |
+|  Token TTL: ~54m remaining (Auto-Renewing)           Billing: Linked (Active) ●       |
+|  [ Switch Account ]     [ Refresh Token ]            [ Switch Project ]               |
+|                                                                                       |
+|  [ 3. TARGET GCS BUCKET ]                            [ 4. COST & RATE CARD ]          |
+|  Bucket: gs://partner-raw-master-archives-2026       Archive: $0.05/GB                |
+|  Region: US Multi-Region                             Coldline: $0.02/GB | Egress: $0.12|
+|  Requester-Pays: Enforced ●                          Contract: Standard GCP Rates     |
+|  CORS Headers: x-goog-hash, Content-Length Exposed   Free Trial Credit: Active ($300) |
+|  [ Switch Bucket ]      [ Quick Preflight ]          [ Edit Rates ]                   |
+|                                                                                       |
+|  -----------------------------------------------------------------------------------  |
+|  4-POINT PREFLIGHT HEALTH MATRIX:                                                     |
+|  [✓] 1. OAuth 2.0 Token (>60s)        [✓] 2. Requester-Pays Enforced                  |
+|  [✓] 3. IAM Object Viewer Granted     [✓] 4. CORS Preflight Headers OK                |
+|                                                                                       |
+|  STORAGE BOUNDARY AUDIT: [ Clean (0 Leaked Tokens) ]                                  |
+|                                                                                       |
++---------------------------------------------------------------------------------------+
+|  [ Export Diagnostics JSON ]                      [ Disconnect & Purge Session ]     |
++---------------------------------------------------------------------------------------+
+```
+
+---
+
+## 9. Responsive Layout & Viewport Specifications
 
 | Viewport Breakpoint | Target Devices | Layout Adaptations |
 | :--- | :--- | :--- |
-| **Desktop Wide (1440px+)** | Mac Studio, iMac 5K, Multi-Monitor Workstations | Full multi-column virtualized table, persistent breadcrumb trail, side-by-side Asset Inspector drawer without covering the table. |
+| **Desktop Wide (1440px+)** | Mac Studio, iMac 5K, Multi-Monitor Workstations | Full multi-column virtualized table, persistent breadcrumb trail, side-by-side Asset Inspector drawer, centered multi-column GCP Configuration Center modal. |
 | **Laptop / Compact Desktop (1024px–1439px)** | MacBook Pro 14"/16", Laptop Workstations | Standard responsive table, overlay modal for Asset Inspector, dockable floating Download Manager in bottom right. |
 | **Tablet / Touch (768px–1023px)** | iPad Pro, Mobile Tablets | Touch-friendly row height (48px), simplified column set (Name, Class, Size, Action), bottom sheet for Inspector Drawer. |

@@ -126,9 +126,8 @@ Ensures full keyboard operability and screen reader compliance across all intera
 
 ### 4.2 Keyboard Navigation Matrix
 
-| Keyboard Shortcut | Context / Scope | Action Triggered |
-| :--- | :--- | :--- |
 | **`/`** or **`Ctrl+K` / `Cmd+K`** | Global | Focuses the search and filter input in the Asset Explorer. |
+| **`Ctrl+G` / `Cmd+G`** | Global | Opens the unified GCP Configuration Center modal (*Module 9*). |
 | **`Esc`** | Modal / Drawer / Mini-Widget | Dismisses active modal, closes inspector drawer, or restores focus to grid. |
 | **`Ctrl+A` / `Cmd+A`** | Asset Table View | Toggles "Select All" / "Deselect All" for visible directory items. |
 | **`Up` / `Down` Arrow** | Asset Table Rows | Moves row-level focus sequentially through the virtualized grid. |

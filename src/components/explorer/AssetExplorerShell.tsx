@@ -2,7 +2,9 @@ import React, { useState, useMemo, useRef, useCallback } from 'react'
 import { Download, Terminal, DollarSign, Sparkles } from 'lucide-react'
 import { GCSMediaItem } from '../../types'
 import { CostGovernanceEngine } from '../../engines/cost'
+import { ManifestExporterEngine } from '../../engines/manifest'
 import { usePersistentStore } from '../../store/persistentStore'
+import { useToastStore } from '../../store/toastStore'
 import { BreadcrumbNav } from './BreadcrumbNav'
 import { FilterToolbar, CategoryFilterType } from './FilterToolbar'
 import { VirtualizedAssetGrid } from './VirtualizedAssetGrid'
@@ -32,7 +34,8 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
   onGenerateCli,
   onDownloadBatch,
 }) => {
-  const { savedBucketName, isFreeTrialAccount } = usePersistentStore()
+  const { savedBucketName, isFreeTrialAccount, customPricing } = usePersistentStore()
+  const { addToast } = useToastStore()
 
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -114,10 +117,10 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
         sizeBytes: item.sizeBytes,
         storageClass: item.storageClass,
       })),
-      undefined,
+      customPricing as any,
       isFreeTrialAccount,
     )
-  }, [selectedItems, isFreeTrialAccount])
+  }, [selectedItems, customPricing, isFreeTrialAccount])
 
   const toggleSelectAll = useCallback(() => {
     if (filteredFiles.length > 0 && selectedItemIds.size === filteredFiles.length) {
@@ -146,6 +149,55 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
       return column
     })
   }, [])
+
+  // Manifest Exporters (AUX-07)
+  const handleExportCsv = useCallback(() => {
+    const itemsToExport = selectedItems.length > 0 ? selectedItems : filteredFiles
+    if (itemsToExport.length === 0) {
+      addToast({ type: 'warning', title: 'Export Failed', message: 'No assets available to export.' })
+      return
+    }
+
+    const csvContent = ManifestExporterEngine.generateCsv({
+      bucketName: savedBucketName || 'bucket',
+      items: itemsToExport,
+      rates: customPricing as any,
+      isFreeTrial: isFreeTrialAccount,
+    })
+
+    const filename = `manifest-${(savedBucketName || 'gcs').replace(/^gs:\/\//, '')}-${Date.now()}.csv`
+    ManifestExporterEngine.downloadBlob(csvContent, filename, 'text/csv')
+
+    addToast({
+      type: 'success',
+      title: 'Manifest Exported (CSV)',
+      message: `Downloaded manifest for ${itemsToExport.length} asset${itemsToExport.length === 1 ? '' : 's'}.`,
+    })
+  }, [selectedItems, filteredFiles, savedBucketName, customPricing, isFreeTrialAccount, addToast])
+
+  const handleExportJson = useCallback(() => {
+    const itemsToExport = selectedItems.length > 0 ? selectedItems : filteredFiles
+    if (itemsToExport.length === 0) {
+      addToast({ type: 'warning', title: 'Export Failed', message: 'No assets available to export.' })
+      return
+    }
+
+    const jsonContent = ManifestExporterEngine.generateJson({
+      bucketName: savedBucketName || 'bucket',
+      items: itemsToExport,
+      rates: customPricing as any,
+      isFreeTrial: isFreeTrialAccount,
+    })
+
+    const filename = `manifest-${(savedBucketName || 'gcs').replace(/^gs:\/\//, '')}-${Date.now()}.json`
+    ManifestExporterEngine.downloadBlob(jsonContent, filename, 'application/json')
+
+    addToast({
+      type: 'success',
+      title: 'Manifest Exported (JSON)',
+      message: `Downloaded JSON metadata manifest for ${itemsToExport.length} asset${itemsToExport.length === 1 ? '' : 's'}.`,
+    })
+  }, [selectedItems, filteredFiles, savedBucketName, customPricing, isFreeTrialAccount, addToast])
 
   return (
     <div className="space-y-4">
@@ -215,7 +267,10 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
         onCategoryChange={setCategoryFilter}
         matchCount={filteredFiles.length}
         totalCount={files.length}
+        selectedCount={selectedItems.length}
         searchInputRef={searchInputRef}
+        onExportManifestCsv={handleExportCsv}
+        onExportManifestJson={handleExportJson}
       />
 
       {/* 4. High-Performance Virtualized Asset Data Grid */}

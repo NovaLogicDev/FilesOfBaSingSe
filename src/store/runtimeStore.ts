@@ -51,7 +51,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   activeDownload: null,
   activeAbortController: null,
   isDownloadMinimized: false,
-  isDemoMode: true, // Default to demo sandbox mode for immediate interactivity
+  isDemoMode: false, // Default to live GCS mode
 
   setAuth: (
     token,

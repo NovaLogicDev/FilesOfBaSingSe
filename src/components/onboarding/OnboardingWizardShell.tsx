@@ -40,9 +40,11 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   const { addToast } = useToastStore()
 
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1)
-  const [projectIdInput, setProjectIdInput] = useState(savedProjectId || 'demo-client-media-2026')
+  const [projectIdInput, setProjectIdInput] = useState(
+    savedProjectId || (isDemoMode ? 'demo-client-media-2026' : ''),
+  )
   const [bucketInput, setBucketInput] = useState(
-    savedBucketName || 'gs://partner-raw-master-archives-2026',
+    savedBucketName || (isDemoMode ? 'gs://partner-raw-master-archives-2026' : ''),
   )
   const [discoveredProjects, setDiscoveredProjects] = useState<GCPProject[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
@@ -543,6 +545,32 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                         </svg>
                       )}
                       <span>{isSigningIn ? 'Opening Google Sign-In...' : 'Sign In with Google'}</span>
+                    </button>
+
+                    <div className="relative flex items-center justify-center pt-2">
+                      <div className="border-t border-slate-800 w-full" />
+                      <span className="bg-slate-950 px-3 text-[11px] text-slate-500 uppercase font-mono absolute">
+                        or
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        gisAuthService.signInDemo()
+                        setProjectIdInput('demo-client-media-2026')
+                        setBucketInput('gs://partner-raw-master-archives-2026')
+                        addToast({
+                          type: 'info',
+                          title: 'Demo Sandbox Initialized',
+                          message: 'Exploring with synthetic GCS media assets.',
+                        })
+                        setActiveStep(2)
+                      }}
+                      className="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Explore in Demo Sandbox (No Sign-In Required)</span>
                     </button>
                   </div>
                 )}

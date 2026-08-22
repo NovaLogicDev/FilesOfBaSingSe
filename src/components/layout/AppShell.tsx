@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  ShieldCheck,
+  Sparkles,
+  ArrowRight,
+  FolderLock,
+} from 'lucide-react'
 import { Header } from './Header'
+import { NetworkBanner } from './NetworkBanner'
 import { AssetExplorerShell } from '../explorer/AssetExplorerShell'
 import { AssetInspectorDrawerShell } from '../inspector/AssetInspectorDrawerShell'
 import { DownloadManagerShell } from '../downloader/DownloadManagerShell'
@@ -7,11 +14,13 @@ import { CliGeneratorModalShell } from '../cli/CliGeneratorModalShell'
 import { HighCostConfirmationModalShell } from '../cost/HighCostConfirmationModalShell'
 import { OnboardingWizardShell } from '../onboarding/OnboardingWizardShell'
 import { DiagnosticsModalShell } from '../diagnostics/DiagnosticsModalShell'
+import { PricingSettingsModalShell } from '../cost/PricingSettingsModalShell'
 import { ToastContainer } from '../ui/Toast'
 
 import { usePersistentStore } from '../../store/persistentStore'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { useToastStore } from '../../store/toastStore'
+import { gisAuthService } from '../../services/gisAuthService'
 import { gcsClientService } from '../../services/gcsClientService'
 import { streamDownloadService, BrowserCapabilityDetector } from '../../services/streamDownloadService'
 import { ObservabilityService } from '../../services/observability'
@@ -19,17 +28,19 @@ import { CostGovernanceEngine } from '../../engines/cost'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
-  const { savedBucketName, savedProjectId, isFreeTrialAccount } = usePersistentStore()
+  const { savedBucketName, savedProjectId, isFreeTrialAccount, customPricing, setSavedBucketName, setSavedProjectId } =
+    usePersistentStore()
   const {
     oauthToken,
     setDownloadProgress,
     setActiveAbortController,
     isDemoMode,
+    setDemoMode,
   } = useRuntimeStore()
   const { addToast } = useToastStore()
 
   // Navigation state
-  const [currentPrefix, setCurrentPrefix] = useState<string>('feature_films/reel_04/')
+  const [currentPrefix, setCurrentPrefix] = useState<string>('')
   const [folders, setFolders] = useState<string[]>([])
   const [files, setFiles] = useState<GCSMediaItem[]>([])
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined)
@@ -38,6 +49,7 @@ export const AppShell: React.FC = () => {
   // Modals & Drawers state
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false)
+  const [isPricingSettingsOpen, setIsPricingSettingsOpen] = useState(false)
   const [inspectedAsset, setInspectedAsset] = useState<GCSMediaItem | null>(null)
   const [cliModalPaths, setCliModalPaths] = useState<string[] | null>(null)
   const [highCostConfirm, setHighCostConfirm] = useState<{
@@ -45,26 +57,41 @@ export const AppShell: React.FC = () => {
     pendingAction: () => void
   } | null>(null)
 
+  const isBatchDownloadingRef = useRef(false)
+
   // Load directory contents
   const loadDirectory = useCallback(
     async (prefix: string, pageToken?: string) => {
+      // If unauthenticated in Live mode, skip loading
+      if (!isDemoMode && (!oauthToken || !savedBucketName)) {
+        setFolders([])
+        setFiles([])
+        return
+      }
+
       setIsLoadingDirectory(true)
       try {
         ObservabilityService.info('GCS', `Listing directory prefix: "${prefix}"`)
         const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
-        const res =
-          isDemoMode || !oauthToken
-            ? await gcsClientService.listDemoObjects(prefix)
-            : await gcsClientService.listObjects(oauthToken, cleanBucket, {
-                prefix,
-                delimiter: '/',
-                userProject: savedProjectId,
-                pageToken,
-              })
-        setFolders(res.folders)
-        setFiles(res.files)
-        setCurrentPrefix(prefix)
-        setNextPageToken(res.nextPageToken)
+
+        if (isDemoMode) {
+          const res = await gcsClientService.listDemoObjects(prefix)
+          setFolders(res.folders)
+          setFiles(res.files)
+          setCurrentPrefix(prefix)
+          setNextPageToken(res.nextPageToken)
+        } else {
+          const res = await gcsClientService.listObjects(oauthToken!, cleanBucket, {
+            prefix,
+            delimiter: '/',
+            userProject: savedProjectId,
+            pageToken,
+          })
+          setFolders(res.folders)
+          setFiles(res.files)
+          setCurrentPrefix(prefix)
+          setNextPageToken(res.nextPageToken)
+        }
       } catch (err: any) {
         ObservabilityService.error('GCS', `Failed to list directory: ${err.message}`)
         addToast({
@@ -81,14 +108,52 @@ export const AppShell: React.FC = () => {
 
   useEffect(() => {
     loadDirectory(currentPrefix)
-  }, [loadDirectory, currentPrefix])
+  }, [loadDirectory, currentPrefix, isDemoMode, oauthToken])
+
+  // Global Keyboard Shortcuts (AUX-04)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 1. Esc closes top modal or drawer
+      if (e.key === 'Escape') {
+        if (cliModalPaths !== null) setCliModalPaths(null)
+        else if (highCostConfirm !== null) setHighCostConfirm(null)
+        else if (inspectedAsset !== null) setInspectedAsset(null)
+        else if (isPricingSettingsOpen) setIsPricingSettingsOpen(false)
+        else if (isDiagnosticsOpen) setIsDiagnosticsOpen(false)
+        else if (isOnboardingOpen) setIsOnboardingOpen(false)
+        return
+      }
+
+      // 2. Global search shortcut Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        const searchInput = document.querySelector<HTMLInputElement>(
+          'input[placeholder*="Search"]',
+        )
+        if (searchInput) {
+          searchInput.focus()
+          searchInput.select()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [
+    cliModalPaths,
+    highCostConfirm,
+    inspectedAsset,
+    isPricingSettingsOpen,
+    isDiagnosticsOpen,
+    isOnboardingOpen,
+  ])
 
   // Single Item Download Trigger
   const handleInitiateDownload = (item: GCSMediaItem) => {
     const cost = CostGovernanceEngine.calculateSingle(
       item.sizeBytes,
       item.storageClass,
-      undefined,
+      customPricing as any,
       isFreeTrialAccount,
     )
 
@@ -102,23 +167,45 @@ export const AppShell: React.FC = () => {
     }
   }
 
-  // Batch Download Trigger
+  // Batch Download Trigger (Multi-Asset Sequential Queue)
   const handleInitiateBatchDownload = (items: GCSMediaItem[]) => {
     if (items.length === 0) return
 
     const cost = CostGovernanceEngine.calculate(
       items.map((i) => ({ sizeBytes: i.sizeBytes, storageClass: i.storageClass })),
-      undefined,
+      customPricing as any,
       isFreeTrialAccount,
     )
+
+    const runBatch = async () => {
+      isBatchDownloadingRef.current = true
+      addToast({
+        type: 'info',
+        title: 'Batch Download Initiated',
+        message: `Starting sequential download for ${items.length} assets...`,
+      })
+
+      for (let i = 0; i < items.length; i++) {
+        if (!isBatchDownloadingRef.current) break
+        const item = items[i]
+        try {
+          await executeStreamDownload(item)
+        } catch (err: any) {
+          if (err.name === 'UserCancelledPickerError' || err.name === 'AbortError') {
+            break
+          }
+        }
+      }
+      isBatchDownloadingRef.current = false
+    }
 
     if (cost.isHighCostThreshold) {
       setHighCostConfirm({
         costResult: cost,
-        pendingAction: () => executeStreamDownload(items[0]),
+        pendingAction: runBatch,
       })
     } else {
-      executeStreamDownload(items[0])
+      runBatch()
     }
   }
 
@@ -163,7 +250,7 @@ export const AppShell: React.FC = () => {
     const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
 
     try {
-      if (isDemoMode || !oauthToken) {
+      if (isDemoMode) {
         await streamDownloadService.streamDemoDownload(item, {
           onProgress: (progress) => {
             const currentToken = useRuntimeStore.getState().oauthToken
@@ -191,7 +278,7 @@ export const AppShell: React.FC = () => {
           objectName: item.name,
           suggestedFilename: item.displayName,
           userProject: savedProjectId,
-          oauthToken,
+          oauthToken: oauthToken || '',
           expectedCrc32c: item.crc32c,
           fileSize: item.sizeBytes,
           onProgress: (progress) => {
@@ -229,17 +316,132 @@ export const AppShell: React.FC = () => {
     }
   }
 
+  const isUnconfiguredLive = !isDemoMode && (!oauthToken || !savedBucketName)
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+      {/* Accessible Skip Link (AUX-04) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-500 focus:text-slate-950 focus:font-bold focus:rounded-xl focus:shadow-xl"
+      >
+        Skip to main content
+      </a>
+
+      {/* Network Resiliency Banner (AUX-05) */}
+      <NetworkBanner onRetry={() => loadDirectory(currentPrefix)} />
+
       {/* Top Header */}
       <Header
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        onOpenPricingSettings={() => setIsPricingSettingsOpen(true)}
       />
 
+      {/* Demo Sandbox Mode Sticky Banner Indicator */}
+      {isDemoMode && (
+        <aside
+          aria-label="Sandbox Status"
+          className="bg-emerald-950/80 border-b border-emerald-500/30 px-4 py-2 text-xs flex items-center justify-between text-emerald-200 backdrop-blur-sm"
+        >
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
+            <span className="font-semibold">Demo Sandbox Active</span>
+            <span className="text-emerald-400/80 hidden sm:inline">&bull;</span>
+            <span className="text-emerald-300/80 hidden sm:inline font-mono">
+              Exploring gs://partner-raw-master-archives-2026 with 24 synthetic assets
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDemoMode(false)
+              addToast({
+                type: 'info',
+                title: 'Live GCS Mode Activated',
+                message: 'Switched to Live Google Cloud Storage mode.',
+              })
+            }}
+            className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] transition-colors cursor-pointer"
+          >
+            Switch to Live GCS
+          </button>
+        </aside>
+      )}
+
       {/* Main Workspace Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {isLoadingDirectory ? (
+      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {isUnconfiguredLive ? (
+          /* Clean Live Mode Welcome / Connect Hero */
+          <div className="py-16 px-4 max-w-2xl mx-auto text-center space-y-6 animate-in fade-in duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-950/40">
+              <FolderLock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Connect to Google Cloud Storage
+              </h2>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-lg mx-auto">
+                Authenticate directly from your browser to access Requester-Pays production buckets. No server middleware, 100% zero host liability.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsOnboardingOpen(true)}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                <ShieldCheck className="w-5 h-5" />
+                <span>Launch Connection Wizard</span>
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  gisAuthService.signInDemo()
+                  setSavedProjectId('demo-client-media-2026')
+                  setSavedBucketName('gs://partner-raw-master-archives-2026')
+                  setDemoMode(true)
+                  addToast({
+                    type: 'info',
+                    title: 'Demo Sandbox Initialized',
+                    message: 'Exploring 24 cinematic media master files.',
+                  })
+                }}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Explore Demo Sandbox</span>
+              </button>
+            </div>
+
+            {/* Feature Highlights */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 border-t border-slate-800/80 text-left">
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="font-semibold text-white text-xs">Direct-to-Disk Streaming</div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  4MB micro-chunks streamed via Native Chromium File System Access API with bounded memory (&lt;15MB).
+                </p>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="font-semibold text-white text-xs">Castagnoli CRC32c</div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Live bit-exact parity validation against Google Cloud Storage hash digests.
+                </p>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div className="font-semibold text-white text-xs">Zero Host Liability</div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Client-side execution with volatile in-memory OAuth tokens. Keys never touch server disk.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : isLoadingDirectory ? (
           <div className="py-20 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
             <p className="text-xs font-mono text-slate-400">Querying GCS directory metadata...</p>
@@ -296,6 +498,12 @@ export const AppShell: React.FC = () => {
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
         onComplete={() => loadDirectory(currentPrefix)}
+      />
+
+      {/* Pricing Settings Modal (AUX-06) */}
+      <PricingSettingsModalShell
+        isOpen={isPricingSettingsOpen}
+        onClose={() => setIsPricingSettingsOpen(false)}
       />
 
       {/* System Diagnostics & Health Modal */}

@@ -825,6 +825,16 @@ export const useRuntimeStore = create<RuntimeSessionState>((set) => ({
 
 ---
 
+## 8. Cross-Engine Integration with Module 9 (GCP Config Center & Controls)
+
+The primary engines integrate with **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`) as follows:
+- **Engine 1 (`GCPOnboardingEngine`)**: Provides the reusable `runPreflightHandshake()` method called in the background when switching buckets via `BucketSwitcherControl` or executing live audits in `GCPConfigCenterModalShell`.
+- **Engine 2 (`BucketExplorerEngine`)**: Triggered with `prefix=""` upon any successful bucket switch.
+- **Engine 3 (`CostGovernanceEngine`)**: Supplies active rate card data ($/GB rates and Free Trial credit status) to the Config Center inspection cards.
+- **Engine 7 (`StatePersistenceEngine`)**: Ingests and persists `savedBucketName`, `savedProjectId`, `recentBuckets`, and `customPricing` changes from the switchers.
+
+---
+
 ### Architectural Sign-Off for System Engines
 
-All 7 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, and furnish production-ready TypeScript contracts.
+All 7 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly expose state to the Module 9 Configuration Center.

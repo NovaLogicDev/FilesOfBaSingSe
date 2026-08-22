@@ -64,7 +64,8 @@ The following **15 specification artifacts** and **4 visual mockups** constitute
 │   ├── module_5_cryptographic_integrity_design_and_requirements.md (MOD-05: CRC32c Integrity Checksum)
 │   ├── module_6_asset_inspector_design_and_requirements.md   (MOD-06: Asset Deep-Inspection Drawer)
 │   ├── module_7_cli_generator_design_and_requirements.md     (MOD-07: Automated Batch & CLI Generator)
-│   └── module_8_state_persistence_design_and_requirements.md (MOD-08: State & Security Persistence)
+│   ├── module_8_state_persistence_design_and_requirements.md (MOD-08: State & Security Persistence)
+│   └── module_9_workspace_and_gcp_config_center_design_and_requirements.md (MOD-09: Workspace & GCP Config Center)
 │
 └── 3. High-Fidelity UI Design Mockups (Embedded Visual Artifacts):
     ├── onboarding_wizard_ui_1787372078886.jpg                (Screen 1: Onboarding Wizard & Free Trial)

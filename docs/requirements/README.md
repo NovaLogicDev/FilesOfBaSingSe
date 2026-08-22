@@ -21,7 +21,7 @@ This directory contains the complete product requirements, user stories, UI wire
 
 ---
 
-### 3. Modular Deep-Dive Specifications (Modules 1–8)
+### 3. Modular Deep-Dive Specifications (Modules 1–9)
 1. **[Module 1: Authentication & GCP Project Onboarding](module_1_auth_onboarding_design_and_requirements.md)** (`MOD-01-AUTH-ONBOARDING`)
 2. **[Module 2: GCS Explorer & Virtualized Asset Grid](module_2_gcs_explorer_design_and_requirements.md)** (`MOD-02-GCS-EXPLORER`)
 3. **[Module 3: Cost Governance & Real-Time Estimator](module_3_cost_governance_design_and_requirements.md)** (`MOD-03-COST-GOVERNANCE`)
@@ -30,6 +30,7 @@ This directory contains the complete product requirements, user stories, UI wire
 6. **[Module 6: Asset Deep-Inspection & Technical Metadata Drawer](module_6_asset_inspector_design_and_requirements.md)** (`MOD-06-ASSET-INSPECTOR`)
 7. **[Module 7: Automated Batch & CLI Companion Generator](module_7_cli_generator_design_and_requirements.md)** (`MOD-07-CLI-GENERATOR`)
 8. **[Module 8: State Management, Security Boundary & Persistence](module_8_state_persistence_design_and_requirements.md)** (`MOD-08-STATE-PERSISTENCE`)
+9. **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`)
 
 ---
 

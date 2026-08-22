@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   Copy,
@@ -9,6 +9,7 @@ import {
   DollarSign,
   ShieldCheck,
   Layers,
+  Sparkles,
 } from 'lucide-react'
 import { GCSMediaItem } from '../../types'
 import { CostGovernanceEngine } from '../../engines/cost'
@@ -30,16 +31,28 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
   onDownload,
   onGenerateCli,
 }) => {
-  const { isFreeTrialAccount, savedProjectId } = usePersistentStore()
+  const { isFreeTrialAccount, savedProjectId, savedBucketName, customPricing } =
+    usePersistentStore()
   const { addToast } = useToastStore()
   const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  // Handle ESC key to dismiss drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   if (!isOpen || !item) return null
 
   const cost = CostGovernanceEngine.calculateSingle(
     item.sizeBytes,
     item.storageClass,
-    undefined,
+    customPricing as any,
     isFreeTrialAccount,
   )
 
@@ -57,6 +70,13 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
 
   const handleCopyJson = () => {
     copyToClipboard(JSON.stringify(item, null, 2), 'Object JSON Metadata')
+  }
+
+  const handleCopyGsutil = () => {
+    const bucket = savedBucketName.replace(/^gs:\/\//, '') || item.bucket
+    const proj = savedProjectId ? ` -u ${savedProjectId}` : ''
+    const cmd = `gsutil -m${proj} cp "gs://${bucket}/${item.name}" .`
+    copyToClipboard(cmd, 'gsutil Command')
   }
 
   return (
@@ -78,7 +98,7 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
         </div>
         <button
           onClick={onClose}
-          className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+          className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
           aria-label="Close drawer"
         >
           <X className="w-5 h-5" />
@@ -116,12 +136,17 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
               <DollarSign className="w-4 h-4" />
               <span>DIRECT BILLING ESTIMATE</span>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono">Billed to: {savedProjectId}</span>
+            {isFreeTrialAccount && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1">
+                <Sparkles className="w-3 h-3" />
+                <span>Free Trial Covered</span>
+              </span>
+            )}
           </div>
 
           <div className="space-y-1.5 border-t border-slate-800 pt-2 font-mono text-slate-300">
             <div className="flex justify-between">
-              <span>Archive Retrieval ($0.05/GB):</span>
+              <span>{item.storageClass} Retrieval:</span>
               <span className="text-white">${cost.retrievalTotalUSD.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
@@ -153,7 +178,7 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
               <span>CRC32c (Base64):</span>
               <button
                 onClick={() => copyToClipboard(item.crc32c, 'CRC32c Base64')}
-                className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+                className="hover:text-emerald-400 flex items-center space-x-1 transition-colors cursor-pointer"
               >
                 {copiedField === 'CRC32c Base64' ? (
                   <Check className="w-3 h-3 text-emerald-400" />
@@ -175,7 +200,7 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
                 <span>CRC32c (Hex):</span>
                 <button
                   onClick={() => copyToClipboard(item.crc32cHex!, 'CRC32c Hex')}
-                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors cursor-pointer"
                 >
                   {copiedField === 'CRC32c Hex' ? (
                     <Check className="w-3 h-3 text-emerald-400" />
@@ -198,7 +223,7 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
                 <span>MD5 Hash:</span>
                 <button
                   onClick={() => copyToClipboard(item.md5Hash!, 'MD5 Hash')}
-                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors cursor-pointer"
                 >
                   {copiedField === 'MD5 Hash' ? (
                     <Check className="w-3 h-3 text-emerald-400" />
@@ -241,29 +266,41 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
             onDownload(item)
             onClose()
           }}
-          className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950/50"
+          className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950/50 cursor-pointer"
         >
           <Download className="w-4 h-4" />
           <span>Stream Download to Disk</span>
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => {
               onGenerateCli(item)
               onClose()
             }}
-            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1.5 transition-all"
+            className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1 transition-all cursor-pointer"
+            title="Generate CLI Command Dialog"
           >
             <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Generate CLI</span>
+            <span>CLI Modal</span>
           </button>
+
+          <button
+            onClick={handleCopyGsutil}
+            className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1 transition-all cursor-pointer"
+            title="Copy 1-line gsutil cp command"
+          >
+            <Copy className="w-3.5 h-3.5 text-emerald-400" />
+            <span>gsutil</span>
+          </button>
+
           <button
             onClick={handleCopyJson}
-            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1.5 transition-all"
+            className="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1 transition-all cursor-pointer"
+            title="Copy full JSON object metadata"
           >
             <FileCode className="w-3.5 h-3.5 text-amber-400" />
-            <span>Copy JSON</span>
+            <span>JSON</span>
           </button>
         </div>
       </div>

@@ -128,3 +128,10 @@ export interface DirectoryViewState {
   - `test_table_sorting`: Validates natural alphanumeric and byte size sorting.
 - **Performance & Virtualization Tests**:
   - Load 10,000 mock items into `VirtualizedAssetTable` and assert frame render times stay $< 16\text{ ms}$.
+
+---
+
+### 8. Cross-Module Integration & Post-Setup Controls
+
+- **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Integrates with `BreadcrumbBar.tsx` to turn the root `gs://[bucket-name]` path segment into an interactive bucket switcher popover with recent bucket memory (`recentBuckets`).
+- **[Module 3: Cost Governance](module_3_cost_governance_design_and_requirements.md)** (`MOD-03-COST-GOVERNANCE`): Ingests multi-selected rows to render sticky cost projections.

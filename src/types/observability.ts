@@ -1,5 +1,5 @@
 export type LogLevel = 'info' | 'warn' | 'error'
-export type LogCategory = 'AUTH' | 'GCS' | 'STREAM' | 'PREFLIGHT' | 'COST' | 'SECURITY' | 'SERVICE_WORKER'
+export type LogCategory = 'AUTH' | 'GCS' | 'STREAM' | 'PREFLIGHT' | 'COST' | 'SECURITY' | 'SERVICE_WORKER' | 'NETWORK'
 
 export interface DiagnosticLogEntry {
   id: string

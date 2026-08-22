@@ -10,6 +10,7 @@ import {
   Activity,
   ShieldCheck,
   Layers,
+  DollarSign,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
@@ -19,11 +20,13 @@ import { gisAuthService } from '../../services/gisAuthService'
 interface HeaderProps {
   onOpenOnboarding: () => void
   onOpenDiagnostics: () => void
+  onOpenPricingSettings: () => void
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
   onOpenDiagnostics,
+  onOpenPricingSettings,
 }) => {
   const {
     oauthToken,
@@ -68,6 +71,14 @@ export const Header: React.FC<HeaderProps> = ({
     })
   }
 
+  const displayBucket = isDemoMode
+    ? 'gs://partner-raw-master-archives-2026'
+    : savedBucketName || 'No Bucket Connected'
+
+  const displayProject = isDemoMode
+    ? 'demo-client-media-2026'
+    : savedProjectId || 'Unconfigured'
+
   return (
     <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -95,17 +106,13 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="hidden lg:flex items-center space-x-3 text-xs">
           <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-mono text-[11px]">
-              {savedBucketName || 'gs://partner-raw-master-archives-2026'}
-            </span>
+            <span className="font-mono text-[11px]">{displayBucket}</span>
           </div>
 
           <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
             <Lock className="w-3.5 h-3.5 text-amber-400" />
             <span>Billed to:</span>
-            <span className="font-mono font-medium text-emerald-400">
-              {savedProjectId || 'demo-client-media-2026'}
-            </span>
+            <span className="font-mono font-medium text-emerald-400">{displayProject}</span>
           </div>
         </div>
 
@@ -123,6 +130,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>{isDemoMode ? 'Demo Sandbox' : 'Live GCS'}</span>
+          </button>
+
+          {/* Pricing Settings Button */}
+          <button
+            onClick={onOpenPricingSettings}
+            className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            title="Configure GCS Rate Card & Pricing Overrides"
+            aria-label="Pricing Settings"
+          >
+            <DollarSign className="w-4 h-4 text-emerald-400" />
           </button>
 
           {/* Diagnostics Button */}
