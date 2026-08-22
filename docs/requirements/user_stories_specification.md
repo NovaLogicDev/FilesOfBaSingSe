@@ -1,0 +1,564 @@
+# Product Requirements & User Stories Specification
+## Project: Files of Ba Sing Se — GCS Requester-Pays Media Distribution Portal
+
+---
+
+### Executive Overview & Strategic Intent
+
+**Files of Ba Sing Se** is a client-side Single Page Application (SPA) designed to empower external clients (independent video editors, freelance audio engineers, boutique VFX studios, and data partners) to browse, inspect, and stream multi-gigabyte media assets (500MB to 50GB+) directly from a Google Cloud Storage (GCS) Archive-tier bucket to their local workstations.
+
+The system guarantees **zero bandwidth and retrieval cost liability for the host** by strictly enforcing GCS **Requester Pays** (`userProject`). All data retrieval fees ($0.05/GB) and egress fees ($0.12/GB) are billed directly to the client's Google Cloud project.
+
+Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. This engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits.
+
+Furthermore, the application achieves **zero browser crashes / zero Out-of-Memory (OOM) failures** through a constant-memory direct-to-disk streaming engine using the **File System Access API** and **Service Worker stream interception**.
+
+```mermaid
+flowchart TD
+    subgraph ClientEnvironment ["Client Local Environment"]
+        Browser["Client Web Browser (SPA)"]
+        Disk["Local File System (Direct Stream via FSAA)"]
+        ClientGCP["Client GCP Project & Billing Account"]
+    end
+
+    subgraph HostEnvironment ["Host Zero-Liability Infrastructure"]
+        HostGCS["Host GCS Archive Bucket\n(gs://media-archive-bucket)\n[Requester-Pays: ENABLED]"]
+        StaticCDN["Static Web Host (Cloudflare Pages / Firebase)\n(Zero Compute / Static Assets Only)"]
+    end
+
+    subgraph GoogleCloud ["Google Cloud Platform Services"]
+        GIS["Google Identity Services (OAuth 2.0)"]
+        GCS_API["GCS REST API (storage.googleapis.com)"]
+        GCP_Billing["GCP Billing Engine"]
+    end
+
+    StaticCDN -->|"1. Serve Static SPA (HTML/JS/CSS)"| Browser
+    Browser -->|"2. Authenticate & Obtain OAuth Bearer Token"| GIS
+    GIS -->|"3. Return Bearer Token"| Browser
+    Browser -->|"4. Send API Request with ?userProject=Client_Project_ID"| GCS_API
+    GCS_API -->|"5. Validate IAM & Bill Retrieval + Egress"| GCP_Billing
+    GCP_Billing -->|"6. Charge Client Account ($0.05/GB + $0.12/GB)"| ClientGCP
+    GCS_API -->|"7. Stream Binary Chunks (Zero Host Proxy)"| Browser
+    Browser -->|"8. Direct Pipe (4MB Buffer) to Disk"| Disk
+    HostGCS -.->|"Object Data (Zero Host Egress Cost)"| GCS_API
+
+    style ClientGCP fill:#ff9999,stroke:#cc0000,stroke-width:2px;
+    style HostEnvironment fill:#d4edda,stroke:#28a745,stroke-width:2px;
+    style Disk fill:#cce5ff,stroke:#004085,stroke-width:2px;
+```
+
+---
+
+### User Personas
+
+| Persona | Role | Technical Familiarity | Primary Goals | Key Pain Points |
+| :--- | :--- | :--- | :--- | :--- |
+| **Taylor (Solo Freelance Video Editor)** | Independent Colorist / Editor on macOS | **Novice / Zero GCP Experience** | Download 20GB+ master reels without knowing GCP technical jargon; get set up in under 2 minutes. | Does not know what a "GCP Project ID" is; gets intimidated by cloud consoles; fears hidden costs. |
+| **Alex (Post-Production Lead)** | Video Editor / Producer at a Production Co. | **Intermediate** | Browse shoot dates, estimate batch download costs for the team, stream files directly to local NVMe drive. | Browser freezing/crashing on large downloads; unexpected cloud bills; clunky IT processes. |
+| **Devon (VFX / Data Pipeline Lead)** | Technical Director / Pipeline Engineer | **Advanced / Cloud Native** | Inspect exact file checksums (CRC32c/MD5), batch download raw footage, generate shell scripts for render farm ingestion. | Missing checksum verifications; slow sequential UI downloads; lack of scriptable commands. |
+| **Sam (Media Client Exec)** | Budget Owner / Production Manager | **Business / Non-Technical** | Verify estimated GCP billing charges before committing to downloading 2TB of cold archives. | "Bill shock" from unexpected Archive retrieval costs; confusing GCP console permissions. |
+
+---
+
+## Epic 1: Frictionless Client Onboarding & GCP Project Provisioning Engine
+
+### Epic Goal
+Transform the onboarding experience so that even a first-time Google Cloud user (who has never seen the GCP console) can sign in with their standard Google account, auto-discover or auto-create a GCP project in 1-click via API, link billing ($300 free trial supported), and validate bucket access in under 2 minutes.
+
+```mermaid
+flowchart TD
+    Start([Client Lands on Web Portal]) --> SignIn[1. Sign In with Google OAuth]
+    SignIn --> QueryGCP{App Calls Cloud Resource Manager API\ncloudresourcemanager.googleapis.com/v1/projects}
+    
+    QueryGCP -->|Existing Projects Found| Dropdown[Auto-Populate Project Dropdown\nUser selects project in 1-click]
+    
+    QueryGCP -->|Has Billing Account, No Project| AutoCreate[1-Click 'Auto-Create Media Project'\n1. POST /v1/projects\n2. POST serviceusage:enable storage]
+    
+    QueryGCP -->|Brand New to GCP / No Billing| FreeTrialCard[✨ '$300 Free Trial' Guided Assistant\n1. Deep link to console.cloud.google.com/freetrial\n2. 'Takes 60s & Google gives $300 free credits'\n3. 1-Click 'Auto-Detect My Project' Return Button]
+    
+    Dropdown --> CheckBilling[Verify Billing Linkage\ncloudbilling.googleapis.com]
+    AutoCreate --> CheckBilling
+    FreeTrialCard --> CheckBilling
+    
+    CheckBilling --> Preflight[Automated 4-Point Preflight Test\nOAuth + Bucket + IAM Viewer + CORS]
+    Preflight --> Ready([Enter Media Portal & Start Streaming])
+```
+
+![Client Onboarding Wizard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/onboarding_wizard_ui_1787372078886.jpg)
+
+---
+
+### Story 1.1: Direct Google Identity Authentication (OAuth 2.0) & Progressive Consent
+**As a** solo freelance client (Taylor),  
+**I want to** sign in using my standard Google account (`@gmail.com` or Google Workspace),  
+**So that** I don't have to create a separate application account or manage API keys.
+
+#### Acceptance Criteria
+1. **Given** a user opens the application, **When** the page loads, **Then** the UI displays an inviting, clear welcome screen: *"Welcome to Files of Ba Sing Se Media Portal. Sign in with your Google account to access your project files."*
+2. **Given** the user clicks "Sign in with Google", **When** the GIS OAuth prompt appears, **Then** it initially requests standard read permissions (`devstorage.read_only` and user profile).
+3. **Given** authentication succeeds, **When** the access token is returned:
+   - The token is held **strictly in volatile runtime memory** (`Zustand` store) and **never written** to `localStorage`, `sessionStorage`, or cookies.
+   - The user's name, email, and avatar render in the header.
+   - The application immediately checks whether the user has existing GCP projects.
+
+---
+
+### Story 1.2: Automated In-App GCP Project Discovery via Resource Manager API
+**As a** client user,  
+**I want the** application to automatically detect and list my Google Cloud projects in a simple dropdown,  
+**So that** I don't have to navigate to the Google Cloud Console, search for project settings, or manually copy-paste cryptic project IDs.
+
+#### Acceptance Criteria
+1. **Given** an authenticated user, **When** checking for GCP projects, **Then** the application queries the Google Cloud Resource Manager API: `GET https://cloudresourcemanager.googleapis.com/v1/projects` (or `v3/projects`) with `Authorization: Bearer {TOKEN}`.
+2. **Given** projects are found, **When** returned, **Then**:
+   - The UI populates a friendly dropdown selector showing project names and IDs (e.g., `Client Post Production (client-prod-media-99)`).
+   - If the user previously selected a project on this browser, that project is auto-selected from `localStorage`.
+   - The app immediately tests billing status on the selected project.
+3. **Given** no projects are found (or user has no active project), **When** detected, **Then** the UI automatically transitions into the **"New to Google Cloud? 1-Click Setup"** flow.
+
+---
+
+### Story 1.3: One-Click Automated Media Project Creation & Storage API Activation
+**As a** freelance editor who has a GCP billing account but no media project,  
+**I want to** click "Auto-Create Media Project",  
+**So that** the app creates a dedicated project for me and enables the Google Cloud Storage API automatically via API without manual console setup.
+
+#### Acceptance Criteria
+1. **Given** a user clicks "Auto-Create Media Project", **When** initiated, **Then** the application:
+   - Generates a clean project name and ID (e.g., `basingse-media-dl-XXXX` where `XXXX` is a random 4-digit suffix).
+   - Issues a `POST https://cloudresourcemanager.googleapis.com/v1/projects` request with `{ projectId, name: "Ba Sing Se Media Downloads" }`.
+2. **Given** project creation initiates, **When** the operation completes, **Then** the app automatically invokes `POST https://serviceusage.googleapis.com/v1/projects/{projectId}/services/storage.googleapis.com:enable` to ensure Cloud Storage API is fully enabled.
+3. **Given** completion, **When** verified, **Then** the newly created project is set as the active `userProject` and saved to `localStorage`.
+
+---
+
+### Story 1.4: "New to Google Cloud" Guided Onboarding & \$300 Free Trial Assistant
+**As a** solo client who has never used Google Cloud before (Taylor),  
+**I want** clear, visual, step-by-step guidance on how to activate Google Cloud (including claiming the \$300 Free Trial credits),  
+**So that** I can complete the one-time Google setup in 60 seconds without confusion or fear of unexpected costs.
+
+#### Acceptance Criteria
+1. **Given** a user with no GCP account or billing profile, **When** viewing the onboarding wizard, **Then** the UI presents a streamlined 3-step visual card:
+   - **Card 1: Activate Google Cloud Free Trial**:
+     - Headline: *"Google gives all new users \$300 in free credits for 90 days. This will completely cover your media download charges."*
+     - Button: `[ 🚀 Open Google Cloud Free Trial Signup (External Link) ]` (opens `https://console.cloud.google.com/freetrial` in a new tab).
+     - Subtext: *"Takes ~60 seconds to link your Google account. No charges will be made beyond your \$300 free credits."*
+   - **Card 2: Auto-Detect My Project**:
+     - Button: `[ 🔄 I've Signed Up — Auto-Detect My Project ]`.
+     - When clicked, re-queries `cloudresourcemanager.googleapis.com` to discover the newly created project.
+   - **Card 3: Manual Project ID Override**:
+     - An expandable toggle: *"I already have a Project ID from my IT department"* allowing direct text input for corporate users.
+2. **Given** the user completes signup in the external tab and clicks "Auto-Detect My Project", **When** verified, **Then** the wizard transitions directly to the Preflight Verification check.
+
+---
+
+### Story 1.5: Cloud Billing Linkage Verification (`cloudbilling.googleapis.com`)
+**As a** client user,  
+**I want the** app to check whether my selected project has an active billing account linked,  
+**So that** my downloads will not fail with cryptic `UserProjectAccessDenied` errors.
+
+#### Acceptance Criteria
+1. **Given** a selected GCP project, **When** verified, **Then** the app queries `GET https://cloudbilling.googleapis.com/v1/projects/{projectId}/billingInfo`.
+2. **Given** `billingEnabled == true`, **When** received, **Then** the UI marks the Billing Checkpoint as `[OK Billing Active]`.
+3. **Given** `billingEnabled == false`, **When** received, **Then** the UI displays an inline warning banner: *"This project does not have a linked billing account. GCS Requester Pays requires billing to be enabled."* with a direct 1-click link to `https://console.cloud.google.com/billing/linkedaccount?project={projectId}`.
+
+---
+
+### Story 1.6: Automated 4-Point Preflight Connection & Permission Test
+**As a** client user,  
+**I want to** see an automated live preflight check before entering the media browser,  
+**So that** I know immediately if my GCP project ID is invalid, if I lack IAM permissions, or if CORS/Requester-Pays is misconfigured.
+
+#### Acceptance Criteria
+1. **Given** valid OAuth token, Project ID, and Bucket name inputs, **When** the preflight runs, **Then** the application executes: `GET https://storage.googleapis.com/storage/v1/b/{BUCKET}?userProject={PROJECT_ID}` with `Authorization: Bearer {TOKEN}`.
+2. **Given** the preflight check runs, **When** evaluating responses, **Then** the UI displays live status badges for 4 discrete checkpoints:
+   - **OAuth 2.0 Token**: `[OK Valid]` (displays expiration countdown).
+   - **GCS Bucket Reachability & Requester Pays**: `[OK Active]` (validates `billing.requesterPays == true`).
+   - **Client IAM Permissions**: `[OK Granted]` (verifies `roles/storage.objectViewer` read capability).
+   - **CORS & Origin Configuration**: `[OK Verified]` (confirms preflight headers `x-goog-hash`, `Content-Length`, `Range` are exposed).
+3. **Given** any preflight failure, **When** an error occurs, **Then** the system displays a clear, non-cryptic error card with actionable instructions and 1-click retry.
+4. **Given** all 4 checkpoints pass, **When** validated, **Then** the "Enter Media Portal" button illuminates green and advances the user into the asset explorer.
+
+---
+
+## Epic 2: Media Asset Explorer & Hierarchical Navigation
+
+### Epic Goal
+Enable intuitive, lightning-fast exploration of massive GCS buckets containing tens of thousands of media files, with folder hierarchy, rich file metadata, and smooth virtualized rendering.
+
+![Media Asset Explorer Dashboard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/media_asset_explorer_ui_1787372090138.jpg)
+
+---
+
+### Story 2.1: Hierarchical Directory & Breadcrumb Navigation
+**As a** post-production lead (Alex) or freelance editor (Taylor),  
+**I want to** navigate through nested folders using interactive breadcrumbs and folder rows,  
+**So that** I can locate specific scenes, reels, and shoot dates without feeling overwhelmed by a flat list of 50,000 files.
+
+#### Acceptance Criteria
+1. **Given** an entered bucket, **When** the root loads, **Then** the application queries the GCS JSON API using `delimiter=/` and `prefix=""` with `?userProject={PROJECT_ID}` to separate common prefixes (folders) from leaf objects (files).
+2. **Given** subfolders exist, **When** rendered, **Then** folders appear at the top of the list with folder icons and child item counts (if available).
+3. **Given** a user clicks on a folder (e.g., `feature_films/reel_04/`), **When** clicked, **Then**:
+   - The navigation path updates immediately.
+   - Interactive breadcrumbs update at the top: `[ gs:// ] > [ bucket-name ] > [ feature_films ] > [ reel_04 ]`.
+   - Each breadcrumb segment is clickable to navigate directly back up the tree.
+   - The browser URL/history updates (e.g., `#/browse/feature_films/reel_04/`) allowing bookmarking and browser Back/Forward navigation.
+
+---
+
+### Story 2.2: High-Performance Virtualized Asset Data Grid
+**As a** client user,  
+**I want to** scroll smoothly through directories containing thousands of media assets,  
+**So that** the browser interface remains fluid (60 FPS) without lag or DOM bloat.
+
+#### Acceptance Criteria
+1. **Given** a directory with >500 items, **When** displayed, **Then** the data table uses virtualized windowing rendering only visible DOM rows.
+2. **Given** the asset table, **When** rendered, **Then** each row presents:
+   - **Checkbox**: Selection state for batch operations.
+   - **Name & Extension Icon**: Visual icon indicating media type (Video `.mov`/`.mxf`/`.mp4`, Audio `.wav`/`.aac`, Archive `.tar`/`.zip`/`.bsp`, Document `.json`/`.pdf`/`.xml`).
+   - **Storage Class Badge**: Color-coded pill tag (`ARCHIVE` in ice-blue, `COLDLINE` in cyan, `NEARLINE` in amber, `STANDARD` in emerald green).
+   - **Size**: Formatted human-readable string (e.g., `18.40 GB`, `340.2 MB`, `4.2 KB`) with raw byte tooltip ($1\text{ GB} = 10^9\text{ bytes}$).
+   - **Last Modified**: Localized date/time string with relative time ("2 days ago").
+   - **Integrity Indicator**: `[CRC32c OK]` badge indicating pre-computed hash availability in GCS metadata.
+   - **Action Buttons**: Quick action icons `[Download]`, `[CLI]`, `[Info]`.
+3. **Given** multi-page GCS API results, **When** `nextPageToken` is returned, **Then** the grid supports seamless infinite scrolling or responsive pagination controls (`Page X of Y`).
+
+---
+
+### Story 2.3: Live Filtering, Search & Multi-Column Sorting
+**As a** video editor,  
+**I want to** filter by file extension, search by file name, and sort by file size or date,  
+**So that** I can instantly find the master ProRes file among hundreds of auxiliary files.
+
+#### Acceptance Criteria
+1. **Given** the search bar, **When** the user types (e.g., `reel04` or `.mov`), **Then** the table filters in real-time (<50ms debounce) against names in the current folder view.
+2. **Given** preset filter chips (`All`, `Videos`, `Audio`, `Archives`, `Metadata`), **When** clicked, **Then** the table restricts view to matching MIME types or file extensions.
+3. **Given** table column headers (`Name`, `Size`, `Storage Class`, `Last Modified`), **When** clicked, **Then** the dataset sorts ascending/descending with visual sort direction indicators.
+
+---
+
+## Epic 3: Cost Governance, Transparency & Real-Time Estimation Engine
+
+### Epic Goal
+Provide 100% upfront financial transparency to the client by calculating exact GCS Archive retrieval and internet egress fees before any download occurs, preventing bill shock and accidental charges.
+
+---
+
+### Story 3.1: Real-Time Dynamic Cost Estimation Banner
+**As a** media client budget owner (Sam) or freelance editor (Taylor),  
+**I want to** see an accurate dollar calculation of retrieval and egress costs whenever I select files,  
+**So that** I know the exact charge that will appear on my GCP billing statement before downloading.
+
+#### Acceptance Criteria
+1. **Given** pricing rates configured for GCS (Decimal $10^9$ Byte Scale):
+   - **Archive Retrieval Rate**: `$0.050 per GB` (applied to `ARCHIVE` storage class objects).
+   - **Coldline Retrieval Rate**: `$0.020 per GB` (applied to `COLDLINE` storage class objects).
+   - **Nearline Retrieval Rate**: `$0.010 per GB` (applied to `NEARLINE` storage class objects).
+   - **Standard Retrieval Rate**: `$0.000 per GB`.
+   - **Google Internet Egress Rate**: `$0.120 per GB` (standard worldwide internet egress tier).
+2. **Given** the user selects one or more items via checkboxes, **When** selections change, **Then** a sticky **Cost Notice Banner** updates dynamically:
+   - Formula: $\text{Total Cost} = \sum (\text{Bytes}_{\text{Archive}} \times \$0.05/10^9) + \sum (\text{Bytes}_{\text{Coldline}} \times \$0.02/10^9) + \sum (\text{Bytes}_{\text{Total}} \times \$0.12/10^9)$.
+   - Example: `3 items selected (Total: 42.60 GB) | Estimated Charges: Archive Retrieval: $1.73 | Egress: $5.11 | Total Estimate: $6.84 USD`.
+   - If user is on the \$300 Free Trial, an inline pill reminds them: `[ Covered by your $300 Free Credits ]`.
+3. **Given** selection includes zero items, **When** no files are checked, **Then** the cost banner collapses gracefully into an idle state.
+
+---
+
+### Story 3.2: High-Cost & Cold-Tier Confirmation Dialog
+**As a** client user,  
+**I want to** receive a confirmation prompt when initiating a high-cost or multi-gigabyte Archive download,  
+**So that** I do not inadvertently initiate a \$50+ download by accidental double-click.
+
+#### Acceptance Criteria
+1. **Given** a single or batch download request whose total estimated charge exceeds a safety threshold (default: >\$5.00 USD or >25 GB), **When** the user clicks "Download Selected", **Then** a high-visibility modal opens:
+   - Displays total byte size, item count, and itemized billing breakdown.
+   - Shows the active target GCP Billing Project ID (`basingse-media-dl-2026`).
+   - Requires explicit user confirmation: `[Confirm & Incur ~$X.XX Charge]` vs `[Cancel]`.
+2. **Given** user confirms, **When** accepted, **Then** the download stream pipeline initiates immediately.
+
+---
+
+## Epic 4: Asset Deep Inspection & Metadata Drawer
+
+### Epic Goal
+Provide comprehensive, technical object inspection including cryptographic hashes, exact byte counts, GCS generation IDs, and direct command generators for technical media workflows.
+
+![Asset Inspector & Floating Download Manager](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/asset_inspector_and_download_manager_ui_1787372101430.jpg)
+
+---
+
+### Story 4.1: Slide-Out Asset Details & Integrity Drawer
+**As a** VFX/Data engineer (Devon),  
+**I want to** open a detailed inspection drawer for any specific file,  
+**So that** I can review cryptographic hashes (CRC32c, MD5), exact byte sizing, GCS generation IDs, and MIME types.
+
+#### Acceptance Criteria
+1. **Given** a user clicks the `[Info]` button or double-clicks any file row, **When** triggered, **Then** a slide-out drawer smoothly opens from the right side of the screen.
+2. **Given** the drawer is open, **When** rendered, **Then** it presents:
+   - **Object Full Path**: (e.g., `feature_films/reel_04/reel04_cam_A_raw.mxf`).
+   - **Bucket**: `gs://partner-raw-master-archives-2026`.
+   - **Content-Type**: (e.g., `application/mxf` or `video/quicktime`).
+   - **Exact Size**: (e.g., `18,400,000,000 bytes (18.40 GB / 17.13 GiB)`).
+   - **Storage Class**: `ARCHIVE` with cold tier warning badge.
+   - **Created / Updated Timestamps**: Exact UTC timestamp ISO format.
+   - **ETag**: GCS object entity tag.
+   - **CRC32c Hash**: Base64 encoded (`r4L2wA==`) and Hex representation (`0xAF82F6C0`).
+   - **MD5 Checksum**: 32-character hexadecimal MD5 hash (with notice if composite object).
+   - **Generation & Metageneration**: GCS versioning identifiers.
+3. **Given** individual metadata fields, **When** hovered, **Then** a 1-click "Copy to Clipboard" button appears with visual toast confirmation.
+
+---
+
+### Story 4.2: Asset-Specific Cost Calculator & Action Center
+**As a** client user,  
+**I want to** see an itemized cost calculation and select my preferred download method inside the inspection drawer,  
+**So that** I can choose between streaming to disk or generating terminal commands for that specific asset.
+
+#### Acceptance Criteria
+1. **Given** the drawer is open, **When** viewing the billing section, **Then** it calculates the exact cost for that single asset (Retrieval + Egress).
+2. **Given** action buttons in the drawer:
+   - `[Stream Download to Local Disk]`: Launches the memory-bounded stream download pipeline.
+   - `[Copy gcloud Command]`: Copies a pre-formatted CLI command to clipboard.
+   - `[Copy gsutil Command]`: Copies legacy gsutil command.
+   - `[Copy Object JSON Metadata]`: Copies raw GCS JSON object metadata.
+
+---
+
+## Epic 5: Memory-Bounded Direct-to-Disk Stream Download Pipeline
+
+### Epic Goal
+Stream multi-gigabyte media files (10GB–50GB+) directly from GCS to the client's local disk with constant, minimal memory footprint (<15MB RAM), zero browser crashes, and automated integrity validation.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Client User (Editor)
+    participant App as Browser SPA (React)
+    participant FSAA as File System Access API
+    participant Disk as Local NVMe/SSD Storage
+    participant GCS as GCS REST API (Google)
+    participant Billing as Client GCP Billing Engine
+
+    User->>App: Clicks "Download Asset" (reel04_cam_A_raw.mxf, 18.4 GB)
+    App->>User: Renders Cost Verification ($0.92 Retrieval + $2.21 Egress = $3.13 USD)
+    User->>App: Confirms Download
+
+    App->>FSAA: window.showSaveFilePicker({ suggestedName: 'reel04_cam_A_raw.mxf' })
+    FSAA-->>User: Native OS Finder / Save Dialog
+    User->>FSAA: Chooses destination folder & clicks Save
+    FSAA-->>App: Returns FileSystemFileHandle
+
+    App->>Disk: fileHandle.createWritable()
+    Disk-->>App: Returns FileSystemWritableFileStream
+
+    App->>GCS: GET /storage/v1/b/BUCKET/o/FILE?alt=media&userProject=CLIENT_PROJECT<br>Header: Authorization: Bearer <TOKEN>
+    GCS->>Billing: Meters 18.4 GB to Client Project
+    GCS-->>App: HTTP 200 OK (ReadableStream Response, Content-Length: 18400000000)
+
+    Note over App,Disk: Continuous Stream Piped to Disk (4MB Micro-Chunks)
+    loop While Stream Has Chunks
+        GCS->>App: Binary Chunk (4MB Uint8Array)
+        App->>Disk: writableStream.write(chunk)
+        App->>App: Update CRC32c Rolling Hash & Throughput Speed
+        App->>User: Render Live Throughput (48.5 MB/s, ETA: 02m 41s, Fixed RAM: 11.4 MB)
+    end
+
+    App->>Disk: writableStream.close()
+    Disk-->>App: File Flushed & Committed to Disk
+    App->>App: Compare Final CRC32c with GCS x-goog-hash header
+    App->>User: Display "Download Complete & Integrity Verified (CRC32c Match)"
+```
+
+---
+
+### Story 5.1: Tier 1 Direct-to-Disk Streaming via File System Access API (Chromium / macOS & Windows)
+**As an** editor on Google Chrome (macOS / Windows),  
+**I want to** choose my local destination folder and stream 25GB+ files directly to disk,  
+**So that** the file writes continuously to my hard drive without loading into system RAM or crashing my browser tab.
+
+#### Acceptance Criteria
+1. **Given** the user is running a Chromium-based browser (Chrome, Edge, Brave, Arc), **When** initiating a download (>200MB), **Then** the application triggers `window.showSaveFilePicker()` with suggested filename and extension.
+2. **Given** the user selects a save destination in the native macOS Finder / Windows Explorer sheet, **When** confirmed, **Then** the app creates a `FileSystemWritableFileStream`.
+3. **Given** the writable stream is ready, **When** fetching `https://storage.googleapis.com/storage/v1/b/{BUCKET}/o/{OBJECT}?alt=media&userProject={PROJECT_ID}`, **Then**:
+   - The browser connects with `Authorization: Bearer {TOKEN}`.
+   - The response stream is read in 4MB micro-chunks.
+   - Each chunk is written directly to `FileSystemWritableFileStream.write(chunk)`.
+   - The browser's active heap memory consumption remains **strictly bounded under 15MB** throughout the entire transfer.
+4. **Given** all chunks are read, **When** the stream completes, **Then** the app invokes `writableStream.close()`, flushing the file to disk.
+
+---
+
+### Story 5.2: Real-Time Stream CRC32c Integrity Validation
+**As a** technical post-production supervisor (Alex/Devon),  
+**I want the** application to verify the cryptographic integrity of the downloaded file in real-time,  
+**So that** I am 100% confident the multi-gigabyte file is uncorrupted before opening it in my editing suite.
+
+#### Acceptance Criteria
+1. **Given** an active stream, **When** each binary chunk arrives, **Then** the app computes a running CRC32c checksum (Castagnoli polynomial `0x1EDC6F41`) on the byte stream.
+2. **Given** the download completes, **When** `writableStream.close()` finishes, **Then** the computed CRC32c hash is compared against the GCS `x-goog-hash: crc32c=...` header.
+3. **Given** hashes match, **When** verified, **Then** the UI displays `[Integrity Verified: CRC32c Match]` in green.
+4. **Given** a hash mismatch (bit corruption), **When** detected, **Then** the UI flags an immediate alert `[Integrity Check Failed]` and offers a 1-click retry.
+
+---
+
+### Story 5.3: Tier 2 Hybrid Service Worker Streaming (Safari on macOS)
+**As a** client using Apple Safari on macOS,  
+**I want to** stream large files without browser memory crashing,  
+**So that** I can still download large assets even though Safari lacks the File System Access API.
+
+#### Acceptance Criteria
+1. **Given** Apple Safari is detected (where `showSaveFilePicker` is unavailable), **When** the user clicks download, **Then** the app routes the transfer through a registered **Service Worker Stream Interceptor**.
+2. **Given** the Service Worker pipeline, **When** executed, **Then**:
+   - The Service Worker attaches the required `Authorization` and `userProject` headers.
+   - The stream is piped directly into a synthetic browser download response (`Content-Disposition: attachment`).
+   - The file streams directly into the user's macOS `~/Downloads` directory with constant memory consumption.
+
+---
+
+### Story 5.4: Tier 3 In-Memory Blob Handling for Small Assets (<200MB)
+**As a** client user,  
+**I want** small metadata files, PDFs, and audio snippets to download instantly without file picker prompts,  
+**So that** lightweight operations are fast and frictionless.
+
+#### Acceptance Criteria
+1. **Given** any file under 200MB (or when explicitly opted), **When** clicked, **Then** the application performs standard `fetch()` into memory, converts to `URL.createObjectURL(blob)`, and triggers synthetic `<a download>` click.
+
+---
+
+## Epic 6: Active Download Manager & Stream Telemetry
+
+### Epic Goal
+Provide a non-blocking, dockable download manager widget that gives live telemetry (speed, ETA, memory, bytes transferred, integrity) during long-running media transfers.
+
+---
+
+### Story 6.1: Floating Non-Blocking Download Manager Widget
+**As a** client user,  
+**I want to** monitor active downloads in a dockable widget while continuing to browse other folders in the bucket,  
+**So that** my navigation is not blocked during a 15-minute video download.
+
+#### Acceptance Criteria
+1. **Given** a download starts, **When** initiated, **Then** a floating card appears in the bottom-right viewport corner.
+2. **Given** the floating card, **When** viewed, **Then** it provides:
+   - **File Name & Destination**: Truncated name with hover tooltip.
+   - **Progress Bar**: Smooth CSS gradient progress bar (0% to 100%).
+   - **Transfer Metrics**:
+     - Current Speed in `MB/s` (smoothed moving average over 1000ms).
+     - Transferred Bytes vs Total Bytes (e.g., `10.67 GB / 18.40 GB - 58%`).
+     - Estimated Time Remaining (`ETA: 02m 41s`).
+     - Elapsed Time (`Elapsed: 03m 42s`).
+     - Memory Footprint Indicator (`RAM: ~11.4 MB - Stable`).
+     - Active Billing Project (`Billed to: basingse-media-dl-2026`).
+   - **Controls**: `[Minimize]`, `[Pause / Resume]` (if byte-range supported), `[Cancel]`.
+3. **Given** the user minimizes the widget, **When** clicked, **Then** it collapses into a compact pill bar showing only percentage and speed.
+
+---
+
+### Story 6.2: Stream Cancellation & Graceful Abort
+**As a** client user,  
+**I want to** cancel an active download at any time,  
+**So that** I can stop unwanted data egress immediately if I selected the wrong file.
+
+#### Acceptance Criteria
+1. **Given** an active download, **When** the user clicks `[Cancel]`, **Then**:
+   - An `AbortController.abort()` signal is immediately sent to the `fetch` request.
+   - The `FileSystemWritableFileStream.abort()` is called to close and delete incomplete temporary disk data.
+   - Network transfer ceases within <200ms, halting further GCP egress charges.
+   - The UI updates status to `[Download Cancelled]`.
+
+---
+
+## Epic 7: Automated Batch & CLI Companion Generator
+
+### Epic Goal
+Empower technical users, data engineers, and Firefox users with pre-formatted, 1-click Google Cloud CLI commands for automated, multi-threaded, or headless downloads.
+
+![Automated Batch & CLI Command Generator Modal](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/cli_generator_modal_ui_1787372114190.jpg)
+
+---
+
+### Story 7.1: One-Click `gcloud storage` & `gsutil` Command Generator
+**As a** VFX/Data pipeline engineer (Devon),  
+**I want to** generate copyable CLI commands for selected files or folders with my billing project pre-populated,  
+**So that** I can run multi-threaded batch transfers on my terminal or headless render nodes.
+
+#### Acceptance Criteria
+1. **Given** one or multiple files/folders selected, **When** the user clicks `[Generate CLI Script]`, **Then** a modal opens with formatted, copyable shell commands.
+2. **Given** the modal opens, **When** rendering Option A (Modern `gcloud storage`), **Then** it produces:
+   ```bash
+   gcloud storage cp \
+     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf \
+     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf \
+     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov \
+     ./destination_folder/ \
+     --billing-project=basingse-media-dl-2026
+   ```
+3. **Given** Option B (Legacy `gsutil`), **When** toggled, **Then** it produces:
+   ```bash
+   gsutil -u basingse-media-dl-2026 -m cp -r \
+     gs://partner-raw-master-archives-2026/feature_films/reel_04/ .
+   ```
+4. **Given** the command box, **When** the user clicks `[Copy Command]`, **Then** the text copies to clipboard with visual toast feedback.
+
+---
+
+### Story 7.2: Mozilla Firefox Graceful Degradation & CLI Routing
+**As a** client user on Mozilla Firefox,  
+**I want to** receive clear guidance on browser compatibility and an instant CLI alternative,  
+**So that** I am not left with a broken or hanging download experience due to Firefox stream limitations.
+
+#### Acceptance Criteria
+1. **Given** the application detects Mozilla Firefox (Gecko engine), **When** viewing files >200MB, **Then**:
+   - The UI renders an informative inline banner: *"Multi-GB direct browser streaming is optimized for Chromium (Chrome/Edge) and Safari. For Firefox, use our 1-click CLI script generator or switch to Chrome."*
+   - The primary browser download button shows an informative badge.
+   - Clicking download automatically opens the **CLI Script Generator Modal** with the exact `gcloud storage cp --billing-project` command ready to execute in terminal.
+
+---
+
+## Epic 8: Security, Resilience & Error Diagnostics
+
+### Epic Goal
+Guarantee maximum security posture, zero credential leakage, and actionable error guidance for network or GCP permission anomalies.
+
+---
+
+### Story 8.1: Zero-Credential Leakage & Volatile Token Hygiene
+**As a** security-conscious client organization,  
+**I want** my OAuth access tokens to remain ephemeral and isolated,  
+**So that** malicious browser extensions or XSS attacks cannot extract long-lived credentials from local storage.
+
+#### Acceptance Criteria
+1. **Given** OAuth authentication completes, **When** managing session state, **Then**:
+   - OAuth access tokens are stored strictly in volatile JavaScript closure / `Zustand` runtime state.
+   - `localStorage` and `sessionStorage` store **only non-sensitive settings** (GCP Project ID string, recent bucket names, UI theme).
+   - Private keys (Service Account JSONs) are **strictly disallowed and never requested or accepted**.
+2. **Given** the web application is served, **When** checking HTTP security headers, **Then** a strict Content Security Policy (CSP) restricts connections exclusively to `https://accounts.google.com` and `https://storage.googleapis.com`.
+
+---
+
+### Story 8.2: Granular Error Diagnosis & Remediation Playbook
+**As a** client user experiencing a cloud permission or network issue,  
+**I want to** see an actionable explanation and fix instructions,  
+**So that** I can resolve the issue immediately without contacting support.
+
+#### Acceptance Criteria
+1. **Given** an API failure during listing, inspection, or streaming, **When** an error occurs, **Then** the UI displays an actionable diagnosis card detailing:
+   - **Error Category**: (e.g., Billing Account Disabled, IAM Storage Object Viewer Missing, CORS Header Missing, Network Disconnection).
+   - **GCS Raw Error Code**: (e.g., `403 Forbidden: caller does not have storage.objects.get access`).
+   - **Recommended Fix**: Step-by-step instructions or copyable `gcloud` command for their GCP admin.
+   - **Retry Button**: 1-click action to re-attempt the operation without reloading the page.
+
+---
+
+### Summary Matrix: Epics & Story Points Allocation
+
+| Epic ID | Epic Title | Story Count | Complexity | Priority |
+| :--- | :--- | :--- | :--- | :--- |
+| **EPIC-1** | Frictionless Onboarding & GCP Project Provisioner | 6 Stories | Medium | P0 (Blocker) |
+| **EPIC-2** | Media Asset Explorer & Virtualized Grid | 3 Stories | High | P0 (Blocker) |
+| **EPIC-3** | Cost Governance & Real-Time Estimator | 2 Stories | Medium | P0 (Blocker) |
+| **EPIC-4** | Asset Deep Inspection & Metadata Drawer | 2 Stories | Low | P1 (Core) |
+| **EPIC-5** | Memory-Bounded Direct-to-Disk Streaming | 4 Stories | High | P0 (Blocker) |
+| **EPIC-6** | Active Download Manager & Telemetry | 2 Stories | Medium | P1 (Core) |
+| **EPIC-7** | Automated Batch & CLI Companion Generator | 2 Stories | Low | P1 (Core) |
+| **EPIC-8** | Security, Resilience & Error Diagnostics | 2 Stories | Medium | P0 (Blocker) |
