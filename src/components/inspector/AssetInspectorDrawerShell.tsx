@@ -49,10 +49,11 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
 
   if (!isOpen || !item) return null
 
+  const effectiveRates = CostGovernanceEngine.resolveRateCard(customPricing)
   const cost = CostGovernanceEngine.calculateSingle(
     item.sizeBytes,
     item.storageClass,
-    customPricing as any,
+    effectiveRates,
     isFreeTrialAccount,
   )
 
@@ -150,7 +151,7 @@ export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps>
               <span className="text-white">${cost.retrievalTotalUSD.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Google Egress ($0.12/GB):</span>
+              <span>Google Egress (${effectiveRates.internetEgressPerGB.toFixed(2)}/GB):</span>
               <span className="text-white">${cost.egressTotalUSD.toFixed(2)}</span>
             </div>
             <div className="flex justify-between pt-1 border-t border-slate-800 font-bold text-cyan-300 text-sm">

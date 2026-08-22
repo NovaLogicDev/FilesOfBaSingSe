@@ -110,6 +110,7 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
   }, [files, selectedItemIds])
 
   // Real-time Cost Estimation for selected items
+  const effectiveRates = CostGovernanceEngine.resolveRateCard(customPricing)
   const costEstimate = useMemo(() => {
     if (selectedItems.length === 0) return null
     return CostGovernanceEngine.calculate(
@@ -117,7 +118,7 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
         sizeBytes: item.sizeBytes,
         storageClass: item.storageClass,
       })),
-      customPricing as any,
+      customPricing,
       isFreeTrialAccount,
     )
   }, [selectedItems, customPricing, isFreeTrialAccount])
@@ -161,7 +162,7 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
     const csvContent = ManifestExporterEngine.generateCsv({
       bucketName: savedBucketName || 'bucket',
       items: itemsToExport,
-      rates: customPricing as any,
+      rates: customPricing,
       isFreeTrial: isFreeTrialAccount,
     })
 
@@ -185,7 +186,7 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
     const jsonContent = ManifestExporterEngine.generateJson({
       bucketName: savedBucketName || 'bucket',
       items: itemsToExport,
-      rates: customPricing as any,
+      rates: customPricing,
       isFreeTrial: isFreeTrialAccount,
     })
 
@@ -229,7 +230,7 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-300 mt-0.5 font-mono">
-                Archive Retrieval: ${costEstimate.retrievalTotalUSD.toFixed(2)} | Egress ($0.12/GB): $
+                Archive Retrieval: ${costEstimate.retrievalTotalUSD.toFixed(2)} | Egress (${effectiveRates.internetEgressPerGB.toFixed(2)}/GB): $
                 {costEstimate.egressTotalUSD.toFixed(2)} |{' '}
                 <strong className="text-cyan-300">
                   Total Estimate: ${costEstimate.grandTotalUSD.toFixed(2)} USD

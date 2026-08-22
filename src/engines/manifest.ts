@@ -5,7 +5,7 @@ import { CostGovernanceEngine } from './cost'
 export interface ManifestExportOptions {
   bucketName: string
   items: GCSMediaItem[]
-  rates?: RateCard
+  rates?: Partial<RateCard> | null
   isFreeTrial?: boolean
 }
 

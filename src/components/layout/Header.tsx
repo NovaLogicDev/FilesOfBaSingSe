@@ -123,13 +123,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls & Profile */}
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Demo Sandbox Mode Switcher */}
+          {/* Demo Sandbox Mode Toggle */}
           <button
             onClick={handleToggleDemo}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${isDemoMode
-              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-              : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-              }`}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+              isDemoMode
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
             title="Toggle between Synthetic Demo Mode and Live GCP Mode"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />

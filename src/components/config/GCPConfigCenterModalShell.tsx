@@ -22,6 +22,7 @@ import { useToastStore } from '../../store/toastStore'
 import { gisAuthService } from '../../services/gisAuthService'
 import { gcsClientService } from '../../services/gcsClientService'
 import { ObservabilityService } from '../../services/observability'
+import { CostGovernanceEngine } from '../../engines/cost'
 import { PreflightCheckResult } from '../../types'
 
 interface GCPConfigCenterModalShellProps {
@@ -191,13 +192,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     ? 'demo-client-media-2026'
     : savedProjectId || 'Unconfigured'
 
-  const activeRates = customPricing || {
-    archiveRetrievalPerGb: 0.05,
-    coldlineRetrievalPerGb: 0.02,
-    nearlineRetrievalPerGb: 0.01,
-    standardRetrievalPerGb: 0.0,
-    internetEgressPerGb: 0.12,
-  }
+  const activeRates = CostGovernanceEngine.resolveRateCard(customPricing)
 
   return (
     <div

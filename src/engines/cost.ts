@@ -10,13 +10,42 @@ export class CostGovernanceEngine {
   public static readonly HIGH_VOLUME_GB_THRESHOLD = 25.0
 
   /**
+   * Resolves a complete RateCard from partial/custom pricing overrides, safely falling back to DEFAULT_GCS_RATES.
+   */
+  public static resolveRateCard(rates?: Partial<RateCard> | null): RateCard {
+    return {
+      archiveRetrievalPerGB:
+        typeof rates?.archiveRetrievalPerGB === 'number' && !Number.isNaN(rates.archiveRetrievalPerGB)
+          ? rates.archiveRetrievalPerGB
+          : DEFAULT_GCS_RATES.archiveRetrievalPerGB,
+      coldlineRetrievalPerGB:
+        typeof rates?.coldlineRetrievalPerGB === 'number' && !Number.isNaN(rates.coldlineRetrievalPerGB)
+          ? rates.coldlineRetrievalPerGB
+          : DEFAULT_GCS_RATES.coldlineRetrievalPerGB,
+      nearlineRetrievalPerGB:
+        typeof rates?.nearlineRetrievalPerGB === 'number' && !Number.isNaN(rates.nearlineRetrievalPerGB)
+          ? rates.nearlineRetrievalPerGB
+          : DEFAULT_GCS_RATES.nearlineRetrievalPerGB,
+      standardRetrievalPerGB:
+        typeof rates?.standardRetrievalPerGB === 'number' && !Number.isNaN(rates.standardRetrievalPerGB)
+          ? rates.standardRetrievalPerGB
+          : DEFAULT_GCS_RATES.standardRetrievalPerGB,
+      internetEgressPerGB:
+        typeof rates?.internetEgressPerGB === 'number' && !Number.isNaN(rates.internetEgressPerGB)
+          ? rates.internetEgressPerGB
+          : DEFAULT_GCS_RATES.internetEgressPerGB,
+    }
+  }
+
+  /**
    * Calculates exact retrieval and egress fees for a collection of media assets.
    */
   public static calculate(
     items: Array<{ sizeBytes: number | string; storageClass: string }>,
-    rates: RateCard = DEFAULT_GCS_RATES,
+    rates?: Partial<RateCard> | null,
     isFreeTrial: boolean = false,
   ): CalculatedCostResult {
+    const effectiveRates = this.resolveRateCard(rates)
     let totalBytes = 0
     let archiveBytes = 0
     let coldlineBytes = 0
@@ -37,25 +66,25 @@ export class CostGovernanceEngine {
       switch (storageClass) {
         case 'ARCHIVE':
           archiveBytes += bytes
-          retrievalTotalUSD += decimalGB * rates.archiveRetrievalPerGB
+          retrievalTotalUSD += decimalGB * effectiveRates.archiveRetrievalPerGB
           break
         case 'COLDLINE':
           coldlineBytes += bytes
-          retrievalTotalUSD += decimalGB * rates.coldlineRetrievalPerGB
+          retrievalTotalUSD += decimalGB * effectiveRates.coldlineRetrievalPerGB
           break
         case 'NEARLINE':
           nearlineBytes += bytes
-          retrievalTotalUSD += decimalGB * rates.nearlineRetrievalPerGB
+          retrievalTotalUSD += decimalGB * effectiveRates.nearlineRetrievalPerGB
           break
         default:
           standardBytes += bytes
-          retrievalTotalUSD += decimalGB * rates.standardRetrievalPerGB
+          retrievalTotalUSD += decimalGB * effectiveRates.standardRetrievalPerGB
           break
       }
     }
 
     const totalDecimalGB = totalBytes / 1_000_000_000
-    const egressTotalUSD = totalDecimalGB * rates.internetEgressPerGB
+    const egressTotalUSD = totalDecimalGB * effectiveRates.internetEgressPerGB
     const grandTotalUSD = retrievalTotalUSD + egressTotalUSD
 
     const roundedGrandTotal = Math.round(grandTotalUSD * 100) / 100
@@ -88,7 +117,7 @@ export class CostGovernanceEngine {
   public static calculateSingle(
     sizeBytes: number | string,
     storageClass: string,
-    rates: RateCard = DEFAULT_GCS_RATES,
+    rates?: Partial<RateCard> | null,
     isFreeTrial: boolean = false,
   ): CalculatedCostResult {
     return this.calculate([{ sizeBytes, storageClass }], rates, isFreeTrial)

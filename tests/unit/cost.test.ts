@@ -87,4 +87,50 @@ describe('CostGovernanceEngine (Decimal GB $10^9 Pricing Math)', () => {
     expect(CostGovernanceEngine.formatBytes(18_400_000_000)).toBe('18.4 GB')
     expect(CostGovernanceEngine.formatBytes(2_500_000_000_000)).toBe('2.5 TB')
   })
+
+  it('safely handles empty customPricing object {} without returning NaN', () => {
+    const emptyCustomPricing = {}
+    const result = CostGovernanceEngine.calculateSingle(18_400_000_000, 'ARCHIVE', emptyCustomPricing)
+
+    expect(Number.isNaN(result.retrievalTotalUSD)).toBe(false)
+    expect(Number.isNaN(result.egressTotalUSD)).toBe(false)
+    expect(Number.isNaN(result.grandTotalUSD)).toBe(false)
+    expect(result.retrievalTotalUSD).toBe(0.92)
+    expect(result.egressTotalUSD).toBe(2.21)
+    expect(result.grandTotalUSD).toBe(3.13)
+  })
+
+  it('safely handles partial customPricing overrides and falls back remaining fields', () => {
+    // Only override internetEgressPerGB, leave storage tiers at default
+    const partialPricing = { internetEgressPerGB: 0.08 }
+    const result = CostGovernanceEngine.calculateSingle(10_000_000_000, 'ARCHIVE', partialPricing)
+
+    // Retrieval: 10 * 0.05 = $0.50 (default archive rate)
+    // Egress: 10 * 0.08 = $0.80 (custom overridden rate)
+    // Total: $1.30
+    expect(result.retrievalTotalUSD).toBe(0.5)
+    expect(result.egressTotalUSD).toBe(0.8)
+    expect(result.grandTotalUSD).toBe(1.3)
+  })
+
+  it('resolveRateCard handles undefined, null, empty, and NaN values gracefully', () => {
+    const defaultRates = CostGovernanceEngine.resolveRateCard(undefined)
+    expect(defaultRates.archiveRetrievalPerGB).toBe(0.05)
+    expect(defaultRates.internetEgressPerGB).toBe(0.12)
+
+    const nullRates = CostGovernanceEngine.resolveRateCard(null)
+    expect(nullRates.archiveRetrievalPerGB).toBe(0.05)
+    expect(nullRates.internetEgressPerGB).toBe(0.12)
+
+    const emptyRates = CostGovernanceEngine.resolveRateCard({})
+    expect(emptyRates.archiveRetrievalPerGB).toBe(0.05)
+    expect(emptyRates.internetEgressPerGB).toBe(0.12)
+
+    const nanRates = CostGovernanceEngine.resolveRateCard({
+      archiveRetrievalPerGB: NaN,
+      internetEgressPerGB: undefined,
+    } as any)
+    expect(nanRates.archiveRetrievalPerGB).toBe(0.05)
+    expect(nanRates.internetEgressPerGB).toBe(0.12)
+  })
 })

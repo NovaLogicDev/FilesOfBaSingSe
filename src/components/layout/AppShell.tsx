@@ -218,7 +218,7 @@ export const AppShell: React.FC = () => {
     const cost = CostGovernanceEngine.calculateSingle(
       item.sizeBytes,
       item.storageClass,
-      customPricing as any,
+      customPricing,
       isFreeTrialAccount,
     )
 
@@ -238,7 +238,7 @@ export const AppShell: React.FC = () => {
 
     const cost = CostGovernanceEngine.calculate(
       items.map((i) => ({ sizeBytes: i.sizeBytes, storageClass: i.storageClass })),
-      customPricing as any,
+      customPricing,
       isFreeTrialAccount,
     )
 
