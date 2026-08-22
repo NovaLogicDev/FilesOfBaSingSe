@@ -294,6 +294,28 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
       expect(status.warningMessage).toMatch(/Billing is unlinked/i)
       expect(status.remediationUrl).toContain('basingse-media-dl-9821')
     })
+
+    it('detects 403 API disabled error and returns apiDisabled: true with enableUrl', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          error: {
+            code: 403,
+            message:
+              'Cloud Billing API has not been used in project 932304314277 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=932304314277 then retry.',
+            status: 'PERMISSION_DENIED',
+          },
+        }),
+      } as any)
+
+      const status = await gcpProjectService.checkBillingStatus(sampleToken, 'basingse-media-dl-9821')
+      expect(status.billingEnabled).toBe(false)
+      expect(status.hasActiveBilling).toBe(false)
+      expect(status.apiDisabled).toBe(true)
+      expect(status.apiEnableUrl).toContain('cloudbilling.googleapis.com/overview?project=basingse-media-dl-9821')
+      expect(status.warningMessage).toMatch(/Cloud Billing API is not enabled/i)
+    })
   })
 
   describe('autoProvisionProject', () => {

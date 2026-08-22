@@ -14,6 +14,7 @@ import {
   Sparkles,
   CreditCard,
   Copy,
+  Plus,
 } from 'lucide-react'
 import { usePersistentStore } from '../../store/persistentStore'
 import { useRuntimeStore } from '../../store/runtimeStore'
@@ -41,10 +42,10 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1)
   const [projectIdInput, setProjectIdInput] = useState(
-    savedProjectId || (isDemoMode ? 'demo-client-media-2026' : ''),
+    isDemoMode ? (savedProjectId || 'demo-client-media-2026') : (oauthToken ? savedProjectId : ''),
   )
   const [bucketInput, setBucketInput] = useState(
-    savedBucketName || (isDemoMode ? 'gs://partner-raw-master-archives-2026' : ''),
+    isDemoMode ? (savedBucketName || 'gs://partner-raw-master-archives-2026') : (oauthToken ? savedBucketName : ''),
   )
   const [discoveredProjects, setDiscoveredProjects] = useState<GCPProject[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
@@ -59,38 +60,78 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   const [preflightStatus, setPreflightStatus] = useState<PreflightCheckResult | null>(null)
   const [isPreflightRunning, setIsPreflightRunning] = useState(false)
   const [manualOverride, setManualOverride] = useState(false)
+  const [projectSetupTab, setProjectSetupTab] = useState<'new_user' | 'existing_project' | 'auto_create'>('new_user')
   const [copiedCors, setCopiedCors] = useState(false)
 
   // Load GCP Projects
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return
+
+    if (!oauthToken && !isDemoMode) {
+      setDiscoveredProjects([])
+      setProjectIdInput('')
+      setBucketInput('')
+      setBillingStatus(null)
+      setProjectValidationError(null)
+      setBucketValidationError(null)
+      setPreflightStatus(null)
+      setIsLoadingProjects(false)
+      setProjectSetupTab('new_user')
+      return
+    }
+
+    if (isDemoMode && !oauthToken) {
+      const fallback = gcpProjectService.listDemoProjects()
+      setDiscoveredProjects(fallback)
+      setProjectSetupTab('existing_project')
+      if (!projectIdInput) {
+        setProjectIdInput('demo-client-media-2026')
+      }
+      if (!bucketInput) {
+        setBucketInput('gs://partner-raw-master-archives-2026')
+      }
+      return
+    }
+
+    if (oauthToken) {
       setIsLoadingProjects(true)
       gcpProjectService
-        .listProjects(oauthToken || undefined)
+        .listProjects(oauthToken)
         .then((projects) => {
           setDiscoveredProjects(projects)
-          if (projects.length > 0 && !projects.some((p) => p.projectId === projectIdInput)) {
-            if (projectIdInput === 'demo-client-media-2026' || !projectIdInput) {
-              setProjectIdInput(projects[0].projectId)
-              setSavedProjectId(projects[0].projectId)
+          if (projects.length > 0) {
+            setProjectSetupTab('existing_project')
+            // Only retain projectIdInput if user already had an explicit valid project in this account
+            if (projectIdInput && projects.some((p) => p.projectId === projectIdInput)) {
+              // keep user's active choice
+            } else {
+              setProjectIdInput('')
+              setBillingStatus(null)
             }
+          } else {
+            setProjectSetupTab('new_user')
+            setProjectIdInput('')
+            setBillingStatus(null)
           }
         })
         .catch(() => {
-          const fallback = gcpProjectService.listDemoProjects()
-          setDiscoveredProjects(fallback)
+          setDiscoveredProjects([])
+          setProjectSetupTab('new_user')
+          setProjectIdInput('')
+          setBillingStatus(null)
         })
         .finally(() => {
           setIsLoadingProjects(false)
         })
     }
-  }, [isOpen, oauthToken])
+  }, [isOpen, oauthToken, isDemoMode])
 
   // Validate Project ID & Verify Billing
   useEffect(() => {
-    if (!projectIdInput) {
+    if (!projectIdInput || projectIdInput.trim() === '') {
       setBillingStatus(null)
-      setProjectValidationError('Project ID cannot be empty.')
+      setProjectValidationError(null)
+      setIsCheckingBilling(false)
       return
     }
 
@@ -98,6 +139,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     if (!validation.valid) {
       setProjectValidationError(validation.error || 'Invalid project ID format.')
       setBillingStatus(null)
+      setIsCheckingBilling(false)
       return
     }
 
@@ -129,8 +171,8 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
   // Validate Bucket Name
   useEffect(() => {
-    if (!bucketInput) {
-      setBucketValidationError('Bucket name cannot be empty.')
+    if (!bucketInput || bucketInput.trim() === '') {
+      setBucketValidationError(null)
       return
     }
     const val = gcsClientService.validateBucketName(bucketInput)
@@ -147,10 +189,14 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     setIsSigningIn(true)
     try {
       const session = await gisAuthService.signIn()
+      setProjectIdInput('')
+      setSavedProjectId('')
+      setBillingStatus(null)
+      setProjectValidationError(null)
       addToast({
         type: 'success',
         title: 'Google Account Connected',
-        message: `Signed in as ${session.userEmail} with Storage Read-Only scope.`,
+        message: `Signed in as ${session.userName || session.userEmail} (${session.userEmail})`,
       })
       setActiveStep(2)
     } catch (err: any) {
@@ -168,16 +214,20 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     setIsSigningIn(true)
     try {
       const session = await gisAuthService.switchAccount()
+      setProjectIdInput('')
+      setSavedProjectId('')
+      setBillingStatus(null)
+      setProjectValidationError(null)
       addToast({
         type: 'success',
-        title: 'Google Account Switched',
-        message: `Active identity switched to ${session.userEmail}.`,
+        title: 'Account Switched',
+        message: `Switched to ${session.userName || session.userEmail} (${session.userEmail})`,
       })
     } catch (err: any) {
       addToast({
         type: 'error',
         title: 'Account Switch Failed',
-        message: err?.message || 'Could not switch Google account.',
+        message: err?.message || 'Could not switch accounts.',
       })
     } finally {
       setIsSigningIn(false)
@@ -330,6 +380,69 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     }
   }
 
+  // Auto-run preflight when entering Step 4 for the first time
+  useEffect(() => {
+    if (activeStep === 4 && !preflightStatus && !isPreflightRunning) {
+      handleRunPreflight()
+    }
+  }, [activeStep, preflightStatus, isPreflightRunning])
+
+  const handleContinueStep = () => {
+    if (activeStep === 1) {
+      if (!oauthToken && !isDemoMode) {
+        addToast({
+          type: 'warning',
+          title: 'Sign-In Required',
+          message: 'Please sign in with Google or select Demo Sandbox to continue.',
+        })
+        return
+      }
+      setActiveStep(2)
+    } else if (activeStep === 2) {
+      if (!projectIdInput.trim()) {
+        setProjectValidationError('Please select or auto-create a Google Cloud project before continuing.')
+        return
+      }
+      const val = gcpProjectService.validateProjectId(projectIdInput)
+      if (!val.valid) {
+        setProjectValidationError(val.error || 'Invalid project ID format.')
+        return
+      }
+      setProjectValidationError(null)
+      setActiveStep(3)
+    } else if (activeStep === 3) {
+      if (!bucketInput.trim()) {
+        setBucketValidationError('Please enter a target GCS bucket URI before continuing.')
+        return
+      }
+      const val = gcsClientService.validateBucketName(bucketInput)
+      if (!val.valid) {
+        setBucketValidationError(val.error || 'Invalid bucket name.')
+        return
+      }
+      setBucketValidationError(null)
+      setActiveStep(4)
+    }
+  }
+
+  const handleCancelOrClose = async () => {
+    // If cancelling before finishing setup in live mode, sign out and clear session state
+    if (!isDemoMode && (!savedProjectId || !savedBucketName || activeStep < 4 || !isPreflightPassed)) {
+      await gisAuthService.signOut()
+      setSavedProjectId('')
+      setSavedBucketName('')
+    }
+    setProjectIdInput('')
+    setBucketInput('')
+    setBillingStatus(null)
+    setDiscoveredProjects([])
+    setProjectValidationError(null)
+    setBucketValidationError(null)
+    setPreflightStatus(null)
+    setActiveStep(1)
+    onClose()
+  }
+
   const handleFinish = () => {
     const cleanBucket = gcsClientService.cleanBucketName(bucketInput)
     setSavedProjectId(projectIdInput)
@@ -402,7 +515,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCancelOrClose}
             className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
             aria-label="Close"
           >
@@ -584,44 +697,245 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
               <div>
                 <h3 className="text-sm font-semibold text-white">Step 2: Smart GCP Billing Project Setup</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Select an existing project, auto-create a dedicated media project, or claim Google's $300 Free Trial credits.
+                  Select an existing project, claim Google's $300 Free Trial credits, or auto-create a dedicated media project.
                 </p>
               </div>
 
-              {/* Project Dropdown / Discovery */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-medium text-slate-300">
-                    Discovered Google Cloud Projects:
-                  </label>
-                  {isLoadingProjects && (
-                    <span className="text-[11px] text-cyan-400 flex items-center space-x-1 font-mono">
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>Scanning CRM API...</span>
-                    </span>
+              {/* 3-Tab Intent Selector */}
+              <div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setProjectSetupTab('new_user')}
+                  className={`py-2 px-2.5 rounded-lg text-center transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                    projectSetupTab === 'new_user'
+                      ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">New to GCP ($300 Free)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProjectSetupTab('existing_project')}
+                  className={`py-2 px-2.5 rounded-lg text-center transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                    projectSetupTab === 'existing_project'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <FolderLock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <span className="truncate">Existing Projects ({discoveredProjects.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProjectSetupTab('auto_create')}
+                  className={`py-2 px-2.5 rounded-lg text-center transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                    projectSetupTab === 'auto_create'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                  <span className="truncate">Auto-Create Project</span>
+                </button>
+              </div>
+
+              {/* TAB 1: New to Google Cloud ($300 Free Trial Guided 2-Step Flow) */}
+              {projectSetupTab === 'new_user' && (
+                <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 p-4 space-y-4">
+                  <div className="flex items-start space-x-2.5">
+                    <div className="p-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 flex-shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                        Google Cloud $300 Free Trial Assistant (90 Days)
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Google provides all new accounts with <strong className="text-white">$300 in free trial credits for 90 days</strong>. This completely covers all media download and retrieval charges with $0 out-of-pocket costs.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Step 1 */}
+                    <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center space-x-1.5">
+                          <span className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center font-mono">1</span>
+                          <span>Activate $300 Credits</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Opens Google Cloud Console in a new tab. Complete the 60-second signup. Google will not auto-charge when credits expire.
+                        </p>
+                      </div>
+                      <a
+                        href="https://console.cloud.google.com/freetrial"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-indigo-950/50"
+                      >
+                        <span>Open 60s Free Trial Signup</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center space-x-1.5">
+                          <span className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] flex items-center justify-center font-mono">2</span>
+                          <span>Link & Detect New Project</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          After completing signup in Google Console, click below. We will automatically discover and link your new project.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDetectNewProjects}
+                        disabled={isDetecting}
+                        className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold border border-slate-700 flex items-center justify-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? 'animate-spin' : ''}`} />
+                        <span>Auto-Detect My Project</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: Existing Projects */}
+              {projectSetupTab === 'existing_project' && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Discovered Google Cloud Projects:
+                    </label>
+                    {isLoadingProjects && (
+                      <span className="text-[11px] text-cyan-400 flex items-center space-x-1 font-mono">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        <span>Scanning CRM API...</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={projectIdInput}
+                      onChange={(e) => {
+                        setProjectIdInput(e.target.value)
+                        setSavedProjectId(e.target.value)
+                      }}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:border-emerald-400 focus:outline-none"
+                    >
+                      <option value="">
+                        {discoveredProjects.length > 0
+                          ? `-- Select a Google Cloud Project (${discoveredProjects.length} available) --`
+                          : '-- No active projects discovered --'}
+                      </option>
+                      {discoveredProjects.map((p) => (
+                        <option key={p.projectId} value={p.projectId}>
+                          {p.name} ({p.projectId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!projectIdInput && discoveredProjects.length > 0 && (
+                    <p className="text-xs text-slate-400">
+                      Select a project from the dropdown above to inspect Requester-Pays billing compatibility.
+                    </p>
+                  )}
+
+                  {discoveredProjects.length === 0 && !isLoadingProjects && (
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400 space-y-1">
+                      <p>
+                        No active Google Cloud projects were discovered under this account.
+                      </p>
+                      <p className="text-slate-500">
+                        If you are new to GCP, claim free credits in the <strong>New to GCP</strong> tab, or use <strong>Auto-Create Project</strong> to provision one.
+                      </p>
+                    </div>
                   )}
                 </div>
+              )}
 
-                <div className="relative">
-                  <select
-                    value={projectIdInput}
-                    onChange={(e) => {
-                      setProjectIdInput(e.target.value)
-                      setSavedProjectId(e.target.value)
-                    }}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:border-emerald-400 focus:outline-none"
+              {/* TAB 3: Auto-Create Media Project */}
+              {projectSetupTab === 'auto_create' && (
+                <div className="rounded-xl border border-cyan-500/30 bg-slate-950/60 p-4 space-y-3.5">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Dedicated Media Project Auto-Provisioning</span>
+                    </h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Automatically configures an isolated Google Cloud project in your account dedicated to media transfers:
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+                    <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-emerald-400 font-bold block">1. Unique Project</span>
+                      <span className="text-[11px] text-slate-400">Allocates basingse-media-dl-XXXX</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-cyan-400 font-bold block">2. Storage API</span>
+                      <span className="text-[11px] text-slate-400">Enables storage.googleapis.com</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                      <span className="text-amber-400 font-bold block">3. Billing Routing</span>
+                      <span className="text-[11px] text-slate-400">Routes Requester-Pays egress</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAutoCreateProject}
+                    disabled={isCreatingProject}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950/40 disabled:opacity-50 cursor-pointer"
                   >
-                    {discoveredProjects.map((p) => (
-                      <option key={p.projectId} value={p.projectId}>
-                        {p.name} ({p.projectId})
-                      </option>
-                    ))}
-                    {discoveredProjects.length === 0 && (
-                      <option value="">No active projects discovered</option>
+                    {isCreatingProject ? (
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 text-emerald-200" />
                     )}
-                  </select>
+                    <span>1-Click Auto-Create Media Project</span>
+                  </button>
+
+                  {/* Multi-Stage Provisioning Progress Indicator */}
+                  {isCreatingProject && provisioningProgress && (
+                    <div className="rounded-xl border border-emerald-500/30 bg-slate-900 p-4 space-y-3 animate-in fade-in">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-white flex items-center space-x-1.5">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          <span>Provisioning Progress</span>
+                        </span>
+                        <span className="font-mono text-emerald-400 text-[11px]">
+                          Stage {provisioningProgress.stageIndex} of {provisioningProgress.totalStages}
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-emerald-400 h-2 transition-all duration-300 rounded-full"
+                          style={{
+                            width: `${(provisioningProgress.stageIndex / provisioningProgress.totalStages) * 100}%`,
+                          }}
+                        />
+                      </div>
+
+                      <div className="text-xs text-slate-300 font-mono flex items-center space-x-2">
+                        <span className="text-emerald-400">●</span>
+                        <span>{provisioningProgress.message}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               {/* Project Validation Error Message */}
               {projectValidationError && (
@@ -631,140 +945,104 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                 </div>
               )}
 
-              {/* 1-Click Auto-Provision Button */}
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleAutoCreateProject}
-                  disabled={isCreatingProject}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950/40 disabled:opacity-50 cursor-pointer"
-                >
-                  {isCreatingProject ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <Sparkles className="w-4 h-4 text-emerald-200" />
+              {/* Smart Live Billing Status Card (Only shown when a valid project ID is populated) */}
+              {projectIdInput.trim().length > 0 && !projectValidationError && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="w-4 h-4 text-slate-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        Cloud Billing Status on <span className="font-mono text-emerald-400">{projectIdInput}</span>:
+                      </span>
+                    </div>
+
+                    {isCheckingBilling ? (
+                      <span className="text-[11px] font-mono text-cyan-400 flex items-center space-x-1">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        <span>Verifying billing...</span>
+                      </span>
+                    ) : billingStatus?.billingEnabled ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1">
+                        <Check className="w-3 h-3" />
+                        <span>Billing Linked (Active Account)</span>
+                      </span>
+                    ) : billingStatus?.apiDisabled ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center space-x-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Cloud Billing API Disabled</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center space-x-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Billing Unlinked</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* API Disabled Diagnostic Card */}
+                  {billingStatus?.apiDisabled && (
+                    <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-2 text-xs">
+                      <p className="text-amber-200 leading-relaxed">
+                        The <strong>Cloud Billing API</strong> has not been enabled on project <code className="font-mono text-amber-300">{projectIdInput}</code>. Click below to enable it in Google Cloud Console.
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <a
+                          href={billingStatus.apiEnableUrl || `https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=${projectIdInput}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs transition-all"
+                        >
+                          <span>Enable Cloud Billing API in Google Console</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleRecheckBilling}
+                          disabled={isCheckingBilling}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isCheckingBilling ? 'animate-spin' : ''}`} />
+                          <span>Re-check</span>
+                        </button>
+                      </div>
+                    </div>
                   )}
-                  <span>1-Click Auto-Create Media Project</span>
-                </button>
-              </div>
 
-              {/* Multi-Stage Provisioning Progress Indicator */}
-              {isCreatingProject && provisioningProgress && (
-                <div className="rounded-xl border border-emerald-500/30 bg-slate-950/80 p-4 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white flex items-center space-x-1.5">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                      <span>Provisioning Progress</span>
-                    </span>
-                    <span className="font-mono text-emerald-400 text-[11px]">
-                      Stage {provisioningProgress.stageIndex} of {provisioningProgress.totalStages}
-                    </span>
-                  </div>
-
-                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-emerald-400 h-2 transition-all duration-300 rounded-full"
-                      style={{
-                        width: `${(provisioningProgress.stageIndex / provisioningProgress.totalStages) * 100}%`,
-                      }}
-                    />
-                  </div>
-
-                  <div className="text-xs text-slate-300 font-mono flex items-center space-x-2">
-                    <span className="text-emerald-400">●</span>
-                    <span>{provisioningProgress.message}</span>
-                  </div>
+                  {/* Billing Unlinked Diagnostic Card */}
+                  {billingStatus && !billingStatus.billingEnabled && !billingStatus.apiDisabled && (
+                    <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-2 text-xs">
+                      <p className="text-amber-200 leading-relaxed">
+                        Google Cloud Storage Requester-Pays requires an attached billing account to attribute download network egress. Free trial accounts are 100% eligible ($0 out-of-pocket).
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <a
+                          href={billingStatus.remediationUrl || `https://console.cloud.google.com/billing/linkedaccount?project=${projectIdInput}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs transition-all"
+                        >
+                          <span>Link Billing Account in Google Console</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleRecheckBilling}
+                          disabled={isCheckingBilling}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${isCheckingBilling ? 'animate-spin' : ''}`} />
+                          <span>Re-check</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Live Billing Status Card / Badge */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Cloud Billing Status:</span>
-                  </span>
-
-                  {isCheckingBilling ? (
-                    <span className="text-[11px] font-mono text-cyan-400 flex items-center space-x-1">
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>Verifying billing...</span>
-                    </span>
-                  ) : billingStatus?.billingEnabled ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1">
-                      <Check className="w-3 h-3" />
-                      <span>Billing Linked (Active Account)</span>
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center space-x-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span>Billing Unlinked</span>
-                    </span>
-                  )}
-                </div>
-
-                {billingStatus && !billingStatus.billingEnabled && (
-                  <div className="mt-2 p-3 rounded-lg bg-amber-950/30 border border-amber-500/30 space-y-2 text-xs">
-                    <p className="text-amber-200 leading-relaxed">
-                      Google Cloud Storage Requester-Pays requires an attached billing account to attribute download network egress. Free trial accounts are 100% eligible.
-                    </p>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <a
-                        href={billingStatus.remediationUrl || `https://console.cloud.google.com/billing/linkedaccount?project=${projectIdInput}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-md bg-amber-600 hover:bg-amber-500 text-slate-950 font-semibold text-xs transition-all"
-                      >
-                        <span>Link Billing Account in Google Console</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                      <button
-                        onClick={handleRecheckBilling}
-                        disabled={isCheckingBilling}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition-all cursor-pointer"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${isCheckingBilling ? 'animate-spin' : ''}`} />
-                        <span>Re-check Billing</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* $300 Free Trial Guidance Card */}
-              <div className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 p-4 space-y-3">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">✨</span>
-                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wide">
-                    New to Google Cloud? $300 Free Trial Assistant
-                  </h4>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Google provides all new accounts with <strong className="text-white">$300 in free trial credits for 90 days</strong>. This completely covers all media download and retrieval charges with $0 out-of-pocket costs.
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <a
-                    href="https://console.cloud.google.com/freetrial"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-950/50"
-                  >
-                    <span>Open 60s Free Trial Signup</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                  <button
-                    onClick={handleDetectNewProjects}
-                    disabled={isDetecting}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-all cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3 h-3 text-cyan-400 ${isDetecting ? 'animate-spin' : ''}`} />
-                    <span>Auto-Detect My Project</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Manual Override Toggle */}
+              {/* Manual Override Toggle (For IT-managed clients) */}
               <div className="pt-1">
                 <button
+                  type="button"
                   onClick={() => setManualOverride(!manualOverride)}
                   className="text-xs text-slate-400 hover:text-slate-200 flex items-center space-x-1 cursor-pointer"
                 >
@@ -775,7 +1053,10 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                     <input
                       type="text"
                       value={projectIdInput}
-                      onChange={(e) => setProjectIdInput(e.target.value)}
+                      onChange={(e) => {
+                        setProjectIdInput(e.target.value)
+                        setSavedProjectId(e.target.value)
+                      }}
                       placeholder="e.g. corporate-media-prod-2026"
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                     />
@@ -816,7 +1097,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                     type="text"
                     value={bucketInput}
                     onChange={(e) => setBucketInput(e.target.value)}
-                    placeholder="gs://partner-raw-master-archives-2026"
+                    placeholder="gs://mediaserverrecovery"
                     className={`w-full bg-slate-950 border rounded-xl pl-9 pr-3 py-2.5 text-sm text-white font-mono focus:outline-none ${
                       bucketValidationError
                         ? 'border-rose-500/60 focus:border-rose-400'
@@ -833,9 +1114,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                 <span className="text-xs font-semibold text-slate-400">Recent & Recommended Buckets:</span>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    'gs://partner-raw-master-archives-2026',
-                    'gs://avatar-fire-nation-stems-2026',
-                    'gs://ba-sing-se-vfx-vault',
+                    'gs://mediaserverrecovery',
                   ].map((b) => (
                     <button
                       key={b}
@@ -1060,7 +1339,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
           <button
             onClick={() => {
               if (activeStep > 1) setActiveStep((activeStep - 1) as any)
-              else onClose()
+              else handleCancelOrClose()
             }}
             className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
           >
@@ -1069,7 +1348,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
           {activeStep < 4 ? (
             <button
-              onClick={() => setActiveStep((activeStep + 1) as any)}
+              onClick={handleContinueStep}
               className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center space-x-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer"
             >
               <span>Continue</span>

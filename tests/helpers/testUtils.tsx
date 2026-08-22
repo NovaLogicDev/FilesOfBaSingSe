@@ -30,9 +30,7 @@ export function resetAllStores(): void {
     savedProjectId: 'demo-client-media-2026',
     savedBucketName: 'gs://partner-raw-master-archives-2026',
     recentBuckets: [
-      'partner-raw-master-archives-2026',
-      'avatar-fire-nation-stems-2026',
-      'ba-sing-se-vfx-vault',
+      'mediaserverrecovery',
     ],
     theme: 'dark',
     customPricing: {},

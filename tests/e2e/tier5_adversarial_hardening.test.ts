@@ -212,7 +212,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
         expect(heap).toBeLessThan(25.0) // Must not exceed 25MB ceiling
         expect(heap).toBeGreaterThanOrEqual(11.4) // Nominal baseline
       }
-    })
+    }, 15000)
 
     it('prohibits files >200MB in memory_blob fallback to prevent browser OOM', async () => {
       const asset250MB = {

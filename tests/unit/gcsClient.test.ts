@@ -549,27 +549,27 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
     })
 
     it('fails Step 3 when IAM roles/storage.objectViewer permission is missing', async () => {
-      globalThis.fetch = vi
-        .fn()
-        // Step 2: Bucket metadata check OK
-        .mockResolvedValueOnce({
+      globalThis.fetch = vi.fn().mockImplementation((input: any) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/o?')) {
+          return Promise.resolve({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            json: async () => ({
+              error: { message: 'Caller lacks storage.objects.list' },
+            }),
+          } as any)
+        }
+        return Promise.resolve({
           ok: true,
           status: 200,
           json: async () => ({
-            kind: 'storage#bucket',
             id: sampleBucket,
             billing: { requesterPays: true },
           }),
         } as any)
-        // Step 3: IAM probe returns 403 Forbidden
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: 'Forbidden',
-          json: async () => ({
-            error: { message: 'Caller lacks storage.objects.list' },
-          }),
-        } as any)
+      })
 
       const result = await gcsClientService.run4PointPreflight(
         sampleToken,

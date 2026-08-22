@@ -313,13 +313,24 @@ export class GCPProjectService {
    * Checks Cloud Billing account attachment for project to prevent UserProjectAccessDenied errors.
    */
   public async checkBillingStatus(token: string, projectId: string): Promise<BillingStatus> {
+    const cleanId = (projectId || '').trim()
+    if (!cleanId) {
+      return {
+        projectId: '',
+        billingAccountName: '',
+        billingEnabled: false,
+        hasActiveBilling: false,
+        warningMessage: 'No project selected.',
+      }
+    }
+
     if (!token) {
       throw this.createError('UNAUTHENTICATED', 'No OAuth token provided for billing check.', 401, {
-        projectId,
+        projectId: cleanId,
       })
     }
 
-    const url = `${GCPProjectService.BILLING_ENDPOINT}/${projectId}/billingInfo`
+    const url = `${GCPProjectService.BILLING_ENDPOINT}/${cleanId}/billingInfo`
 
     try {
       const res = await fetch(url, {
@@ -331,22 +342,50 @@ export class GCPProjectService {
 
       if (res.status === 401) {
         throw this.createError('UNAUTHENTICATED', 'Google Cloud authentication token expired.', 401, {
-          projectId,
+          projectId: cleanId,
         })
       }
 
       if (!res.ok) {
+        let errorBody: any = {}
+        try {
+          errorBody = await res.json()
+        } catch {
+          // ignore
+        }
+
+        const errorMessage = (errorBody?.error?.message || errorBody?.message || '').toLowerCase()
+        const isApiDisabled =
+          errorMessage.includes('cloudbilling.googleapis.com') ||
+          errorMessage.includes('has not been used in project') ||
+          errorMessage.includes('is disabled')
+
         ObservabilityService.warn(
           'GCS',
-          `Billing check returned HTTP ${res.status} for ${projectId}`,
+          `Billing check returned HTTP ${res.status} for ${cleanId}: ${errorMessage}`,
         )
+
+        if (isApiDisabled) {
+          return {
+            projectId: cleanId,
+            billingAccountName: '',
+            billingEnabled: false,
+            hasActiveBilling: false,
+            apiDisabled: true,
+            apiEnableUrl: `https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=${cleanId}`,
+            warningMessage:
+              'Cloud Billing API is not enabled on this project. Click below to enable it in Google Cloud Console.',
+            remediationUrl: `https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=${cleanId}`,
+          }
+        }
+
         return {
-          projectId,
+          projectId: cleanId,
           billingAccountName: '',
           billingEnabled: false,
           hasActiveBilling: false,
           warningMessage: 'Billing account information could not be retrieved.',
-          remediationUrl: `${GCPProjectService.BILLING_CONSOLE_URL}${projectId}`,
+          remediationUrl: `${GCPProjectService.BILLING_CONSOLE_URL}${cleanId}`,
         }
       }
 
@@ -354,25 +393,25 @@ export class GCPProjectService {
       const isEnabled = Boolean(data.billingEnabled && data.billingAccountName)
 
       return {
-        projectId: data.projectId || projectId,
+        projectId: data.projectId || cleanId,
         billingAccountName: data.billingAccountName || '',
         billingEnabled: isEnabled,
         hasActiveBilling: isEnabled,
         warningMessage: isEnabled
           ? undefined
           : 'Billing is unlinked on this project. GCS Requester-Pays requires an active billing account.',
-        remediationUrl: isEnabled ? undefined : `${GCPProjectService.BILLING_CONSOLE_URL}${projectId}`,
+        remediationUrl: isEnabled ? undefined : `${GCPProjectService.BILLING_CONSOLE_URL}${cleanId}`,
       }
     } catch (err: any) {
       if (err?.code === 'UNAUTHENTICATED') throw err
       ObservabilityService.error('GCS', err?.message || 'Error checking billing')
       return {
-        projectId,
+        projectId: cleanId,
         billingAccountName: '',
         billingEnabled: false,
         hasActiveBilling: false,
         warningMessage: 'Could not connect to Cloud Billing API.',
-        remediationUrl: `${GCPProjectService.BILLING_CONSOLE_URL}${projectId}`,
+        remediationUrl: `${GCPProjectService.BILLING_CONSOLE_URL}${cleanId}`,
       }
     }
   }

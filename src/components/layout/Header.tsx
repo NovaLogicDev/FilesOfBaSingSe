@@ -1,7 +1,6 @@
 import React from 'react'
 import {
   HardDrive,
-  Lock,
   Sparkles,
   User,
   LogOut,
@@ -9,24 +8,31 @@ import {
   Sun,
   Activity,
   ShieldCheck,
-  Layers,
   DollarSign,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
 import { useToastStore } from '../../store/toastStore'
 import { gisAuthService } from '../../services/gisAuthService'
+import { BucketSwitcherPopover } from '../navigation/BucketSwitcherPopover'
+import { ProjectSwitcherPopover } from '../navigation/ProjectSwitcherPopover'
 
 interface HeaderProps {
   onOpenOnboarding: () => void
   onOpenDiagnostics: () => void
   onOpenPricingSettings: () => void
+  onOpenGcpConfig: () => void
+  onBucketSwitch: (newBucket: string) => void
+  onProjectSwitch: (newProjectId: string) => void
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
   onOpenDiagnostics,
   onOpenPricingSettings,
+  onOpenGcpConfig,
+  onBucketSwitch,
+  onProjectSwitch,
 }) => {
   const {
     oauthToken,
@@ -37,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
     setDemoMode,
   } = useRuntimeStore()
 
-  const { savedProjectId, savedBucketName, theme, setTheme } = usePersistentStore()
+  const { theme, setTheme, setSavedProjectId, setSavedBucketName } = usePersistentStore()
   const { addToast } = useToastStore()
 
   const handleToggleDemo = () => {
@@ -64,20 +70,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleSignOut = async () => {
     await gisAuthService.signOut()
+    setSavedProjectId('')
+    setSavedBucketName('')
     addToast({
       type: 'info',
       title: 'Session Disconnected',
-      message: 'Volatile authentication tokens have been purged from memory.',
+      message: 'Volatile authentication tokens and active project contexts have been purged from memory.',
     })
   }
-
-  const displayBucket = isDemoMode
-    ? 'gs://partner-raw-master-archives-2026'
-    : savedBucketName || 'No Bucket Connected'
-
-  const displayProject = isDemoMode
-    ? 'demo-client-media-2026'
-    : savedProjectId || 'Unconfigured'
 
   return (
     <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
@@ -102,19 +102,23 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Active Context Badges */}
-        <div className="hidden lg:flex items-center space-x-3 text-xs">
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-mono text-[11px]">{displayBucket}</span>
-          </div>
+        {/* Active Context Badges & Interactive Switchers */}
+        {oauthToken || isDemoMode ? (
+          <div className="hidden lg:flex items-center space-x-3 text-xs">
+            <BucketSwitcherPopover
+              onBucketSwitch={onBucketSwitch}
+              onOpenWizard={onOpenOnboarding}
+              variant="badge"
+            />
 
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
-            <Lock className="w-3.5 h-3.5 text-amber-400" />
-            <span>Billed to:</span>
-            <span className="font-mono font-medium text-emerald-400">{displayProject}</span>
+            <ProjectSwitcherPopover onProjectSwitch={onProjectSwitch} />
           </div>
-        </div>
+        ) : (
+          <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs font-mono text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-slate-600 inline-block" />
+            <span>GCS Disconnected &bull; Ready for Setup</span>
+          </div>
+        )}
 
         {/* Action Controls & Profile */}
         <div className="flex items-center space-x-2 sm:space-x-3">
@@ -130,6 +134,16 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>{isDemoMode ? 'Demo Sandbox' : 'Live GCS'}</span>
+          </button>
+
+          {/* Unified GCP Configuration Center Button */}
+          <button
+            onClick={onOpenGcpConfig}
+            className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            title="Inspect Google Cloud Platform Configuration & Health (Ctrl+G)"
+            aria-label="GCP Configuration Center"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </button>
 
           {/* Pricing Settings Button */}
@@ -203,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenOnboarding}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-950/40"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-950/40 cursor-pointer"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Connect GCS</span>

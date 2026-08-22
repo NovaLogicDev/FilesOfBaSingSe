@@ -519,16 +519,19 @@ export class GCSClientService {
 
     // Step 2: Bucket Reachability & Requester-Pays Check
     let bucketReachable = false
-    let requesterPaysActive = false
+    let requesterPaysActive = true
     let bucketStepStatus: PreflightStep['status'] = 'pending'
     let bucketError: string | undefined
     let bucketRemediation: string | undefined
     let bucketRemediationUrl: string | undefined
+    let isCors = false
 
     try {
       const bucketMeta = await this.getBucketMetadata(token, cleanBucket, cleanProject)
       bucketReachable = true
-      requesterPaysActive = bucketMeta.billing?.requesterPays ?? true
+      if (bucketMeta.billing?.requesterPays !== undefined) {
+        requesterPaysActive = bucketMeta.billing.requesterPays
+      }
       bucketStepStatus = 'passed'
     } catch (err: any) {
       if (err instanceof UserProjectMissingError) {
@@ -550,11 +553,22 @@ export class GCSClientService {
         bucketError = err.message
         bucketRemediation = err.remediationStep
       } else if (err instanceof CorsConfigurationError) {
+        isCors = true
         bucketReachable = false
         bucketStepStatus = 'failed'
         bucketError = err.message
         bucketRemediation = err.remediationStep
         bucketRemediationUrl = err.remediationUrl
+      } else if (
+        err instanceof IAMPermissionDeniedError ||
+        err.message?.includes('storage.buckets.get') ||
+        err.rawError?.error?.message?.includes('storage.buckets.get')
+      ) {
+        // storage.buckets.get is an administrative bucket permission not granted to object viewers.
+        // The bucket is reachable; object permissions will be evaluated in Step 3.
+        bucketReachable = true
+        requesterPaysActive = true
+        bucketStepStatus = 'passed'
       } else {
         bucketReachable = false
         bucketStepStatus = 'failed'
@@ -574,7 +588,6 @@ export class GCSClientService {
     }
 
     if (!bucketReachable && bucketStepStatus === 'failed') {
-      const isCors = bucketError?.toLowerCase().includes('cors')
       return {
         oauthTokenValid: true,
         oauthExpiresInSeconds,
@@ -598,7 +611,7 @@ export class GCSClientService {
             description: 'Validates browser CORS preflight and exposure headers.',
             status: isCors ? 'failed' : 'pending',
             detail: isCors ? 'CORS preflight request blocked by browser.' : undefined,
-            remediation: isCors ? 'Apply CORS configuration to the bucket using: gcloud storage buckets update gs://BUCKET --cors-file=cors.json' : undefined,
+            remediation: isCors ? `Apply CORS configuration to the bucket using: gcloud storage buckets update gs://${cleanBucket} --cors-file=cors.json` : undefined,
             remediationUrl: isCors ? 'https://cloud.google.com/storage/docs/using-cors' : undefined,
           },
         ],
@@ -631,6 +644,9 @@ export class GCSClientService {
       iamError = err.message
       iamRemediation = err.remediationStep || 'Contact bucket administrator to grant roles/storage.objectViewer.'
       iamRemediationUrl = err.remediationUrl || 'https://cloud.google.com/storage/docs/access-control/iam-roles'
+      if (err instanceof CorsConfigurationError) {
+        isCors = true
+      }
     }
 
     const iamStep: PreflightStep = {
@@ -645,9 +661,7 @@ export class GCSClientService {
     }
 
     // Step 4: CORS Exposure Headers Check
-    // If Step 2 and Step 3 reached GCS without browser network/CORS exception, CORS is valid
-    const corsConfigured = bucketStepStatus !== 'failed' && !(bucketError?.toLowerCase().includes('cors')) && !(iamError?.toLowerCase().includes('cors'))
-
+    const corsConfigured = !isCors && bucketStepStatus !== 'failed' && (iamStepStatus === 'passed' || iamViewerGranted)
     const corsStep: PreflightStep = {
       id: 'cors',
       name: 'CORS Preflight Headers OK',
@@ -659,7 +673,7 @@ export class GCSClientService {
       errorMessage: corsConfigured ? undefined : 'CORS configuration missing or invalid on bucket.',
       remediation: corsConfigured
         ? undefined
-        : 'Apply CORS configuration to the bucket using: gcloud storage buckets update gs://BUCKET --cors-file=cors.json',
+        : `Apply CORS configuration to the bucket using: gcloud storage buckets update gs://${cleanBucket} --cors-file=cors.json`,
       remediationUrl: corsConfigured ? undefined : 'https://cloud.google.com/storage/docs/using-cors',
     }
 

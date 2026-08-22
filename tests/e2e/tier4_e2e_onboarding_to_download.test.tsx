@@ -41,6 +41,10 @@ describe('Tier 4 - Scenario 2: Full End-to-End Onboarding to Verified Direct-to-
       expect(screen.getByText(/Step 2: Smart GCP Billing Project Setup/i)).toBeInTheDocument()
     })
 
+    // Switch to Auto-Create tab
+    const autoCreateTab = screen.getByRole('button', { name: /Auto-Create Project/i })
+    fireEvent.click(autoCreateTab)
+
     // Click Auto-Create Project
     const autoCreateBtn = screen.getByRole('button', { name: /1-Click Auto-Create Media Project/i })
     fireEvent.click(autoCreateBtn)

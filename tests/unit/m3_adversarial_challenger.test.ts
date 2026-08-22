@@ -745,19 +745,22 @@ describe('M3 Challenger - Empirical Adversarial Stress & Fuzz Suite for GCS Clie
       })
 
       it('handles HTTP 503 Service Unavailable during Step 3 (IAM probe)', async () => {
-        globalThis.fetch = vi
-          .fn()
-          .mockResolvedValueOnce({
+        globalThis.fetch = vi.fn().mockImplementation((input: any) => {
+          const url = typeof input === 'string' ? input : input.toString()
+          if (url.includes('/o?')) {
+            return Promise.resolve({
+              ok: false,
+              status: 503,
+              statusText: 'Service Unavailable',
+              json: async () => ({ error: { message: 'IAM service temporarily unavailable' } }),
+            } as any)
+          }
+          return Promise.resolve({
             ok: true,
             status: 200,
             json: async () => ({ kind: 'storage#bucket', id: sampleBucket, billing: { requesterPays: true } }),
           } as any)
-          .mockResolvedValueOnce({
-            ok: false,
-            status: 503,
-            statusText: 'Service Unavailable',
-            json: async () => ({ error: { message: 'IAM service temporarily unavailable' } }),
-          } as any)
+        })
 
         const result = await gcsClientService.run4PointPreflight(
           sampleToken,

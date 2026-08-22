@@ -15,6 +15,7 @@ import { HighCostConfirmationModalShell } from '../cost/HighCostConfirmationModa
 import { OnboardingWizardShell } from '../onboarding/OnboardingWizardShell'
 import { DiagnosticsModalShell } from '../diagnostics/DiagnosticsModalShell'
 import { PricingSettingsModalShell } from '../cost/PricingSettingsModalShell'
+import { GCPConfigCenterModalShell } from '../config/GCPConfigCenterModalShell'
 import { ToastContainer } from '../ui/Toast'
 
 import { usePersistentStore } from '../../store/persistentStore'
@@ -28,8 +29,15 @@ import { CostGovernanceEngine } from '../../engines/cost'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
-  const { savedBucketName, savedProjectId, isFreeTrialAccount, customPricing, setSavedBucketName, setSavedProjectId } =
-    usePersistentStore()
+  const {
+    savedBucketName,
+    savedProjectId,
+    isFreeTrialAccount,
+    customPricing,
+    setSavedBucketName,
+    setSavedProjectId,
+  } = usePersistentStore()
+
   const {
     oauthToken,
     setDownloadProgress,
@@ -50,6 +58,7 @@ export const AppShell: React.FC = () => {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false)
   const [isPricingSettingsOpen, setIsPricingSettingsOpen] = useState(false)
+  const [isGcpConfigOpen, setIsGcpConfigOpen] = useState(false)
   const [inspectedAsset, setInspectedAsset] = useState<GCSMediaItem | null>(null)
   const [cliModalPaths, setCliModalPaths] = useState<string[] | null>(null)
   const [highCostConfirm, setHighCostConfirm] = useState<{
@@ -62,8 +71,8 @@ export const AppShell: React.FC = () => {
   // Load directory contents
   const loadDirectory = useCallback(
     async (prefix: string, pageToken?: string) => {
-      // If unauthenticated in Live mode, skip loading
-      if (!isDemoMode && (!oauthToken || !savedBucketName)) {
+      // If unauthenticated or unconfigured in Live mode, skip loading
+      if (!isDemoMode && (!oauthToken || !savedBucketName || !savedProjectId)) {
         setFolders([])
         setFiles([])
         return
@@ -108,9 +117,27 @@ export const AppShell: React.FC = () => {
 
   useEffect(() => {
     loadDirectory(currentPrefix)
-  }, [loadDirectory, currentPrefix, isDemoMode, oauthToken])
+  }, [loadDirectory, currentPrefix, isDemoMode, oauthToken, savedProjectId, savedBucketName])
 
-  // Global Keyboard Shortcuts (AUX-04)
+  // Handle on-the-fly bucket switch
+  const handleBucketSwitch = useCallback(
+    (newBucket: string) => {
+      setSavedBucketName(newBucket)
+      setCurrentPrefix('')
+      loadDirectory('')
+    },
+    [setSavedBucketName, loadDirectory],
+  )
+
+  // Handle on-the-fly project switch
+  const handleProjectSwitch = useCallback(
+    (newProjectId: string) => {
+      setSavedProjectId(newProjectId)
+    },
+    [setSavedProjectId],
+  )
+
+  // Global Keyboard Shortcuts (AUX-04 & Module 9)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // 1. Esc closes top modal or drawer
@@ -118,6 +145,7 @@ export const AppShell: React.FC = () => {
         if (cliModalPaths !== null) setCliModalPaths(null)
         else if (highCostConfirm !== null) setHighCostConfirm(null)
         else if (inspectedAsset !== null) setInspectedAsset(null)
+        else if (isGcpConfigOpen) setIsGcpConfigOpen(false)
         else if (isPricingSettingsOpen) setIsPricingSettingsOpen(false)
         else if (isDiagnosticsOpen) setIsDiagnosticsOpen(false)
         else if (isOnboardingOpen) setIsOnboardingOpen(false)
@@ -135,6 +163,12 @@ export const AppShell: React.FC = () => {
           searchInput.select()
         }
       }
+
+      // 3. Global GCP Config Center shortcut Ctrl+G or Cmd+G (Module 9)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        setIsGcpConfigOpen((prev) => !prev)
+      }
     }
 
     window.addEventListener('keydown', handleGlobalKeyDown)
@@ -143,6 +177,7 @@ export const AppShell: React.FC = () => {
     cliModalPaths,
     highCostConfirm,
     inspectedAsset,
+    isGcpConfigOpen,
     isPricingSettingsOpen,
     isDiagnosticsOpen,
     isOnboardingOpen,
@@ -316,7 +351,7 @@ export const AppShell: React.FC = () => {
     }
   }
 
-  const isUnconfiguredLive = !isDemoMode && (!oauthToken || !savedBucketName)
+  const isUnconfiguredLive = !isDemoMode && (!oauthToken || !savedBucketName || !savedProjectId)
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
@@ -336,6 +371,9 @@ export const AppShell: React.FC = () => {
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
         onOpenPricingSettings={() => setIsPricingSettingsOpen(true)}
+        onOpenGcpConfig={() => setIsGcpConfigOpen(true)}
+        onBucketSwitch={handleBucketSwitch}
+        onProjectSwitch={handleProjectSwitch}
       />
 
       {/* Demo Sandbox Mode Sticky Banner Indicator */}
@@ -458,6 +496,8 @@ export const AppShell: React.FC = () => {
             onDownloadAsset={handleInitiateDownload}
             onGenerateCli={(paths) => setCliModalPaths(paths)}
             onDownloadBatch={handleInitiateBatchDownload}
+            onBucketSwitch={handleBucketSwitch}
+            onOpenWizard={() => setIsOnboardingOpen(true)}
           />
         )}
       </main>
@@ -504,6 +544,20 @@ export const AppShell: React.FC = () => {
       <PricingSettingsModalShell
         isOpen={isPricingSettingsOpen}
         onClose={() => setIsPricingSettingsOpen(false)}
+      />
+
+      {/* Unified GCP Configuration Center & Session Inspector (Module 9) */}
+      <GCPConfigCenterModalShell
+        isOpen={isGcpConfigOpen}
+        onClose={() => setIsGcpConfigOpen(false)}
+        onOpenPricingSettings={() => {
+          setIsGcpConfigOpen(false)
+          setIsPricingSettingsOpen(true)
+        }}
+        onOpenOnboarding={() => {
+          setIsGcpConfigOpen(false)
+          setIsOnboardingOpen(true)
+        }}
       />
 
       {/* System Diagnostics & Health Modal */}

@@ -20,6 +20,8 @@ interface AssetExplorerShellProps {
   onDownloadAsset: (item: GCSMediaItem) => void
   onGenerateCli: (selectedPaths: string[]) => void
   onDownloadBatch: (selectedItems: GCSMediaItem[]) => void
+  onBucketSwitch?: (newBucket: string) => void
+  onOpenWizard?: () => void
 }
 
 export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
@@ -33,6 +35,8 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
   onDownloadAsset,
   onGenerateCli,
   onDownloadBatch,
+  onBucketSwitch,
+  onOpenWizard,
 }) => {
   const { savedBucketName, isFreeTrialAccount, customPricing } = usePersistentStore()
   const { addToast } = useToastStore()
@@ -206,6 +210,8 @@ export const AssetExplorerShell: React.FC<AssetExplorerShellProps> = ({
         currentPrefix={currentPrefix}
         bucketName={savedBucketName}
         onNavigatePrefix={onNavigatePrefix}
+        onBucketSwitch={onBucketSwitch}
+        onOpenWizard={onOpenWizard}
       />
 
       {/* 2. Sticky Cost Governance Banner */}

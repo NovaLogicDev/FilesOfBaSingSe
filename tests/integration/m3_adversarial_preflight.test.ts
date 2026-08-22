@@ -42,20 +42,42 @@ describe('M3 Adversarial Empirical Verification - 4-Point Preflight Edge Cases &
     })
   }
 
-  const mockFetchSequence = (responses: Array<{ status: number; body: any; ok?: boolean }>) => {
+  const mockFetchSequence = (responses: Array<{ status: number; body: any; ok?: boolean; urlMatch?: string | RegExp }>) => {
     let callIndex = 0
     globalThis.fetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString()
       interceptedRequests.push({ url, init })
-      const res = responses[callIndex] || responses[responses.length - 1]
-      callIndex++
-      const ok = res.ok !== undefined ? res.ok : res.status >= 200 && res.status < 300
+
+      let matchedRes: { status: number; body: any; ok?: boolean } | undefined
+      // Check if any response specifies urlMatch
+      const urlMatched = responses.find((r) => {
+        if (!r.urlMatch) return false
+        if (typeof r.urlMatch === 'string') return url.includes(r.urlMatch)
+        return r.urlMatch.test(url)
+      })
+
+      if (urlMatched) {
+        matchedRes = urlMatched
+      } else {
+        // Fallback: Smart endpoint routing for bucket vs objects
+        if (url.includes('/o?') || url.includes('/o/')) {
+          matchedRes = responses.find((r) => r.body?.kind === 'storage#objects')
+        } else if (url.includes('/storage/v1/b/')) {
+          matchedRes = responses.find((r) => r.body?.kind === 'storage#bucket')
+        }
+        if (!matchedRes) {
+          matchedRes = responses[callIndex] || responses[responses.length - 1]
+          callIndex++
+        }
+      }
+
+      const ok = matchedRes.ok !== undefined ? matchedRes.ok : matchedRes.status >= 200 && matchedRes.status < 300
       return Promise.resolve({
         ok,
-        status: res.status,
+        status: matchedRes.status,
         statusText: ok ? 'OK' : 'Error',
-        json: async () => res.body,
-        text: async () => JSON.stringify(res.body),
+        json: async () => matchedRes.body,
+        text: async () => JSON.stringify(matchedRes.body),
       } as Response)
     })
   }
@@ -234,10 +256,9 @@ describe('M3 Adversarial Empirical Verification - 4-Point Preflight Edge Cases &
     describe('IAM ObjectViewer Permission (Step 3) Tests', () => {
       it('fails Step 3 when IAM read permission is denied (HTTP 403 roles/storage.objectViewer missing)', async () => {
         mockFetchSequence([
-          // Step 2: Bucket metadata succeeds
-          { status: 200, body: { kind: 'storage#bucket', id: bucket, billing: { requesterPays: true } } },
-          // Step 3: Object list probe fails with standard 403
+          // Object list probe fails with standard 403
           {
+            urlMatch: '/o?',
             status: 403,
             body: {
               error: {
@@ -245,6 +266,12 @@ describe('M3 Adversarial Empirical Verification - 4-Point Preflight Edge Cases &
                 message: 'Access denied: user lacks storage.objects.list on bucket.',
               },
             },
+          },
+          // Bucket metadata
+          {
+            urlMatch: /\/b\/[^/]+\?/,
+            status: 200,
+            body: { kind: 'storage#bucket', id: bucket, billing: { requesterPays: true } },
           },
         ])
 
@@ -256,6 +283,36 @@ describe('M3 Adversarial Empirical Verification - 4-Point Preflight Edge Cases &
         expect(result.steps?.[2].errorMessage).toContain('roles/storage.objectViewer')
         expect(result.steps?.[2].remediation).toContain('roles/storage.objectViewer')
         expect(result.steps?.[2].remediationUrl).toContain('storage/docs/access-control/iam-roles')
+      })
+
+      it('passes preflight when user has roles/storage.objectViewer even if storage.buckets.get is denied on bucket metadata', async () => {
+        mockFetchSequence([
+          // Object list probe succeeds (200 OK)
+          {
+            urlMatch: '/o?',
+            status: 200,
+            body: { kind: 'storage#objects', items: [] },
+          },
+          // Bucket metadata fails with 403 storage.buckets.get denied
+          {
+            urlMatch: /\/b\/[^/]+\?/,
+            status: 403,
+            body: {
+              error: {
+                code: 403,
+                message: "user does not have storage.buckets.get access to the Google Cloud Storage bucket. Permission 'storage.buckets.get' denied on resource",
+              },
+            },
+          },
+        ])
+
+        const result = await gcsClientService.run4PointPreflight(token, bucket, userProject)
+        expect(result.oauthTokenValid).toBe(true)
+        expect(result.bucketReachable).toBe(true)
+        expect(result.requesterPaysActive).toBe(true)
+        expect(result.iamViewerGranted).toBe(true)
+        expect(result.corsConfigured).toBe(true)
+        expect(result.steps?.every((s) => s.status === 'passed')).toBe(true)
       })
     })
 

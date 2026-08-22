@@ -114,6 +114,8 @@ export interface BillingStatus {
   billingAccountName: string
   billingEnabled: boolean
   hasActiveBilling?: boolean
+  apiDisabled?: boolean
+  apiEnableUrl?: string
   warningMessage?: string
   remediationUrl?: string
 }
