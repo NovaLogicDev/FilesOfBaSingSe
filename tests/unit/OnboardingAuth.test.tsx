@@ -315,4 +315,23 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
       expect(screen.getByRole('button', { name: /finish setup & enter media portal/i })).not.toBeDisabled()
     })
   })
+
+  it('renders correctly without hook order violation when toggling isOpen from false to true', () => {
+    const { rerender } = renderWithProviders(
+      <OnboardingWizardShell isOpen={false} onClose={() => {}} onComplete={() => {}} />,
+    )
+
+    // Verify nothing rendered when closed
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Open wizard (transition from isOpen=false to isOpen=true)
+    rerender(
+      <OnboardingWizardShell isOpen={true} onClose={() => {}} onComplete={() => {}} />,
+    )
+
+    // Should render successfully without throwing hook order errors
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/Client GCP Connection & Onboarding Wizard/i)).toBeInTheDocument()
+  })
 })
+

@@ -128,6 +128,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
   // Validate Project ID & Verify Billing
   useEffect(() => {
+    if (!isOpen) return
     if (!projectIdInput || projectIdInput.trim() === '') {
       setBillingStatus(null)
       setProjectValidationError(null)
@@ -167,10 +168,11 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
       .finally(() => {
         setIsCheckingBilling(false)
       })
-  }, [projectIdInput, oauthToken])
+  }, [isOpen, projectIdInput, oauthToken])
 
   // Validate Bucket Name
   useEffect(() => {
+    if (!isOpen) return
     if (!bucketInput || bucketInput.trim() === '') {
       setBucketValidationError(null)
       return
@@ -181,9 +183,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     } else {
       setBucketValidationError(null)
     }
-  }, [bucketInput])
-
-  if (!isOpen) return null
+  }, [isOpen, bucketInput])
 
   const handleSignInGoogle = async () => {
     setIsSigningIn(true)
@@ -382,10 +382,11 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
   // Auto-run preflight when entering Step 4 for the first time
   useEffect(() => {
+    if (!isOpen) return
     if (activeStep === 4 && !preflightStatus && !isPreflightRunning) {
       handleRunPreflight()
     }
-  }, [activeStep, preflightStatus, isPreflightRunning])
+  }, [isOpen, activeStep, preflightStatus, isPreflightRunning])
 
   const handleContinueStep = () => {
     if (activeStep === 1) {
@@ -490,6 +491,8 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     preflightStatus?.requesterPaysActive &&
     preflightStatus?.iamViewerGranted &&
     preflightStatus?.corsConfigured
+
+  if (!isOpen) return null
 
   return (
     <div

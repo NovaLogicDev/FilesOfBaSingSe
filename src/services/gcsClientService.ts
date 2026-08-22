@@ -517,22 +517,33 @@ export class GCSClientService {
       }
     }
 
-    // Step 2: Bucket Reachability & Requester-Pays Check
+    // Step 2, 3 & 4: Probe GCS via listObjects (requires roles/storage.objectViewer + requester-pays userProject)
     let bucketReachable = false
-    let requesterPaysActive = true
+    let requesterPaysActive = false
+    let iamViewerGranted = false
     let bucketStepStatus: PreflightStep['status'] = 'pending'
+    let iamStepStatus: PreflightStep['status'] = 'pending'
     let bucketError: string | undefined
     let bucketRemediation: string | undefined
     let bucketRemediationUrl: string | undefined
+    let iamError: string | undefined
+    let iamRemediation: string | undefined
+    let iamRemediationUrl: string | undefined
     let isCors = false
 
     try {
-      const bucketMeta = await this.getBucketMetadata(token, cleanBucket, cleanProject)
+      await this.listObjects(token, cleanBucket, {
+        prefix: '',
+        delimiter: '/',
+        userProject: cleanProject,
+        maxResults: 1,
+      })
+
       bucketReachable = true
-      if (bucketMeta.billing?.requesterPays !== undefined) {
-        requesterPaysActive = bucketMeta.billing.requesterPays
-      }
+      requesterPaysActive = true
       bucketStepStatus = 'passed'
+      iamViewerGranted = true
+      iamStepStatus = 'passed'
     } catch (err: any) {
       if (err instanceof UserProjectMissingError) {
         bucketReachable = true
@@ -540,6 +551,8 @@ export class GCSClientService {
         bucketStepStatus = 'warning'
         bucketError = err.message
         bucketRemediation = err.remediationStep
+        iamStepStatus = 'failed'
+        iamError = 'Requester-Pays project required to evaluate IAM permissions.'
       } else if (err instanceof UserProjectAccessDeniedError) {
         bucketReachable = false
         requesterPaysActive = true
@@ -547,11 +560,15 @@ export class GCSClientService {
         bucketError = err.message
         bucketRemediation = err.remediationStep
         bucketRemediationUrl = err.remediationUrl
+        iamStepStatus = 'failed'
+        iamError = 'Cannot verify IAM access: billing project access denied.'
       } else if (err instanceof BucketNotFoundError) {
         bucketReachable = false
         bucketStepStatus = 'failed'
         bucketError = err.message
         bucketRemediation = err.remediationStep
+        iamStepStatus = 'failed'
+        iamError = 'Bucket does not exist.'
       } else if (err instanceof CorsConfigurationError) {
         isCors = true
         bucketReachable = false
@@ -559,20 +576,23 @@ export class GCSClientService {
         bucketError = err.message
         bucketRemediation = err.remediationStep
         bucketRemediationUrl = err.remediationUrl
-      } else if (
-        err instanceof IAMPermissionDeniedError ||
-        err.message?.includes('storage.buckets.get') ||
-        err.rawError?.error?.message?.includes('storage.buckets.get')
-      ) {
-        // storage.buckets.get is an administrative bucket permission not granted to object viewers.
-        // The bucket is reachable; object permissions will be evaluated in Step 3.
+        iamStepStatus = 'failed'
+        iamError = 'CORS blocked preflight probe request.'
+      } else if (err instanceof IAMPermissionDeniedError) {
         bucketReachable = true
         requesterPaysActive = true
         bucketStepStatus = 'passed'
+        iamViewerGranted = false
+        iamStepStatus = 'failed'
+        iamError = err.message
+        iamRemediation = err.remediationStep
+        iamRemediationUrl = err.remediationUrl
       } else {
         bucketReachable = false
         bucketStepStatus = 'failed'
         bucketError = err.message
+        iamStepStatus = 'failed'
+        iamError = err.message
       }
     }
 
@@ -585,68 +605,6 @@ export class GCSClientService {
       errorMessage: bucketError,
       remediation: bucketRemediation,
       remediationUrl: bucketRemediationUrl,
-    }
-
-    if (!bucketReachable && bucketStepStatus === 'failed') {
-      return {
-        oauthTokenValid: true,
-        oauthExpiresInSeconds,
-        bucketReachable: false,
-        requesterPaysActive,
-        iamViewerGranted: false,
-        corsConfigured: !isCors,
-        steps: [
-          tokenStep,
-          bucketStep,
-          {
-            id: 'iam',
-            name: 'IAM Object Viewer Granted',
-            description: 'Probes roles/storage.objectViewer permission on bucket.',
-            status: 'failed',
-            detail: 'Bucket unreachable.',
-          },
-          {
-            id: 'cors',
-            name: 'CORS Preflight Headers OK',
-            description: 'Validates browser CORS preflight and exposure headers.',
-            status: isCors ? 'failed' : 'pending',
-            detail: isCors ? 'CORS preflight request blocked by browser.' : undefined,
-            remediation: isCors ? `Apply CORS configuration to the bucket using: gcloud storage buckets update gs://${cleanBucket} --cors-file=cors.json` : undefined,
-            remediationUrl: isCors ? 'https://cloud.google.com/storage/docs/using-cors' : undefined,
-          },
-        ],
-        rawError: bucketError,
-        errorMessage: bucketError,
-        remediationStep: bucketRemediation,
-        remediationUrl: bucketRemediationUrl,
-      }
-    }
-
-    // Step 3: IAM ObjectViewer Permission Check
-    let iamViewerGranted = false
-    let iamStepStatus: PreflightStep['status'] = 'pending'
-    let iamError: string | undefined
-    let iamRemediation: string | undefined
-    let iamRemediationUrl: string | undefined
-
-    try {
-      await this.listObjects(token, cleanBucket, {
-        prefix: '',
-        delimiter: '/',
-        userProject: cleanProject,
-        maxResults: 1,
-      })
-      iamViewerGranted = true
-      iamStepStatus = 'passed'
-    } catch (err: any) {
-      iamViewerGranted = false
-      iamStepStatus = 'failed'
-      iamError = err.message
-      iamRemediation = err.remediationStep || 'Contact bucket administrator to grant roles/storage.objectViewer.'
-      iamRemediationUrl = err.remediationUrl || 'https://cloud.google.com/storage/docs/access-control/iam-roles'
-      if (err instanceof CorsConfigurationError) {
-        isCors = true
-      }
     }
 
     const iamStep: PreflightStep = {

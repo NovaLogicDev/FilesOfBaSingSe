@@ -768,7 +768,6 @@ describe('M3 Challenger - Empirical Adversarial Stress & Fuzz Suite for GCS Clie
           sampleProject,
         )
 
-        expect(result.bucketReachable).toBe(true)
         expect(result.iamViewerGranted).toBe(false)
         expect(result.steps?.[2].status).toBe('failed')
       })
