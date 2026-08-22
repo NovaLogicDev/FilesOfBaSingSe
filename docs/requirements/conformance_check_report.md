@@ -148,12 +148,18 @@ During the conformance audit, the following updates and harmonizations were enac
    - Added Module 10 (`MOD-10-SESSION-LIFECYCLE`), Epic 10 in `user_stories_specification.md`, and Engine 8 in `system_engines_design_specification.md`.
    - Verified that session continuity on reload uses non-sensitive session hints and silent GIS token requests (`gisAuthService.refreshTokenSilent()`) with zero token storage on disk.
    - Verified that returning users with valid `savedProjectId` and `savedBucketName` bypass the 4-step wizard directly into the active workspace.
+6. **Browser History & URL Deep Linking Conformance**:
+   - Added Module 11 (`MOD-11-BROWSER-HISTORY-ROUTING`), Epic 11 in `user_stories_specification.md`, and Engine 9 in `system_engines_design_specification.md`.
+   - Verified that breadcrumb clicks and folder navigation push history entries via `history.pushState()`.
+   - Verified that `popstate` events handle Back/Forward button clicks with in-flight fetch cancellation via `AbortController`.
+   - Verified that deep links (`#/browse/{bucket}/{prefix}`) hydrate directory views upon boot without credential leaks.
 
 ---
 
 ### Conformance Check Sign-Off
 - **Architecture Alignment**: 100% Conforming
-- **User Story Coverage**: 100% Conforming (10 Epics, 30 Stories)
-- **UI Wireframe & Design System Consistency**: 100% Conforming (7 Screens)
+- **User Story Coverage**: 100% Conforming (11 Epics, 34 Stories)
+- **UI Wireframe & Design System Consistency**: 100% Conforming (8 Screens)
 - **Security & Billing Integrity**: 100% Conforming (Zero Token Persistence Guaranteed)
 - **Session Lifecycle & Onboarding Bypass**: 100% Conforming
+- **Browser History & URL Synchronization**: 100% Conforming (Module 11)

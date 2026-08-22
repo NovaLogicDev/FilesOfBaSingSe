@@ -5,7 +5,7 @@
 
 ### Executive Architectural Overview
 
-**Files of Ba Sing Se** is powered by eight modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
+**Files of Ba Sing Se** is powered by nine modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
 
 ```mermaid
 flowchart TD
@@ -18,11 +18,13 @@ flowchart TD
         E6["6. Automated Batch & CLI Generator Engine\n(gcloud storage, gsutil, Firefox Routing)"]
         E7["7. State Isolation & Persistence Engine\n(Zustand Volatile RAM, LocalStorage, IndexedDB)"]
         E8["8. Session Lifecycle & Restoration Engine\n(Silent Reload, Onboarding Bypass, 1-Click Reconnect)"]
+        E9["9. Browser History & Navigation Router Engine\n(pushState, popstate, URL Hash Sync, Deep-Link)"]
     end
 
     E8 --> E1
     E8 --> E7
     E1 --> E2
+    E9 --> E2
     E2 --> E3
     E2 --> E4
     E4 --> E5
@@ -31,6 +33,7 @@ flowchart TD
     E7 -.->|"Supplies Active State"| E2
     E7 -.->|"Maintains Active Stream Handles"| E4
     E8 -.->|"Rehydrates Active Workspace"| E2
+    E9 -.->|"Synchronizes URL & History Stack"| E2
 ```
 
 ---
@@ -940,18 +943,154 @@ export class SessionLifecycleEngine {
 
 ---
 
-## 9. Cross-Engine Integration with Module 9 & Module 10 (GCP Config Center & Session Lifecycle)
+## 9. Engine 9: Browser History & Navigation Routing Engine
 
-The primary engines integrate with **[Module 9](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`) and **[Module 10](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`) as follows:
-- **Engine 8 (`SessionLifecycleEngine`)**: Invokes `gisAuthService.refreshTokenSilent()` on boot and coordinates with `PersistentStore` to evaluate onboarding bypass before mounting `AssetExplorer`.
-- **Engine 1 (`GCPOnboardingEngine`)**: Provides the reusable `runPreflightHandshake()` method called in the background upon silent session recovery.
-- **Engine 2 (`BucketExplorerEngine`)**: Triggered directly with `savedBucketName` and `savedProjectId` when onboarding is bypassed.
-- **Engine 3 (`CostGovernanceEngine`)**: Supplies active rate card data ($/GB rates and Free Trial credit status) to the Config Center inspection cards.
-- **Engine 7 (`StatePersistenceEngine`)**: Ingests and persists `savedBucketName`, `savedProjectId`, `recentBuckets`, `hasCompletedOnboarding`, and `lastAuthUserEmail`.
+### 9.1 Purpose & Domain Scope
+Synchronizes user directory navigation with the browser's native History API (`history.pushState`, `history.replaceState`, `popstate`), ensuring that clicking breadcrumbs, folder rows, or browser Back/Forward buttons smoothly updates directory views in $<16\text{ ms}$ without page reloads, supports bookmarkable URL hashes (`#/browse/{bucket}/{prefix}`), cancels in-flight GCS fetch race conditions upon fast history traversal, and prevents credential leakage in history states.
+
+### 9.2 Subsystem Architecture & Navigation Flow
+
+```mermaid
+flowchart TD
+    subgraph Engine9Flow ["Engine 9: History Routing Protocol"]
+        UserAction["User Action\n(Folder Row / Breadcrumb Click)"] --> Serialize["serializeHash(bucket, prefix)"]
+        Serialize --> PushState["history.pushState(state, '', hash)"]
+        PushState --> NotifyExplorer["AppShell.onPrefixChange(prefix)"]
+        
+        BrowserNav["Browser Back / Forward Button ⬅️ ➡️"] --> PopstateEvent["window.onpopstate Event"]
+        PopstateEvent --> ParseHash["parseHash(window.location.hash)"]
+        ParseHash --> AbortPending["AbortController.abort() (In-Flight Fetch)"]
+        AbortPending --> ApplyHistoricalState["Update active state without pushState"]
+        ApplyHistoricalState --> NotifyExplorer
+    end
+```
+
+### 9.3 TypeScript Contract Specification
+
+```typescript
+export interface NavigationHistoryState {
+  bucket: string;
+  prefix: string;
+  timestamp: number;
+  source: 'user_interaction' | 'deep_link' | 'popstate' | 'bucket_switch';
+}
+
+export interface ParsedRoute {
+  view: 'browse' | 'onboarding' | 'config' | 'root';
+  bucket: string;
+  prefix: string;
+  isValid: boolean;
+}
+
+export class BrowserHistoryRouterEngine {
+  private static ROUTE_PREFIX = '#/browse';
+
+  /**
+   * Encodes bucket and directory prefix into canonical URL hash
+   */
+  public static serializeHash(bucketName: string, prefix: string): string {
+    const cleanBucket = bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+    const cleanPrefix = prefix.replace(/^\/+/, '');
+
+    if (!cleanBucket) return '';
+    if (!cleanPrefix) return `${this.ROUTE_PREFIX}/${encodeURIComponent(cleanBucket)}/`;
+
+    const encodedSegments = cleanPrefix
+      .split('/')
+      .map((s) => encodeURIComponent(s))
+      .join('/');
+
+    return `${this.ROUTE_PREFIX}/${encodeURIComponent(cleanBucket)}/${encodedSegments}`;
+  }
+
+  /**
+   * Decodes URL hash string into structured route
+   */
+  public static parseHash(hashString: string = window.location.hash): ParsedRoute {
+    if (!hashString || !hashString.startsWith('#')) {
+      return { view: 'root', bucket: '', prefix: '', isValid: false };
+    }
+
+    // Support Query Param style: #/browse?bucket=abc&prefix=xyz
+    if (hashString.startsWith('#/browse?') || hashString.startsWith('#?')) {
+      const queryPart = hashString.split('?')[1] || '';
+      const params = new URLSearchParams(queryPart);
+      const bucket = (params.get('bucket') || '').replace(/^gs:\/\//i, '').trim();
+      const prefix = params.get('prefix') || '';
+      return { view: 'browse', bucket, prefix, isValid: Boolean(bucket) };
+    }
+
+    const cleanHash = hashString.replace(/^#\/?/, '');
+    const parts = cleanHash.split('/');
+
+    if (parts[0] !== 'browse' || parts.length < 2 || !parts[1]) {
+      return { view: 'root', bucket: '', prefix: '', isValid: false };
+    }
+
+    const bucket = decodeURIComponent(parts[1]).replace(/^gs:\/\//i, '').trim();
+    const rawPrefixParts = parts.slice(2);
+    const decodedPrefix = rawPrefixParts
+      .map((seg) => decodeURIComponent(seg))
+      .filter((seg, idx) => seg.length > 0 || idx === rawPrefixParts.length - 1)
+      .join('/');
+
+    const prefix = decodedPrefix ? (decodedPrefix.endsWith('/') ? decodedPrefix : `${decodedPrefix}/`) : '';
+
+    return {
+      view: 'browse',
+      bucket,
+      prefix,
+      isValid: Boolean(bucket && bucket.length >= 3)
+    };
+  }
+
+  /**
+   * Pushes a new navigation state to browser history
+   */
+  public static pushNavigation(
+    bucketName: string,
+    prefix: string,
+    options: { replace?: boolean; source?: NavigationHistoryState['source'] } = {}
+  ): void {
+    const cleanBucket = bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+    const targetHash = this.serializeHash(cleanBucket, prefix);
+    if (!targetHash) return;
+
+    const state: NavigationHistoryState = {
+      bucket: cleanBucket,
+      prefix,
+      timestamp: Date.now(),
+      source: options.source || 'user_interaction'
+    };
+
+    if (options.replace || window.location.hash === targetHash) {
+      window.history.replaceState(state, '', targetHash);
+    } else {
+      window.history.pushState(state, '', targetHash);
+    }
+  }
+}
+```
+
+---
+
+## 10. Cross-Engine Integration Matrix (Engines 1 through 9)
+
+The primary engines operate as a cohesive, zero-liability mesh:
+- **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
+- **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`.
+- **Engine 1 (`GCPOnboardingEngine`)**: Provides reusable preflight validation called when navigating to new buckets via history or switchers.
+- **Engine 2 (`BucketExplorerEngine`)**: Directly consumes prefixes dispatched from Engine 9, parsing common prefixes and leaf objects for the virtualized grid.
+- **Engine 3 (`CostGovernanceEngine`)**: Ingests selected items from the active directory to render real-time retrieval/egress cost estimates.
+- **Engine 4 (`GCSStreamEngine`)**: Streams multi-gigabyte media assets direct to disk via 4MB micro-chunks with constant <15MB heap.
+- **Engine 5 (`CRC32cIntegrityEngine`)**: Validates bit-exact Castagnoli CRC32c checksum parity against GCS `x-goog-hash` headers.
+- **Engine 6 (`CliGeneratorEngine`)**: Formats copyable `gcloud storage` and `gsutil` shell scripts with client `--billing-project`.
+- **Engine 7 (`StatePersistenceEngine`)**: Maintains strict isolation between volatile RAM tokens and persisted preferences, ensuring zero token leakage in `window.history.state` or `localStorage`.
 
 ---
 
 ### Architectural Sign-Off for System Engines
 
-All 8 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity and frictionless onboarding bypass.
+All 9 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, and frictionless onboarding bypass.
+
 

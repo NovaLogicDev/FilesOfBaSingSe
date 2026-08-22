@@ -166,6 +166,22 @@ Content-Security-Policy:
 
 ---
 
+### 1.6 Client-Side Routing & Browser History API Architecture
+
+Because the portal operates under a zero-backend model without dynamic application server rewrites, the client routing subsystem (*Module 11*, `MOD-11-BROWSER-HISTORY-ROUTING`) adheres to the following infrastructure rules:
+
+1. **Hash-Based Canonical URL Architecture**:
+   - URL routes utilize hash-based patterns (`#/browse/{bucketName}/{encodedPrefix}`) to guarantee that all deep links resolve directly on static edge CDNs (Firebase Hosting, Cloudflare Pages, S3, GitHub Pages) without requiring server-side fallback rewrite rules or returning HTTP 404s.
+2. **Bidirectional History Stack Synchronization**:
+   - Every breadcrumb click and folder navigation triggers `window.history.pushState()`, creating discrete browser history entries.
+   - Global `popstate` event listeners intercept Back and Forward button navigation, re-synchronizing active folder views in $< 16\text{ ms}$ (single frame) with zero page reload.
+3. **In-Flight Request Cancellation Guard**:
+   - Fast successive Back/Forward traversal cancels obsolete GCS network requests via `AbortController` to eliminate race conditions.
+4. **Zero-Credential History Guarantee**:
+   - `window.history.state` and URL parameters are strictly restricted to public bucket names and folder path strings, guaranteeing zero credential retention.
+
+---
+
 ## 2. Backend & Host Infrastructure Requirements (The "Zero-Backend" Service Mesh)
 
 Because there is no custom server software, the "backend" requirements consist of **Google Cloud Platform IAM & Bucket configurations**, **Google Cloud API services**, and **Static Edge CDN hosting**.

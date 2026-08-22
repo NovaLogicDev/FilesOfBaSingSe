@@ -137,7 +137,10 @@ flowchart LR
 ```
 
 ### Behavioral Specifications
-1. **Interactive Breadcrumb Navigation**: Each folder segment is a clickable button. Clicking `feature_films` navigates up one level; clicking `gs://` returns to root.
+1. **Interactive Breadcrumb Navigation & Browser History Synchronization**:
+   - Each folder segment is a clickable, focusable button with accessible label (`aria-label="Navigate up to folder..."`). Clicking `feature_films` navigates up one level; clicking `gs://` returns to root.
+   - Every breadcrumb click or folder drill-down automatically invokes `history.pushState()` and synchronizes the browser address bar to `#/browse/{bucketName}/{encodedPrefix}` (*Module 11*).
+   - Pressing browser **Back** / **Forward** buttons (or `Alt+Left`/`Alt+Right`, `Cmd+[`/`Cmd+]`) dispatches `popstate`, re-rendering the exact historical breadcrumb stack and directory contents in $<16\text{ ms}$ without reloading the page.
 2. **Sticky Cost Notification Banner**:
    - Calculates in real-time as checkboxes are toggled.
    - Multiplies `ARCHIVE` bytes by \$0.05/GB, `COLDLINE` by \$0.02/GB, and all bytes by \$0.12/GB egress.
@@ -374,6 +377,48 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 | Viewport Breakpoint | Target Devices | Layout Adaptations |
 | :--- | :--- | :--- |
 | **Desktop Wide (1440px+)** | Mac Studio, iMac 5K, Multi-Monitor Workstations | Full multi-column virtualized table, persistent breadcrumb trail, side-by-side Asset Inspector drawer, centered multi-column GCP Configuration Center modal. |
-| **Laptop / Compact Desktop (1024px–1439px)** | MacBook Pro 14"/16", Laptop Workstations | Standard responsive table, overlay modal for Asset Inspector, dockable floating Download Manager in bottom right. |
 | **Tablet / Touch (768px–1023px)** | iPad Pro, Mobile Tablets | Touch-friendly row height (48px), simplified column set (Name, Class, Size, Action), bottom sheet for Inspector Drawer. |
+
+---
+
+## 11. Screen 8: Breadcrumb Browser History & URL Navigation Wireframe & Interaction States
+
+**Trigger**: Active within the main `AssetExplorer` surface during folder navigation, breadcrumb ancestor selection, deep-link boot hydration, or browser Back/Forward traversal.
+
+```
++----------------------------------------------------------------------------------------------------+
+|  URL Bar: https://media.basingse.io/#/browse/partner-raw-master-archives-2026/feature_films/reel_04/  |
++----------------------------------------------------------------------------------------------------+
+|  [ ⬅️ Back (Alt+←) ]  [ ➡️ Fwd (Alt+→) ]                                                             |
+|                                                                                                    |
+|  BREADCRUMB TRAIL (Interactive & Focusable):                                                       |
+|  +----------------------------------------------------------------------------------------------+  |
+|  | [ gs://partner-raw-master-archives-2026 ] > [ feature_films ] > [ reel_04 (Active) ]         |  |
+|  |   ^ clickable (root)                         ^ clickable           ^ current location (bold) |  |
+|  +----------------------------------------------------------------------------------------------+  |
+|                                                                                                    |
+|  NAVIGATION INTERACTION STATES:                                                                    |
+|  • Normal State:     Slate-400 text, monospace font (`font-mono`), subtle hover underline           |
+|  • Hover State:      Emerald-400 text (`hover:text-emerald-400`), pointer cursor                     |
+|  • Focus-Visible:    2px Cyan focus ring (`focus-visible:ring-2 focus-visible:ring-cyan-400`)      |
+|  • Active Leaf Node: Bold White text (`font-bold text-white`), `aria-current="location"`            |
+|  • Separator:        ChevronRight icon (`w-3.5 h-3.5 text-slate-600`), `aria-hidden="true"`          |
+|                                                                                                    |
+|  RAPID TRAVERSAL & DEEP LINK STATES:                                                               |
+|  • In-Flight Popstate: Instant path re-render (<16ms) + subtle pulse loader on table body           |
+|  • Abort Guard:        Active AbortController cancels superseded folder network fetch               |
+|  • Screen Reader:      ARIA Live Announcement: "Navigated to folder feature_films/reel_04/"        |
++----------------------------------------------------------------------------------------------------+
+```
+
+### Behavioral Specifications
+1. **Bidirectional URL & Breadcrumb Sync**:
+   - Clicking `feature_films` navigates to `#/browse/partner-raw-master-archives-2026/feature_films/` and pushes a new browser history entry.
+   - Clicking `gs://partner-raw-master-archives-2026` returns to root `#/browse/partner-raw-master-archives-2026/`.
+   - Browser Back button traversal pops state and restores the exact ancestor view in $<16\text{ ms}$.
+2. **Keyboard Navigation Support**:
+   - `Tab` / `Shift+Tab` cycles focus sequentially through breadcrumb buttons.
+   - `Enter` / `Space` activates the focused breadcrumb link.
+   - Browser history shortcuts (`Alt+LeftArrow` / `Cmd+[` for Back, `Alt+RightArrow` / `Cmd+]` for Forward) trigger history traversal cleanly.
+
 

@@ -29,12 +29,13 @@ flowchart TD
 
 #### Functional Requirements
 - **FR-2.1**: Delimiter directory querying (`GET /storage/v1/b/{bucket}/o?delimiter=/&prefix={prefix}&userProject={userProject}`) separating `prefixes` (virtual folders) from `items` (leaf media objects).
-- **FR-2.2**: Interactive clickable breadcrumb bar reflecting the active directory stack with 1-click ancestor navigation.
+- **FR-2.2**: Interactive clickable breadcrumb bar reflecting the active directory stack with 1-click ancestor navigation, integrated with the Browser History API.
 - **FR-2.3**: Virtualized DOM data grid rendering visible items plus a 5-row overscan buffer to guarantee constant memory footprint and 60 FPS scroll performance.
 - **FR-2.4**: Multi-column data display: Checkbox, Media Icon, File Name, Storage Class Badge (`ARCHIVE`, `COLDLINE`, `NEARLINE`, `STANDARD`), File Size (decimal formatted with raw byte tooltip), Last Modified Timestamp (ISO + relative time), Integrity Hash Indicator, and Action Buttons (`[Download]`, `[CLI]`, `[Info]`).
 - **FR-2.5**: Real-time fuzzy search (<50ms debounce) and extension filter chips (`All`, `Videos`, `Audio`, `Archives`, `Metadata`).
 - **FR-2.6**: Multi-column sorting (ascending/descending) on Name, Size, Storage Class, and Last Modified.
 - **FR-2.7**: Multi-selection state management supporting individual checkbox toggling, "Select All in Folder", and emitting selected items to the Cost Governance Engine.
+- **FR-2.8**: Browser History API & URL Hash Synchronization (*Module 11*): Every breadcrumb click and folder navigation updates the browser URL hash (`#/browse/{bucket}/{prefix}`) and pushes a history entry via `history.pushState()`. Native browser Back and Forward buttons (`popstate` events) seamlessly rehydrate directory views without page reload.
 
 #### Non-Functional Requirements
 - **NFR-2.1**: Grid render latency: **< 16 ms per frame (60 FPS)** when scrolling 10,000 items.
@@ -133,5 +134,7 @@ export interface DirectoryViewState {
 
 ### 8. Cross-Module Integration & Post-Setup Controls
 
+- **[Module 11: Browser History API, URL Synchronization & Deep Linking](module_11_browser_history_and_navigation_routing_design_and_requirements.md)** (`MOD-11-BROWSER-HISTORY-ROUTING`): Governs `BrowserHistoryRouterEngine` synchronization, `pushState`/`popstate` listeners, and bookmarkable URL hash paths for breadcrumbs and folder navigation.
 - **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Integrates with `BreadcrumbBar.tsx` to turn the root `gs://[bucket-name]` path segment into an interactive bucket switcher popover with recent bucket memory (`recentBuckets`).
 - **[Module 3: Cost Governance](module_3_cost_governance_design_and_requirements.md)** (`MOD-03-COST-GOVERNANCE`): Ingests multi-selected rows to render sticky cost projections.
+

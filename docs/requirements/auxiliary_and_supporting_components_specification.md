@@ -129,17 +129,21 @@ Ensures full keyboard operability and screen reader compliance across all intera
 
 | **`/`** or **`Ctrl+K` / `Cmd+K`** | Global | Focuses the search and filter input in the Asset Explorer. |
 | **`Ctrl+G` / `Cmd+G`** | Global | Opens the unified GCP Configuration Center modal (*Module 9*). |
+| **`Alt+Left` / `Cmd+[`** | Global | Traverses back in directory browser history via Browser History API (*Module 11*). |
+| **`Alt+Right` / `Cmd+]`** | Global | Traverses forward in directory browser history via Browser History API (*Module 11*). |
 | **`Esc`** | Modal / Drawer / Mini-Widget | Dismisses active modal, closes inspector drawer, or restores focus to grid. |
 | **`Ctrl+A` / `Cmd+A`** | Asset Table View | Toggles "Select All" / "Deselect All" for visible directory items. |
 | **`Up` / `Down` Arrow** | Asset Table Rows | Moves row-level focus sequentially through the virtualized grid. |
 | **`Space`** | Focused Table Row | Toggles the selection checkbox of the currently focused row. |
 | **`Enter`** | Focused Table Row | If folder $\rightarrow$ opens directory; If file $\rightarrow$ opens Asset Inspector Drawer. |
+| **`Tab` / `Shift+Tab`** | Breadcrumbs Bar | Moves focus sequentially across clickable breadcrumb path segments. |
 | **`Ctrl+D` / `Cmd+D`** | Active Selection | Triggers download of currently selected files. |
 
 ### 4.3 Functional Requirements
 - **FR-AUX-4.1**: Focus Trap in all modals (`OnboardingWizard`, `CliModal`, `HighCostConfirmationModal`).
 - **FR-AUX-4.2**: Visual 2px Cyan focus ring (`focus-visible:ring-2 focus-visible:ring-cyan-400`) on all interactive buttons, inputs, checkboxes, and tabs.
 - **FR-AUX-4.3**: Skip Navigation Link (`Skip to main content`) as the first focusable element for screen reader users.
+- **FR-AUX-4.4**: History Traversal Announcements: Screen reader live region (`aria-live="polite"`) announces restored path when traversing history.
 
 ---
 

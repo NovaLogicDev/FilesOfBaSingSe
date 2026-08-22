@@ -202,7 +202,7 @@ Enable intuitive, lightning-fast exploration of massive GCS buckets containing t
    - The navigation path updates immediately.
    - Interactive breadcrumbs update at the top: `[ gs:// ] > [ bucket-name ] > [ feature_films ] > [ reel_04 ]`.
    - Each breadcrumb segment is clickable to navigate directly back up the tree.
-   - The browser URL/history updates (e.g., `#/browse/feature_films/reel_04/`) allowing bookmarking and browser Back/Forward navigation.
+   - The browser URL hash and history stack update synchronously (e.g., `#/browse/bucket-name/feature_films/reel_04/`) via the Browser History Router Engine (*Module 11*, `MOD-11-BROWSER-HISTORY-ROUTING`), enabling bookmarking and native browser Back/Forward navigation.
 
 ---
 
@@ -701,6 +701,120 @@ flowchart TD
 
 ---
 
+## Epic 11: Browser History Navigation, URL Synchronization & Deep Linking
+
+### Epic Goal
+Seamlessly integrate the browser's native History API (`pushState`, `replaceState`, `popstate`) with the interactive file breadcrumbs and virtualized directory explorer. Enable bidirectional URL synchronization, bookmarkable deep links, smooth browser Back/Forward button traversal, rapid history navigation cancellation guardrails, and multi-bucket history stack management without credential leaks.
+
+```mermaid
+flowchart TD
+    subgraph BrowserInterface ["Client Browser & Navigation Surface"]
+        BackBtn["Browser Back / Forward Buttons ⬅️ ➡️"]
+        AddressBar["Browser Address Bar (#/browse/bucket/prefix/)"]
+        Breadcrumbs["Interactive Breadcrumbs Bar [gs://] > [bucket] > [folder]"]
+        FolderGrid["Virtualized Folder Rows (Click 'scene_01/')"]
+    end
+
+    subgraph HistoryRoutingSubsystem ["Module 11: Browser History Router Engine"]
+        RouterEngine["BrowserHistoryRouterEngine"]
+        PopListener["window.addEventListener('popstate')"]
+        PushDispatcher["history.pushState(state, '', url)"]
+        AbortGuard["In-Flight GCS Fetch AbortController Guard"]
+    end
+
+    subgraph ExplorerState ["Application State & GCS Service Mesh"]
+        AppShellState["AppShell (currentPrefix, currentBucket)"]
+        GCSClient["GCS Client Service (listObjects)"]
+    end
+
+    FolderGrid -->|"1. User clicks folder row"| PushDispatcher
+    Breadcrumbs -->|"1. User clicks ancestor segment"| PushDispatcher
+    PushDispatcher -->|"2. Pushes entry & updates hash"| AddressBar
+    PushDispatcher -->|"3. Updates active prefix"| AppShellState
+    AppShellState -->|"4. Fetches directory"| GCSClient
+
+    BackBtn -->|"A. User clicks Back/Forward"| PopListener
+    PopListener -->|"B. Dispatches historical state"| RouterEngine
+    RouterEngine -->|"C. Aborts in-flight fetches"| AbortGuard
+    RouterEngine -->|"D. Updates currentPrefix & Breadcrumbs (<16ms)"| AppShellState
+    AppShellState -->|"E. Re-queries historical path"| GCSClient
+```
+
+---
+
+### Story 11.1: Browser History (Back/Forward) API Integration & Breadcrumbs Synchronization
+**As a** post-production supervisor (Alex) or freelance video editor (Taylor),  
+**I want to** use my browser's native Back and Forward buttons (or mouse navigation buttons and `Alt+Left`/`Alt+Right` keyboard shortcuts) to traverse my directory history,  
+**So that** clicking Back takes me to my previously visited folder without leaving the application or reloading the webpage.
+
+#### Acceptance Criteria
+1. **Given** an authenticated user browsing a bucket, **When** navigating into subdirectories or clicking ancestor breadcrumb segments:
+   - The application invokes `window.history.pushState(state, '', url)`.
+   - The browser URL updates to the canonical hash format: `#/browse/{bucketName}/{encodedPrefix}`.
+   - The state object contains `{ bucket, prefix, timestamp, source: 'user_interaction' }`.
+   - Access tokens and secrets are **strictly excluded** from `history.state`.
+2. **Given** a user clicks the browser **Back** or **Forward** button, **When** the `popstate` event fires:
+   - The `BrowserHistoryRouterEngine` intercepts the event in $<16\text{ ms}$ (single frame).
+   - The active `currentPrefix` state is restored to the historical prefix **without** pushing a new entry to the history stack (preventing infinite history loops).
+   - The `BreadcrumbNav` component immediately re-renders to reflect the historical breadcrumb path.
+   - Directory items are fetched from GCS for the restored path.
+3. **Given** the user presses Back to the root of the bucket, **When** reached, **Then** `currentPrefix` is set to `""`, the breadcrumb displays `[ gs:// ] > [ bucket-name ]`, and root objects are loaded.
+
+---
+
+### Story 11.2: Deep-Link URL State Hydration & Bookmarkable Directory Hash Paths
+**As a** VFX pipeline lead (Devon) or editorial coordinator,  
+**I want to** copy the URL from my browser address bar and bookmark it or share it with team members,  
+**So that** opening that link takes the recipient directly to that exact folder path inside the bucket.
+
+#### Acceptance Criteria
+1. **Given** a deep link URL in the address bar (e.g. `https://media.basingse.io/#/browse/partner-raw-master-archives-2026/feature_films/reel_04/`), **When** the page loads:
+   - The application parses `bucketName` (`partner-raw-master-archives-2026`) and `prefix` (`feature_films/reel_04/`).
+   - If the user has an existing session (or silent session restoration succeeds via Module 10), the application bypasses the onboarding wizard and loads that exact deep-linked folder directory immediately.
+   - The breadcrumb bar reflects the full deep-linked hierarchy upon initial render.
+2. **Given** an unauthenticated user opens a deep link, **When** they complete Google Sign-In:
+   - The deep-link target is retained in runtime memory as `pendingDeepLink`.
+   - Upon successful authorization, the user is navigated directly to the deep-linked path rather than being dumped at the root bucket.
+3. **Given** a URL hash missing a trailing slash (e.g. `#/browse/my-bucket/feature_films/reel_04`), **When** parsed:
+   - The system automatically normalizes the path with a trailing slash (`feature_films/reel_04/`) via `history.replaceState()` to guarantee delimiter slicing consistency.
+
+---
+
+### Story 11.3: In-Flight Request Cancellation & Rapid Traversal Guardrails
+**As a** client user rapidly clicking Back and Forward to find an earlier shoot date,  
+**I want the** application to instantly cancel obsolete in-flight GCS directory fetch requests,  
+**So that** stale responses do not overwrite my latest folder view and the interface does not suffer from visual race conditions or flickering.
+
+#### Acceptance Criteria
+1. **Given** an in-flight GCS directory request for folder A, **When** the user clicks Back to folder B before folder A responds:
+   - The `BrowserHistoryRouterEngine` invokes `AbortController.abort()` on the pending folder A network request.
+   - The directory state immediately clears or displays a non-blocking skeleton for folder B.
+   - A fresh request for folder B is dispatched immediately.
+2. **Given** rapid successive `popstate` triggers (e.g. 5 Back clicks in 1 second), **When** triggered:
+   - Only the final historical state is committed to active directory display.
+   - No `UnhandledRejection` or console network errors are exposed to the user.
+3. **Given** active streaming downloads in `DownloadManager`, **When** history navigation occurs:
+   - All active download streams and writable disk file handles continue running smoothly without interruption.
+
+---
+
+### Story 11.4: Multi-Bucket History Stack Management & Zero-Credential URL Hygiene
+**As a** studio post-production supervisor or security compliance auditor,  
+**I want to** ensure that traversing history across different buckets maintains full security and Requester-Pays billing integrity,  
+**So that** no OAuth tokens leak into browser history and billing attribution remains strictly aligned.
+
+#### Acceptance Criteria
+1. **Given** a history stack spanning multiple buckets (e.g., `gs://dailies-vault` $\rightarrow$ `gs://vfx-plates` $\rightarrow$ `gs://color-masters`), **When** the user traverses Back/Forward across bucket boundaries:
+   - The application detects the bucket transition from `event.state`.
+   - The active `savedBucketName` updates in persistent store, and `recentBuckets` is synchronized.
+   - A lightweight 4-point preflight validation runs in the background.
+   - All GCS REST calls attach the active client's `userProject` to guarantee zero host liability.
+2. **Given** automated security inspection of `window.location.href`, `window.location.hash`, and `window.history.state`:
+   - Zero occurrences of `access_token`, `bearer`, `client_secret`, or OAuth tokens are present.
+   - All URL segments are strictly sanitized against XSS injection vectors.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -715,4 +829,6 @@ flowchart TD
 | **EPIC-8** | Security, Resilience & Error Diagnostics | 2 Stories | Medium | P0 (Blocker) |
 | **EPIC-9** | Workspace Navigation, Bucket Switcher & GCP Config Center | 3 Stories | Medium | P1 (Core) |
 | **EPIC-10**| Seamless Session Persistence, Silent Restoration & Onboarding Bypass | 4 Stories | Medium | P0 (Blocker) |
+| **EPIC-11**| Browser History Navigation, URL Synchronization & Deep Linking | 4 Stories | Medium | P0 (Blocker) |
+
 
