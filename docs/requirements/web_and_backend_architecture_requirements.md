@@ -182,6 +182,22 @@ Because the portal operates under a zero-backend model without dynamic applicati
 
 ---
 
+### 1.7 Client-Side OS File Manager Integration & Browser Sandbox Security Boundary
+
+Under the **Zero-Backend** model, direct-to-disk streaming utilizes the W3C **File System Access API (FSAA)** in Chromium browsers (*Module 4* and *Module 12*, `MOD-12-OS-FILESYSTEM-FEEDBACK`).
+
+#### Browser Architecture & Security Isolation:
+1. **Separation from Chromium Download Manager**:
+   - Chromium internally isolates File System Access API operations from its built-in Download Manager (`chrome://downloads`). Direct disk writes bypass the browser's download shelf by design because FSAA represents direct disk I/O to a user-granted file handle rather than an untrusted incoming network attachment.
+2. **Browser Sandbox Security Guarantee**:
+   - In adherence to standard web security models, client-side web applications cannot programmatically execute arbitrary desktop processes (e.g. silently launching `open`, `explorer.exe`, or `xdg-open` in the background) without user action or installed native host bridges.
+3. **The Multi-Tier OS Feedback Resolution**:
+   - **Tier 1 (1-Click Platform Shell Snippets)**: Synthesizes exact, shell-escaped reveal commands for the detected OS (macOS Finder `open -R`, Windows Explorer `explorer.exe /select,`, Linux KDE Dolphin `dolphin --select` / GNOME Nautilus `nautilus --select`), enabling 1-click clipboard copy.
+   - **Tier 2 (In-Browser Handle Re-Verification)**: Leverages active `FileSystemFileHandle.getFile()` to inspect verified on-disk bytes, last modified timestamps, and MIME types directly from browser runtime memory.
+   - **Tier 3 (Dual Strategy Configuration)**: Empowers users who prefer Chrome's native download shelf to route transfers through the **Service Worker Stream Interceptor**, enabling native browser download manager logging and the browser's built-in "Show in folder" action.
+
+---
+
 ## 2. Backend & Host Infrastructure Requirements (The "Zero-Backend" Service Mesh)
 
 Because there is no custom server software, the "backend" requirements consist of **Google Cloud Platform IAM & Bucket configurations**, **Google Cloud API services**, and **Static Edge CDN hosting**.

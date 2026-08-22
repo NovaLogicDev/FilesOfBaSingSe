@@ -19,6 +19,7 @@ flowchart TD
         E7["7. State Isolation & Persistence Engine\n(Zustand Volatile RAM, LocalStorage, IndexedDB)"]
         E8["8. Session Lifecycle & Restoration Engine\n(Silent Reload, Onboarding Bypass, 1-Click Reconnect)"]
         E9["9. Browser History & Navigation Router Engine\n(pushState, popstate, URL Hash Sync, Deep-Link)"]
+        E10["10. OS File System Feedback & Reveal Engine\n(macOS Finder, Windows Explorer, Linux Dolphin/Nautilus)"]
     end
 
     E8 --> E1
@@ -28,6 +29,7 @@ flowchart TD
     E2 --> E3
     E2 --> E4
     E4 --> E5
+    E4 --> E10
     E2 --> E6
     E7 -.->|"Supplies Ephemeral Token & Project ID"| E1
     E7 -.->|"Supplies Active State"| E2
@@ -1074,9 +1076,246 @@ export class BrowserHistoryRouterEngine {
 
 ---
 
-## 10. Cross-Engine Integration Matrix (Engines 1 through 9)
+## 10. Engine 10: OS File System Feedback & Local Path Reveal Engine
+
+### 10.1 Purpose & Domain Scope
+Bridges the architectural gap when direct-to-disk streaming via the File System Access API bypasses Chromium's built-in download shelf (`chrome://downloads`). Inspects client platform and desktop environment heuristics, synthesizes platform-native shell reveal commands (macOS Finder `open -R`, Windows Explorer `explorer.exe /select,`, Linux KDE Dolphin `dolphin --select` / GNOME Nautilus `nautilus --select`), queries local `FileSystemFileHandle` instances on disk, and formats `file://` URI previews.
+
+### 10.2 Subsystem Architecture & Reveal Workflow
+
+```mermaid
+flowchart TD
+    subgraph StreamCompletion ["Stream Event"]
+        Done["writable.close() Resolves Successfully"] --> ExtractHandle["Extract FileSystemFileHandle & Filename"]
+    end
+
+    subgraph Engine10Execution ["Engine 10: OSFileSystemRevealEngine"]
+        DetectPlatform["detectOS(): Inspect userAgent & platformData\n(macOS | Windows | Linux KDE/GNOME)"]
+        SynthesizeSnippet["generateRevealAction(): Format shell command & file:// URI\n• POSIX & PowerShell Escaping"]
+        HandleInspector["inspectLocalHandle(): Query handle.getFile()\n• Verify on-disk byte size & lastModified"]
+    end
+
+    subgraph UIOutputs ["UI & Feedback Presentation"]
+        SuccessCard["DownloadManager Post-Completion Success Card"]
+        ToastAction["Completion Toast Notification with [⚡ Reveal]"]
+        ClipboardWrite["navigator.clipboard.writeText(command)"]
+    end
+
+    ExtractHandle --> DetectPlatform
+    ExtractHandle --> HandleInspector
+    DetectPlatform --> SynthesizeSnippet
+    SynthesizeSnippet --> SuccessCard
+    SynthesizeSnippet --> ToastAction
+    SuccessCard --> ClipboardWrite
+    ToastAction --> ClipboardWrite
+```
+
+### 10.3 TypeScript Implementation & Reference Contract
+
+```typescript
+export type SupportedOS = 'macos' | 'windows' | 'linux' | 'unknown';
+export type FileManagerTarget = 'finder' | 'explorer' | 'dolphin' | 'nautilus' | 'xdg' | 'generic';
+
+export interface OSFileSystemMetadata {
+  os: SupportedOS;
+  desktopEnvironment: 'kde' | 'gnome' | 'xfce' | 'generic' | 'windows' | 'macos';
+  fileManager: FileManagerTarget;
+  fileManagerLabel: string;
+  iconName: string;
+}
+
+export interface LocalFileRevealAction {
+  filename: string;
+  suggestedDirectory?: string;
+  osMetadata: OSFileSystemMetadata;
+  command: string;
+  powershellCommand?: string;
+  fileUri: string;
+  copyFeedbackText: string;
+}
+
+export interface LocalHandleInspectionResult {
+  filename: string;
+  sizeBytes: number;
+  formattedSize: string;
+  lastModified: number;
+  lastModifiedDate: string;
+  mimeType: string;
+  isHandleValid: boolean;
+}
+
+export class OSFileSystemRevealEngine {
+  /**
+   * Detects client operating system and desktop environment.
+   */
+  public static detectOS(): OSFileSystemMetadata {
+    if (typeof navigator === 'undefined') {
+      return {
+        os: 'unknown',
+        desktopEnvironment: 'generic',
+        fileManager: 'generic',
+        fileManagerLabel: 'File Manager',
+        iconName: 'folder',
+      };
+    }
+
+    const ua = navigator.userAgent || '';
+    const platform = (navigator as any).userAgentData?.platform || navigator.platform || '';
+
+    // macOS (Apple Finder)
+    if (/Macintosh|MacIntel|MacPPC|Mac68K|Darwin/i.test(platform) || /Mac OS X/i.test(ua)) {
+      return {
+        os: 'macos',
+        desktopEnvironment: 'macos',
+        fileManager: 'finder',
+        fileManagerLabel: 'Finder',
+        iconName: 'apple',
+      };
+    }
+
+    // Windows (File Explorer)
+    if (/Win32|Win64|Windows|WinCE/i.test(platform) || /Windows NT/i.test(ua)) {
+      return {
+        os: 'windows',
+        desktopEnvironment: 'windows',
+        fileManager: 'explorer',
+        fileManagerLabel: 'File Explorer',
+        iconName: 'monitor',
+      };
+    }
+
+    // Linux (Dolphin / Nautilus / XDG)
+    if (/Linux/i.test(platform) || /Linux|X11/i.test(ua)) {
+      const isKDE = /KDE/i.test(ua);
+      const isGNOME = /GNOME/i.test(ua);
+
+      if (isKDE) {
+        return {
+          os: 'linux',
+          desktopEnvironment: 'kde',
+          fileManager: 'dolphin',
+          fileManagerLabel: 'Dolphin',
+          iconName: 'folder-open',
+        };
+      }
+
+      if (isGNOME) {
+        return {
+          os: 'linux',
+          desktopEnvironment: 'gnome',
+          fileManager: 'nautilus',
+          fileManagerLabel: 'Files (Nautilus)',
+          iconName: 'folder-open',
+        };
+      }
+
+      return {
+        os: 'linux',
+        desktopEnvironment: 'generic',
+        fileManager: 'dolphin',
+        fileManagerLabel: 'File Manager (Dolphin / Files)',
+        iconName: 'folder-open',
+      };
+    }
+
+    return {
+      os: 'unknown',
+      desktopEnvironment: 'generic',
+      fileManager: 'generic',
+      fileManagerLabel: 'File Manager',
+      iconName: 'folder',
+    };
+  }
+
+  public static escapePosix(filename: string): string {
+    return filename.replace(/'/g, "'\\''");
+  }
+
+  public static escapeWindows(filename: string): string {
+    return filename.replace(/"/g, '`"');
+  }
+
+  public static generateRevealAction(
+    filename: string,
+    suggestedDirectory: string = './',
+  ): LocalFileRevealAction {
+    const osMeta = this.detectOS();
+    const cleanFilename = filename.trim();
+    let command = '';
+    let powershellCommand: string | undefined = undefined;
+
+    switch (osMeta.fileManager) {
+      case 'finder':
+        command = `open -R "./${this.escapePosix(cleanFilename)}"`;
+        break;
+      case 'explorer':
+        command = `explorer.exe /select,"${this.escapeWindows(cleanFilename)}"`;
+        powershellCommand = `Invoke-Item (Get-Item "${this.escapeWindows(cleanFilename)}")`;
+        break;
+      case 'dolphin':
+        command = `dolphin --select "./${this.escapePosix(cleanFilename)}"`;
+        break;
+      case 'nautilus':
+        command = `nautilus --select "./${this.escapePosix(cleanFilename)}"`;
+        break;
+      case 'xdg':
+      default:
+        command = `xdg-open .`;
+        break;
+    }
+
+    const fileUri = `file://${suggestedDirectory.replace(/\/+$/, '')}/${encodeURIComponent(cleanFilename)}`;
+
+    return {
+      filename: cleanFilename,
+      suggestedDirectory,
+      osMetadata: osMeta,
+      command,
+      powershellCommand,
+      fileUri,
+      copyFeedbackText: `Copied reveal command for ${osMeta.fileManagerLabel}: ${command}`,
+    };
+  }
+
+  public static async inspectLocalHandle(
+    handle: any,
+  ): Promise<LocalHandleInspectionResult | null> {
+    if (!handle || typeof handle.getFile !== 'function') {
+      return null;
+    }
+
+    try {
+      const file: File = await handle.getFile();
+      return {
+        filename: file.name,
+        sizeBytes: file.size,
+        formattedSize: this.formatBytes(file.size),
+        lastModified: file.lastModified,
+        lastModifiedDate: new Date(file.lastModified).toISOString(),
+        mimeType: file.type || 'application/octet-stream',
+        isHandleValid: true,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private static formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1000;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+}
+```
+
+---
+
+## 11. Cross-Engine Integration Matrix (Engines 1 through 10)
 
 The primary engines operate as a cohesive, zero-liability mesh:
+- **Engine 10 (`OSFileSystemRevealEngine`)**: Listens for stream completion events from Engine 4 (`GCSStreamEngine`), detects client OS/desktop environment, and synthesizes 1-click reveal actions and `file://` metadata for the UI.
 - **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
 - **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`.
 - **Engine 1 (`GCPOnboardingEngine`)**: Provides reusable preflight validation called when navigating to new buckets via history or switchers.
@@ -1091,6 +1330,7 @@ The primary engines operate as a cohesive, zero-liability mesh:
 
 ### Architectural Sign-Off for System Engines
 
-All 9 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, and frictionless onboarding bypass.
+All 10 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, platform-aware OS file system feedback, and frictionless onboarding bypass.
+
 
 

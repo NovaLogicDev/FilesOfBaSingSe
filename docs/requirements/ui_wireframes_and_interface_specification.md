@@ -421,4 +421,54 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
    - `Enter` / `Space` activates the focused breadcrumb link.
    - Browser history shortcuts (`Alt+LeftArrow` / `Cmd+[` for Back, `Alt+RightArrow` / `Cmd+]` for Forward) trigger history traversal cleanly.
 
+---
+
+## 12. Screen 9: Post-Download Success Card with OS File Manager Reveal Actions
+
+**Trigger**: Displayed automatically inside `DownloadManager` when direct-to-disk streaming reaches 100% and disk flushing finishes via `writableStream.close()`.
+
+```
++----------------------------------------------------------------------------------------------------+
+|  ACTIVE DOWNLOAD MANAGER                                                               [_ Min] [X] |
++----------------------------------------------------------------------------------------------------+
+|  [✓] DOWNLOAD COMPLETE & FLUSHED TO LOCAL DISK                                                     |
+|                                                                                                    |
+|  [Video Icon] reel04_cam_A_raw.mxf                                                                 |
+|               18,400,000,000 bytes (18.40 GB / 17.13 GiB)                                          |
+|                                                                                                    |
+|  Transfer Speed:      48.5 MB/s (Average)             Duration:        03m 42s                     |
+|  Integrity Status:    CRC32c 0xAF82F6C0 (Match Confirmed ●)            Memory Peak: 11.4 MB (Fixed)|
+|  Disk Storage Status: [✓ Saved to Local Disk via File System Access API]                           |
+|                                                                                                    |
+|  +----------------------------------------------------------------------------------------------+  |
+|  | [Finder / Explorer / Dolphin Icon] REVEAL IN OPERATING SYSTEM FILE MANAGER:                  |  |
+|  | Command:  dolphin --select "./reel04_cam_A_raw.mxf"                                         |  |
+|  |                                                                                              |  |
+|  | [ ⚡ Copy Reveal Command for Dolphin ]             [ 🔍 Inspect Local File on Disk ]          |  |
+|  +----------------------------------------------------------------------------------------------+  |
+|                                                                                                    |
+|  +----------------------------------------------------------------------------------------------+  |
+|  | (i) Notice: Chrome direct-to-disk streams write directly to your OS filesystem and bypass    |  |
+|  |     the chrome://downloads shelf. Use the command above to highlight your file.              |  |
+|  |     [ ⚙️ Prefer Chrome Downloads Shelf? Switch to Service Worker Stream Strategy ]             |  |
+|  +----------------------------------------------------------------------------------------------+  |
+|                                                                                                    |
+|  [ Download Another File ]                                                            [ Dismiss ]  |
++----------------------------------------------------------------------------------------------------+
+```
+
+### Behavioral Specifications
+1. **OS-Aware Contextual Button**:
+   - On macOS: Displays Apple Finder icon with `[ ⚡ Copy Reveal Command for Finder ]` (`open -R "./filename.mxf"`).
+   - On Windows: Displays Windows Explorer icon with `[ ⚡ Copy Reveal Command for Explorer ]` (`explorer.exe /select,"filename.mxf"`).
+   - On Linux KDE: Displays KDE Dolphin icon with `[ ⚡ Copy Reveal Command for Dolphin ]` (`dolphin --select "./filename.mxf"`).
+   - On Linux GNOME: Displays GNOME Files icon with `[ ⚡ Copy Reveal Command for Files ]` (`nautilus --select "./filename.mxf"`).
+2. **1-Click Copy & Toast Feedback**:
+   - Clicking the reveal button invokes `navigator.clipboard.writeText()` and fires an emerald toast: *"Copied reveal command for {FileManager}: Run in terminal to highlight file."*
+3. **In-Browser Disk Handle Re-Verification**:
+   - Clicking `[ 🔍 Inspect Local File on Disk ]` queries `handle.getFile()`, verifying size on disk, last modified date, and local MIME type without network egress.
+4. **Download Strategy Quick Switcher**:
+   - Allows toggling to Service Worker streaming so future downloads show in Chrome's download bubble.
+
+
 

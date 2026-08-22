@@ -111,7 +111,7 @@ flowchart TD
 
 ### 3.3 Functional Requirements
 - **FR-AUX-3.1**: Stackable toast notifications with four visual variants:
-  - `Success` (Emerald border + checkmark icon) — e.g. "Welcome back, Taylor! Resumed session for gs://media-vault"
+  - `Success` (Emerald border + checkmark icon) — e.g. "Welcome back, Taylor! Resumed session for gs://media-vault" or "Download Complete! Saved to disk [⚡ Reveal in Dolphin]"
   - `Info` (Cyan border + info icon)
   - `Warning` (Amber border + alert triangle)
   - `Error` (Rose border + alert circle)
@@ -127,6 +127,8 @@ Ensures full keyboard operability and screen reader compliance across all intera
 
 ### 4.2 Keyboard Navigation Matrix
 
+| Shortcut | Context | Action & Target |
+| :--- | :--- | :--- |
 | **`/`** or **`Ctrl+K` / `Cmd+K`** | Global | Focuses the search and filter input in the Asset Explorer. |
 | **`Ctrl+G` / `Cmd+G`** | Global | Opens the unified GCP Configuration Center modal (*Module 9*). |
 | **`Alt+Left` / `Cmd+[`** | Global | Traverses back in directory browser history via Browser History API (*Module 11*). |
@@ -138,12 +140,14 @@ Ensures full keyboard operability and screen reader compliance across all intera
 | **`Enter`** | Focused Table Row | If folder $\rightarrow$ opens directory; If file $\rightarrow$ opens Asset Inspector Drawer. |
 | **`Tab` / `Shift+Tab`** | Breadcrumbs Bar | Moves focus sequentially across clickable breadcrumb path segments. |
 | **`Ctrl+D` / `Cmd+D`** | Active Selection | Triggers download of currently selected files. |
+| **`Ctrl+R` / `Cmd+R`** | Focused Download Card | Copies OS File Manager reveal command for the completed download (*Module 12*). |
 
 ### 4.3 Functional Requirements
 - **FR-AUX-4.1**: Focus Trap in all modals (`OnboardingWizard`, `CliModal`, `HighCostConfirmationModal`).
 - **FR-AUX-4.2**: Visual 2px Cyan focus ring (`focus-visible:ring-2 focus-visible:ring-cyan-400`) on all interactive buttons, inputs, checkboxes, and tabs.
 - **FR-AUX-4.3**: Skip Navigation Link (`Skip to main content`) as the first focusable element for screen reader users.
 - **FR-AUX-4.4**: History Traversal Announcements: Screen reader live region (`aria-live="polite"`) announces restored path when traversing history.
+- **FR-AUX-4.5**: Post-Download File Reveal Shortcuts: `Cmd+R` / `Ctrl+R` shortcut on completed download widgets immediately copies the OS file reveal command to clipboard with an audible/visual toast.
 
 ---
 

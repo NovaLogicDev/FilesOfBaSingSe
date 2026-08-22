@@ -818,6 +818,114 @@ flowchart TD
 
 ---
 
+## Epic 12: OS File System Feedback, Local Path Tracking & File Manager Reveal Integration
+
+### Epic Goal
+Bridge the gap between Chromium's direct-to-disk File System Access API streaming (which intentionally bypasses Chrome's `chrome://downloads` manager) and desktop operating systems. Provide rich post-download feedback in the Download Manager and Toast system, confirming file flushing to local disk, displaying local filename/path previews, generating 1-click OS file reveal commands tailored to the user's detected desktop environment (macOS Finder, Windows Explorer, Linux KDE Dolphin / GNOME Nautilus / Generic XDG), enabling in-browser file handle re-verification, and offering an intuitive dual-strategy selector between direct-to-disk streaming and standard browser download manager routing.
+
+```mermaid
+flowchart TD
+    subgraph StreamCompletion ["Stream Completion"]
+        Complete["writableStream.close() Resolves"] --> EmitsResult["Download Result Emitted with File Handle"]
+    end
+
+    subgraph OSFeedbackEngine ["Module 12: OS File System Feedback Subsystem"]
+        Detect["Detect Client Platform\n(macOS | Windows | Linux KDE/GNOME)"]
+        Synthesize["Generate OS Reveal Snippet\n• Finder: open -R 'file'\n• Explorer: explorer.exe /select,'file'\n• Dolphin: dolphin --select 'file'"]
+        VerifyHandle["Query FileSystemFileHandle\n(handle.getFile() on-disk check)"]
+    end
+
+    subgraph UIUXExperience ["User Interaction Surface"]
+        SuccessCard["Post-Download Card in DownloadManager\n[✓ Saved to Disk: reel04_cam_A_raw.mxf]"]
+        CopyAction["1-Click 'Reveal in File Manager' (Copies Command)"]
+        InspectAction["1-Click 'Inspect File on Disk' (Queries Handle)"]
+        StrategyToggle["1-Click 'Switch to Chrome Download Manager'"]
+    end
+
+    EmitsResult --> Detect
+    EmitsResult --> VerifyHandle
+    Detect --> Synthesize
+    Synthesize --> SuccessCard
+    VerifyHandle --> SuccessCard
+    SuccessCard --> CopyAction
+    SuccessCard --> InspectAction
+    SuccessCard --> StrategyToggle
+```
+
+---
+
+### Story 12.1: Post-Download Local File System Feedback & Handle Confirmation
+**As a** freelance video editor (Taylor) on macOS or Linux,  
+**I want to** see immediate visual confirmation in the Download Manager showing that my multi-gigabyte file has been flushed to disk with its exact filename and CRC32c verification,  
+**So that** I know the file is safely saved on my local workstation even though Chrome does not log it in the `chrome://downloads` shelf.
+
+#### Acceptance Criteria
+1. **Given** an active direct-to-disk stream download completes, **When** `writableStream.close()` resolves successfully:
+   - The `DownloadManager` floating widget transitions into the **Post-Download Success State**.
+   - The card displays the confirmed local filename (e.g. `reel04_cam_A_raw.mxf`), disk file handle status `[✓ Saved to Local Disk]`, total bytes written, elapsed time, and CRC32c integrity verification badge `[CRC32c Match: 0xAF82F6C0]`.
+   - The application retains the `FileSystemFileHandle` reference in runtime state for subsequent on-disk inspection.
+2. **Given** the download completes, **When** the completion toast notification is displayed:
+   - The toast presents a green success badge with the saved filename and a 1-click action: `[ ⚡ Reveal in File Manager ]`.
+
+---
+
+### Story 12.2: OS-Native File Manager Reveal Integration (Finder, Explorer, Dolphin, Nautilus)
+**As an** editor or VFX pipeline engineer (Alex/Devon) working on macOS, Windows, or Linux,  
+**I want the** system to provide a 1-click action and shell command to reveal and highlight the downloaded file in my operating system's native file manager,  
+**So that** I can immediately import the asset into DaVinci Resolve, Premiere Pro, or Nuke without manually navigating through complex folder trees.
+
+#### Acceptance Criteria
+1. **Given** a completed download on macOS, **When** the reveal action is generated:
+   - The system formats the macOS Apple Finder command: `open -R "./filename.ext"`.
+   - The primary button reads: `[ ⚡ Reveal in Finder (Copy Command) ]`.
+2. **Given** a completed download on Windows, **When** the reveal action is generated:
+   - The system formats the Windows File Explorer command: `explorer.exe /select,"filename.ext"` (and PowerShell alternative).
+   - The primary button reads: `[ ⚡ Reveal in File Explorer (Copy Command) ]`.
+3. **Given** a completed download on Linux, **When** the reveal action is generated:
+   - The system formats the KDE Dolphin command (`dolphin --select "./filename.ext"`), GNOME Nautilus command (`nautilus --select "./filename.ext"`), or generic XDG command (`xdg-open .`).
+   - The primary button reflects the desktop environment (e.g. `[ ⚡ Reveal in Dolphin (Copy Command) ]`).
+4. **Given** the user clicks the reveal button, **When** clicked:
+   - The command is copied to the system clipboard via `navigator.clipboard.writeText()`.
+   - A confirmation toast is emitted: *"Copied reveal command for {FileManager}: Run in terminal or runner to open and highlight file."*
+
+---
+
+### Story 12.3: In-Browser Direct Disk Handle Inspection & Re-Verification
+**As a** technical supervisor (Devon),  
+**I want to** verify that the downloaded file is intact and physically exists on my local filesystem directly from the browser UI,  
+**So that** I can confirm on-disk byte size, last-modified timestamp, and file handle validity before closing my browser session.
+
+#### Acceptance Criteria
+1. **Given** a completed download with an active `FileSystemFileHandle`, **When** the user clicks `[ 🔍 Inspect Local File on Disk ]`:
+   - The application invokes `handle.getFile()`.
+   - A modal or drawer inspection view displays:
+     - On-Disk File Name.
+     - Verified Byte Size on Disk (matching GCS downloaded bytes).
+     - Local File Last Modified timestamp.
+     - Local MIME type.
+     - Handle Validity Status (`[✓ Local Handle Active & Accessible]`).
+2. **Given** the file was moved or deleted outside the browser, **When** `handle.getFile()` fails:
+   - The UI surfaces an informative notice: *"File handle modified or file moved on disk."*
+
+---
+
+### Story 12.4: Dual Download Strategy Selector (FSAA Direct-to-Disk vs. Chrome Download Manager)
+**As a** client user who prefers downloads to appear in Chrome's native download bubble and `chrome://downloads`,  
+**I want to** switch my download strategy to the Service Worker Stream pipe,  
+**So that** transfers are tracked directly in Chrome's download manager with the native "Show in folder" button.
+
+#### Acceptance Criteria
+1. **Given** the user is on a Chromium browser, **When** configuring download preferences in the Header, Settings, or Download Manager:
+   - The UI presents a **Download Strategy Selector** with three distinct options:
+     1. **Direct to Disk (FSAA Stream + OS Reveal)** *(Default)*: Prompts OS folder picker upfront, constant <15MB RAM, writes directly to chosen disk location, provides OS reveal commands.
+     2. **Chrome Download Manager (Service Worker Stream)**: Intercepts stream via Service Worker, routes as a standard browser download, displays progress in Chrome's top-right download bubble and `chrome://downloads`, saves to default `~/Downloads` (or prompts if "Ask where to save" is enabled in Chrome settings).
+     3. **In-Memory Blob (Small Files <200MB)**: Instant memory buffer download.
+2. **Given** the user switches strategy, **When** changed:
+   - The preference is saved in persistent storage (`localStorage`).
+   - All subsequent downloads immediately follow the selected strategy.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -833,5 +941,7 @@ flowchart TD
 | **EPIC-9** | Workspace Navigation, Bucket Switcher & GCP Config Center | 3 Stories | Medium | P1 (Core) |
 | **EPIC-10**| Seamless Session Persistence, Silent Restoration & Onboarding Bypass | 4 Stories | Medium | P0 (Blocker) |
 | **EPIC-11**| Browser History Navigation, URL Synchronization & Deep Linking | 4 Stories | Medium | P0 (Blocker) |
+| **EPIC-12**| OS File System Feedback, Local Path Tracking & File Manager Reveal | 4 Stories | Medium | P1 (Core) |
+
 
 

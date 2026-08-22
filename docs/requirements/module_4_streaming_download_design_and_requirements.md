@@ -41,6 +41,8 @@ flowchart TD
 - **FR-4.4**: Memory Heap Metric: Live telemetry reporting constant bounded memory footprint (~11.4 MB RAM).
 - **FR-4.5**: Graceful Stream Cancellation: Instantaneous stream abort via `AbortController.abort()` and `FileSystemWritableFileStream.abort()` terminating network egress in <200ms.
 - **FR-4.6**: Floating Download Manager Widget: Non-blocking, dockable, collapsible bottom-right UI card displaying live metrics, progress bar, minimize button, and cancel action.
+- **FR-4.7**: Post-Download OS File System Feedback & Handle Tracking: Retains active `FileSystemFileHandle` on completion, displaying confirmed disk status (`[✓ Saved to Disk]`) and filename in the success state.
+- **FR-4.8**: Platform-Aware OS Reveal Actions (*Module 12*): Synthesizes 1-click reveal commands for macOS Finder (`open -R`), Windows Explorer (`explorer.exe /select,`), and Linux KDE Dolphin (`dolphin --select`) / GNOME Nautilus (`nautilus --select`) with direct clipboard copy and on-disk handle verification.
 
 #### Non-Functional Requirements
 - **NFR-4.1**: Memory Ceiling SLA: JavaScript heap consumption **MUST REMAIN < 25 MB** throughout a 50GB file download.
@@ -59,6 +61,7 @@ sequenceDiagram
     participant Engine as GCSStreamDownloader
     participant Disk as FileSystemWritableFileStream
     participant GCS as GCS JSON API (storage.googleapis.com)
+    participant OSEngine as OSFileSystemRevealEngine (Mod 12)
 
     User->>Manager: Clicks "Download Master" (25.4 GB MXF)
     Manager->>Engine: downloadToDisk({ bucket, object, userProject, token })
@@ -76,7 +79,10 @@ sequenceDiagram
     end
 
     Engine->>Disk: writable.close() (Flush to Disk)
-    Engine->>Manager: Status = 'completed' (Integrity Verified)
+    Engine->>OSEngine: generateRevealAction(filename, path)
+    OSEngine-->>Manager: Returns reveal command (e.g. dolphin --select "./file.mxf")
+    Engine->>Manager: Status = 'completed' (Integrity Verified + OS Reveal Ready)
+    Manager-->>User: Renders Success Card with [ ⚡ Reveal in File Manager ]
 ```
 
 ---
@@ -116,8 +122,9 @@ export interface StreamDownloadOptions {
 ### 5. UI Components & Layout
 
 1. **`DownloadManager.tsx`**: Floating bottom-right dockable card (360px width) with animated progress bar, speed gauge, ETA counter, memory usage meter, and cancel button.
-2. **`StreamProgressIndicator.tsx`**: Compact inline progress gauge for row-level feedback.
-3. **`FloatingMiniWidget.tsx`**: Collapsed pill-shaped state showing percentage and speed when minimized.
+2. **`PostDownloadSuccessCard.tsx`**: Post-completion view in `DownloadManager` rendering verified local filename, disk handle status, 1-click `[Reveal in File Manager]` action, copyable shell snippet, and on-disk handle verification ([*Module 12: OS File System Feedback*](module_12_os_filesystem_feedback_and_reveal_integration.md)).
+3. **`StreamProgressIndicator.tsx`**: Compact inline progress gauge for row-level feedback.
+4. **`FloatingMiniWidget.tsx`**: Collapsed pill-shaped state showing percentage and speed when minimized.
 
 ---
 
