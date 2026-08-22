@@ -496,8 +496,6 @@ export const AppShell: React.FC = () => {
             onDownloadAsset={handleInitiateDownload}
             onGenerateCli={(paths) => setCliModalPaths(paths)}
             onDownloadBatch={handleInitiateBatchDownload}
-            onBucketSwitch={handleBucketSwitch}
-            onOpenWizard={() => setIsOnboardingOpen(true)}
           />
         )}
       </main>

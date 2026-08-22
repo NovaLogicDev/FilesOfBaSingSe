@@ -351,6 +351,25 @@ describe('Unit - Milestone 6: High-Density 10,000+ Windowed Virtualized Asset Gr
       fireEvent.click(screen.getByLabelText(/Root directory/i))
       expect(onNavigatePrefix).toHaveBeenCalledWith('')
     })
+
+    it('clicking the bucket in AssetExplorerShell breadcrumb bar navigates back to root prefix without opening switcher dropdown', () => {
+      const onNavigatePrefix = vi.fn()
+
+      renderWithProviders(
+        <AssetExplorerShell
+          {...defaultProps}
+          currentPrefix="feature_films/reel_04/"
+          onNavigatePrefix={onNavigatePrefix}
+        />,
+      )
+
+      const rootBucketBtn = screen.getByLabelText(/Root directory/i)
+      expect(rootBucketBtn).toBeInTheDocument()
+
+      fireEvent.click(rootBucketBtn)
+      expect(onNavigatePrefix).toHaveBeenCalledWith('')
+      expect(screen.queryByText(/Target GCS Bucket Switcher/i)).not.toBeInTheDocument()
+    })
   })
 
   describe('7. Category Filter Slicing', () => {

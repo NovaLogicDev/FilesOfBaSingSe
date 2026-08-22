@@ -298,7 +298,7 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
 
     // Step 3: Enter bucket
     fireEvent.click(screen.getByText(/3\. Target Bucket/i))
-    const bucketInputEl = screen.getByPlaceholderText(/gs:\/\/mediaserverrecovery/i)
+    const bucketInputEl = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
     fireEvent.change(bucketInputEl, { target: { value: 'gs://mediaserverrecovery' } })
 
     // Step 4: Navigate to Preflight
@@ -332,6 +332,25 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     // Should render successfully without throwing hook order errors
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText(/Client GCP Connection & Onboarding Wizard/i)).toBeInTheDocument()
+  })
+
+  it('does not display any recent buckets default list when the app first loads with empty recentBuckets', () => {
+    usePersistentStore.setState({
+      recentBuckets: [],
+      savedBucketName: '',
+    })
+
+    renderWithProviders(
+      <OnboardingWizardShell isOpen={true} onClose={() => {}} onComplete={() => {}} />,
+    )
+
+    // Navigate to Step 3
+    fireEvent.click(screen.getByText(/3\. Target Bucket/i))
+
+    // Verify input has neutral placeholder and no recent buckets section is rendered
+    expect(screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Recently Used Buckets/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('gs://mediaserverrecovery')).not.toBeInTheDocument()
   })
 })
 

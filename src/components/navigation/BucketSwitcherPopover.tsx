@@ -266,7 +266,7 @@ export const BucketSwitcherPopover: React.FC<BucketSwitcherPopoverProps> = ({
                       }
                     }
                   }}
-                  placeholder="gs://mediaserverrecovery"
+                  placeholder="gs://your-bucket-name"
                   className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none ${
                     validationError
                       ? 'border-rose-500 focus:border-rose-400'

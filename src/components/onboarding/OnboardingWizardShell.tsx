@@ -35,7 +35,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   onClose,
   onComplete,
 }) => {
-  const { savedProjectId, setSavedProjectId, savedBucketName, setSavedBucketName, addRecentBucket } =
+  const { savedProjectId, setSavedProjectId, savedBucketName, setSavedBucketName, recentBuckets, addRecentBucket } =
     usePersistentStore()
   const { oauthToken, userEmail, userName, userAvatar, tokenExpiresAt, isDemoMode } = useRuntimeStore()
   const { addToast } = useToastStore()
@@ -1100,7 +1100,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                     type="text"
                     value={bucketInput}
                     onChange={(e) => setBucketInput(e.target.value)}
-                    placeholder="gs://mediaserverrecovery"
+                    placeholder="gs://your-bucket-name"
                     className={`w-full bg-slate-950 border rounded-xl pl-9 pr-3 py-2.5 text-sm text-white font-mono focus:outline-none ${
                       bucketValidationError
                         ? 'border-rose-500/60 focus:border-rose-400'
@@ -1113,22 +1113,23 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
-                <span className="text-xs font-semibold text-slate-400">Recent & Recommended Buckets:</span>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    'gs://mediaserverrecovery',
-                  ].map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => setBucketInput(b)}
-                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-mono text-cyan-300 transition-all cursor-pointer"
-                    >
-                      {b}
-                    </button>
-                  ))}
+              {recentBuckets && recentBuckets.length > 0 && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
+                  <span className="text-xs font-semibold text-slate-400">Recently Used Buckets:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {recentBuckets.map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => setBucketInput(b)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-mono text-cyan-300 transition-all cursor-pointer"
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

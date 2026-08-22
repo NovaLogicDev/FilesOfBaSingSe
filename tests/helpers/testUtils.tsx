@@ -29,9 +29,7 @@ export function resetAllStores(): void {
   usePersistentStore.setState({
     savedProjectId: 'demo-client-media-2026',
     savedBucketName: 'gs://partner-raw-master-archives-2026',
-    recentBuckets: [
-      'mediaserverrecovery',
-    ],
+    recentBuckets: [],
     theme: 'dark',
     customPricing: {},
     isFreeTrialAccount: true,

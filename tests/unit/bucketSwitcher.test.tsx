@@ -82,7 +82,7 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /switch active target bucket/i }))
 
-    const input = screen.getByPlaceholderText(/gs:\/\/mediaserverrecovery/i)
+    const input = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
     fireEvent.change(input, { target: { value: 'AB' } }) // too short / uppercase
 
     const connectButton = screen.getByRole('button', { name: /connect/i })
@@ -104,7 +104,7 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /switch active target bucket/i }))
 
-    const input = screen.getByPlaceholderText(/gs:\/\/mediaserverrecovery/i)
+    const input = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
     fireEvent.change(input, { target: { value: 'gs://dailies-reel-05-archive' } })
 
     const connectButton = screen.getByRole('button', { name: /connect/i })
