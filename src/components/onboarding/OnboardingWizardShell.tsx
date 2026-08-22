@@ -22,6 +22,7 @@ import { useToastStore } from '../../store/toastStore'
 import { gisAuthService } from '../../services/gisAuthService'
 import { gcpProjectService } from '../../services/gcpProjectService'
 import { gcsClientService } from '../../services/gcsClientService'
+import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { GCPProject, BillingStatus, ProvisioningProgress, PreflightCheckResult } from '../../types'
 
 interface OnboardingWizardShellProps {
@@ -449,6 +450,12 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     setSavedProjectId(projectIdInput)
     setSavedBucketName(cleanBucket)
     addRecentBucket(cleanBucket)
+    SessionLifecycleEngine.markOnboardingComplete({
+      email: userEmail,
+      name: userName,
+      projectId: projectIdInput,
+      bucketName: cleanBucket,
+    })
     onComplete()
     onClose()
     addToast({

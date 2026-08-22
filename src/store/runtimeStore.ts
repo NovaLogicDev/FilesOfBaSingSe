@@ -17,6 +17,10 @@ export interface VolatileRuntimeSession {
   // Sandbox Mode
   isDemoMode: boolean
 
+  // Session Restoration & Continuity (VOLATILE RAM ONLY)
+  isRestoringSession: boolean
+  sessionRestorationError: string | null
+
   // Methods
   setAuth: (
     token: string,
@@ -34,6 +38,7 @@ export interface VolatileRuntimeSession {
   ) => void
   clearAuth: () => void
   clearAuthSession: () => void
+  setIsRestoringSession: (restoring: boolean, error?: string | null) => void
   setDownloadProgress: (progress: DownloadProgressTelemetry | null) => void
   setActiveAbortController: (controller: AbortController | null) => void
   setDownloadMinimized: (minimized: boolean) => void
@@ -52,6 +57,8 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   activeAbortController: null,
   isDownloadMinimized: false,
   isDemoMode: false, // Default to live GCS mode
+  isRestoringSession: false,
+  sessionRestorationError: null,
 
   setAuth: (
     token,
@@ -67,6 +74,8 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       userAvatar: avatar,
       tokenExpiresAt: Date.now() + expiresInSeconds * 1000,
       isDemoMode: false,
+      isRestoringSession: false,
+      sessionRestorationError: null,
     })
   },
 
@@ -95,11 +104,20 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       tokenExpiresAt: null,
       activeDownload: null,
       activeAbortController: null,
+      isRestoringSession: false,
+      sessionRestorationError: null,
     })
   },
 
   clearAuthSession: () => {
     get().clearAuth()
+  },
+
+  setIsRestoringSession: (restoring, error = null) => {
+    set({
+      isRestoringSession: restoring,
+      sessionRestorationError: error,
+    })
   },
 
   setDownloadProgress: (progress) => {
@@ -110,6 +128,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
     }
     set({ activeDownload: progress })
   },
+
 
   setActiveAbortController: (controller) => {
     set({ activeAbortController: controller })

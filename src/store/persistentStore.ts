@@ -9,6 +9,10 @@ export interface PersistentPreferences {
   theme: 'dark' | 'light'
   customPricing: Partial<RateCard>
   isFreeTrialAccount: boolean
+  hasCompletedOnboarding: boolean
+  lastAuthUserEmail: string | null
+  lastAuthUserName: string | null
+  lastAuthTimestamp: number | null
 
   setSavedProjectId: (projectId: string) => void
   setSavedBucketName: (bucketName: string) => void
@@ -16,6 +20,9 @@ export interface PersistentPreferences {
   setTheme: (theme: 'dark' | 'light') => void
   setCustomPricing: (pricing: Partial<RateCard>) => void
   setFreeTrialAccount: (isFreeTrial: boolean) => void
+  setHasCompletedOnboarding: (completed: boolean) => void
+  setLastAuthUserEmail: (email: string | null) => void
+  setLastAuthUserName: (name: string | null) => void
   resetPreferences: () => void
 }
 
@@ -28,6 +35,10 @@ export const usePersistentStore = create<PersistentPreferences>()(
       theme: 'dark',
       customPricing: {},
       isFreeTrialAccount: false,
+      hasCompletedOnboarding: false,
+      lastAuthUserEmail: null,
+      lastAuthUserName: null,
+      lastAuthTimestamp: null,
 
       setSavedProjectId: (projectId) =>
         set({ savedProjectId: projectId.trim() }),
@@ -53,6 +64,16 @@ export const usePersistentStore = create<PersistentPreferences>()(
       setFreeTrialAccount: (isFreeTrial) =>
         set({ isFreeTrialAccount: isFreeTrial }),
 
+      setHasCompletedOnboarding: (completed) =>
+        set({
+          hasCompletedOnboarding: completed,
+          lastAuthTimestamp: completed ? Date.now() : null,
+        }),
+
+      setLastAuthUserEmail: (email) => set({ lastAuthUserEmail: email }),
+
+      setLastAuthUserName: (name) => set({ lastAuthUserName: name }),
+
       resetPreferences: () =>
         set({
           savedProjectId: '',
@@ -61,6 +82,10 @@ export const usePersistentStore = create<PersistentPreferences>()(
           theme: 'dark',
           customPricing: {},
           isFreeTrialAccount: false,
+          hasCompletedOnboarding: false,
+          lastAuthUserEmail: null,
+          lastAuthUserName: null,
+          lastAuthTimestamp: null,
         }),
     }),
     {
@@ -68,3 +93,4 @@ export const usePersistentStore = create<PersistentPreferences>()(
     },
   ),
 )
+

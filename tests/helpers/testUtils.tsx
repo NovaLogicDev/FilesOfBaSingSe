@@ -23,6 +23,8 @@ export function resetAllStores(): void {
     activeAbortController: null,
     isDownloadMinimized: false,
     isDemoMode: true,
+    isRestoringSession: false,
+    sessionRestorationError: null,
   })
 
   // 2. Reset Persistent Store
@@ -33,6 +35,10 @@ export function resetAllStores(): void {
     theme: 'dark',
     customPricing: {},
     isFreeTrialAccount: true,
+    hasCompletedOnboarding: false,
+    lastAuthUserEmail: null,
+    lastAuthUserName: null,
+    lastAuthTimestamp: null,
   })
 
   // 3. Reset Toast Store

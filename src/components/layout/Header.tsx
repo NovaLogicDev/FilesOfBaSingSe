@@ -13,7 +13,7 @@ import {
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
 import { useToastStore } from '../../store/toastStore'
-import { gisAuthService } from '../../services/gisAuthService'
+import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { BucketSwitcherPopover } from '../navigation/BucketSwitcherPopover'
 import { ProjectSwitcherPopover } from '../navigation/ProjectSwitcherPopover'
 
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   const handleSignOut = async () => {
-    await gisAuthService.signOut()
+    await SessionLifecycleEngine.purgeSession()
     setSavedProjectId('')
     setSavedBucketName('')
     addToast({

@@ -43,6 +43,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     recentBuckets,
     customPricing,
     isFreeTrialAccount,
+    hasCompletedOnboarding,
     setSavedProjectId,
     setSavedBucketName,
   } = usePersistentStore()
@@ -282,6 +283,12 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                   <span className="text-slate-500">Token Expiry:</span>
                   <span className="text-emerald-400 font-semibold">
                     ~{remainingMinutes}m remaining (Auto-Renewal)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Session Continuity:</span>
+                  <span className="text-emerald-400 font-semibold">
+                    {hasCompletedOnboarding ? 'Active (Zero-Token Reload)' : 'Initial Setup'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

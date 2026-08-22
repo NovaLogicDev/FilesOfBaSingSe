@@ -13,6 +13,7 @@ import { DownloadManagerShell } from '../downloader/DownloadManagerShell'
 import { CliGeneratorModalShell } from '../cli/CliGeneratorModalShell'
 import { HighCostConfirmationModalShell } from '../cost/HighCostConfirmationModalShell'
 import { OnboardingWizardShell } from '../onboarding/OnboardingWizardShell'
+import { SessionReconnectCard } from '../onboarding/SessionReconnectCard'
 import { DiagnosticsModalShell } from '../diagnostics/DiagnosticsModalShell'
 import { PricingSettingsModalShell } from '../cost/PricingSettingsModalShell'
 import { GCPConfigCenterModalShell } from '../config/GCPConfigCenterModalShell'
@@ -26,6 +27,7 @@ import { gcsClientService } from '../../services/gcsClientService'
 import { streamDownloadService, BrowserCapabilityDetector } from '../../services/streamDownloadService'
 import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
+import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
@@ -34,6 +36,9 @@ export const AppShell: React.FC = () => {
     savedProjectId,
     isFreeTrialAccount,
     customPricing,
+    hasCompletedOnboarding,
+    lastAuthUserEmail,
+    lastAuthUserName,
     setSavedBucketName,
     setSavedProjectId,
   } = usePersistentStore()
@@ -44,6 +49,8 @@ export const AppShell: React.FC = () => {
     setActiveAbortController,
     isDemoMode,
     setDemoMode,
+    isRestoringSession,
+    sessionRestorationError,
   } = useRuntimeStore()
   const { addToast } = useToastStore()
 
@@ -114,6 +121,29 @@ export const AppShell: React.FC = () => {
     },
     [savedBucketName, savedProjectId, oauthToken, isDemoMode, addToast],
   )
+
+  // Boot-time silent session restoration (MOD-10)
+  useEffect(() => {
+    if (
+      !isDemoMode &&
+      !oauthToken &&
+      SessionLifecycleEngine.shouldBypassOnboarding(
+        hasCompletedOnboarding,
+        savedProjectId,
+        savedBucketName,
+      )
+    ) {
+      SessionLifecycleEngine.restoreSessionOnBoot().then((result) => {
+        if (result.restored) {
+          addToast({
+            type: 'success',
+            title: 'Session Restored',
+            message: `Welcome back${result.userName ? ', ' + result.userName : ''}! Resumed session for ${savedBucketName}.`,
+          })
+        }
+      })
+    }
+  }, [])
 
   useEffect(() => {
     loadDirectory(currentPrefix)
@@ -410,75 +440,119 @@ export const AppShell: React.FC = () => {
 
       {/* Main Workspace Area */}
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {isUnconfiguredLive ? (
-          /* Clean Live Mode Welcome / Connect Hero */
-          <div className="py-16 px-4 max-w-2xl mx-auto text-center space-y-6 animate-in fade-in duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-950/40">
-              <FolderLock className="w-8 h-8" />
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white tracking-tight">
-                Connect to Google Cloud Storage
-              </h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-lg mx-auto">
-                Authenticate directly from your browser to access Requester-Pays production buckets. No server middleware, 100% zero host liability.
+        {isRestoringSession ? (
+          <div
+            data-testid="session-restoring-indicator"
+            className="py-24 flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-200"
+          >
+            <div className="w-10 h-10 rounded-full border-3 border-emerald-400 border-t-transparent animate-spin" />
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-white">Restoring Google Cloud Session...</h3>
+              <p className="text-xs text-slate-400 font-mono">
+                Silently reconnecting to {savedBucketName || 'GCS'} (Zero-Token Security)
               </p>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsOnboardingOpen(true)}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                <ShieldCheck className="w-5 h-5" />
-                <span>Launch Connection Wizard</span>
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  gisAuthService.signInDemo()
-                  setSavedProjectId('demo-client-media-2026')
-                  setSavedBucketName('gs://partner-raw-master-archives-2026')
-                  setDemoMode(true)
-                  addToast({
-                    type: 'info',
-                    title: 'Demo Sandbox Initialized',
-                    message: 'Exploring 24 cinematic media master files.',
-                  })
-                }}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-                <span>Explore Demo Sandbox</span>
-              </button>
-            </div>
-
-            {/* Feature Highlights */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 border-t border-slate-800/80 text-left">
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <div className="font-semibold text-white text-xs">Direct-to-Disk Streaming</div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  4MB micro-chunks streamed via Native Chromium File System Access API with bounded memory (&lt;15MB).
-                </p>
-              </div>
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <div className="font-semibold text-white text-xs">Castagnoli CRC32c</div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Live bit-exact parity validation against Google Cloud Storage hash digests.
-                </p>
-              </div>
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <div className="font-semibold text-white text-xs">Zero Host Liability</div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Client-side execution with volatile in-memory OAuth tokens. Keys never touch server disk.
-                </p>
-              </div>
-            </div>
           </div>
+        ) : isUnconfiguredLive ? (
+          SessionLifecycleEngine.shouldBypassOnboarding(
+            hasCompletedOnboarding,
+            savedProjectId,
+            savedBucketName,
+          ) ? (
+            <SessionReconnectCard
+              userEmail={lastAuthUserEmail}
+              userName={lastAuthUserName}
+              savedProjectId={savedProjectId}
+              savedBucketName={savedBucketName}
+              errorMessage={sessionRestorationError}
+              onReconnect={async () => {
+                try {
+                  const session = await gisAuthService.signIn()
+                  addToast({
+                    type: 'success',
+                    title: 'Google Session Reconnected',
+                    message: `Welcome back, ${session.userName || session.userEmail}!`,
+                  })
+                } catch (err: any) {
+                  addToast({
+                    type: 'error',
+                    title: 'Re-Authentication Failed',
+                    message: err?.message || 'Failed to reconnect Google session.',
+                  })
+                }
+              }}
+              onReconfigure={() => setIsOnboardingOpen(true)}
+            />
+          ) : (
+            /* Clean Live Mode Welcome / Connect Hero */
+            <div className="py-16 px-4 max-w-2xl mx-auto text-center space-y-6 animate-in fade-in duration-300">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-950/40">
+                <FolderLock className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-white tracking-tight">
+                  Connect to Google Cloud Storage
+                </h2>
+                <p className="text-sm text-slate-400 leading-relaxed max-w-lg mx-auto">
+                  Authenticate directly from your browser to access Requester-Pays production buckets. No server middleware, 100% zero host liability.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOnboardingOpen(true)}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  <span>Launch Connection Wizard</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    gisAuthService.signInDemo()
+                    setSavedProjectId('demo-client-media-2026')
+                    setSavedBucketName('gs://partner-raw-master-archives-2026')
+                    setDemoMode(true)
+                    addToast({
+                      type: 'info',
+                      title: 'Demo Sandbox Initialized',
+                      message: 'Exploring 24 cinematic media master files.',
+                    })
+                  }}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <span>Explore Demo Sandbox</span>
+                </button>
+              </div>
+
+              {/* Feature Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 border-t border-slate-800/80 text-left">
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <div className="font-semibold text-white text-xs">Direct-to-Disk Streaming</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    4MB micro-chunks streamed via Native Chromium File System Access API with bounded memory (&lt;15MB).
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <div className="font-semibold text-white text-xs">Castagnoli CRC32c</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Live bit-exact parity validation against Google Cloud Storage hash digests.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <div className="font-semibold text-white text-xs">Zero Host Liability</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Client-side execution with volatile in-memory OAuth tokens. Keys never touch server disk.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
         ) : isLoadingDirectory ? (
           <div className="py-20 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
@@ -498,6 +572,7 @@ export const AppShell: React.FC = () => {
             onDownloadBatch={handleInitiateBatchDownload}
           />
         )}
+
       </main>
 
       {/* Slide-out Technical Inspector Drawer */}
