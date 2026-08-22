@@ -606,6 +606,101 @@ Empower users to switch between multiple production buckets and billing projects
 
 ---
 
+## Epic 10: Seamless Session Persistence, Silent Token Restoration & Onboarding Bypass
+
+### Epic Goal
+Provide seamless workflow continuity for client users across page reloads and browser restarts by silently restoring Google OAuth sessions in the background without violating zero-token storage boundaries, and instantly routing returning configured users directly to their active workspace without forcing them through the onboarding wizard.
+
+```mermaid
+flowchart TD
+    Reload([Browser Reload / Restart]) --> CheckHint{Inspect Session Hint in LocalStorage\nhasCompletedOnboarding: true?}
+    
+    CheckHint -->|No / First-Time User| ShowWelcome[Render Unauthenticated Landing Screen]
+    ShowWelcome --> Wizard[Guided 4-Step Onboarding Wizard]
+    
+    CheckHint -->|Yes / Returning User| SilentRestore[Silent Background Token Re-Acquisition\ngisAuthService.refreshTokenSilent]
+    
+    SilentRestore -->|Success| BgPreflight[Asynchronous 4-Point Preflight Handshake]
+    BgPreflight --> DirectWorkspace[Direct Workspace Landing: AssetExplorer\nZero Wizard Steps / Zero State Loss]
+    
+    SilentRestore -->|Interactive Prompt Required| ReauthCard[1-Click 'Resume Session' Card in Workspace\nPreserves Project & Bucket Context]
+    ReauthCard -->|Click 'Reconnect'| QuickConsent[GIS Popup Consent]
+    QuickConsent --> DirectWorkspace
+```
+
+---
+
+### Story 10.1: Silent Background Session Restoration on Page Reload (Zero-Token Persistence)
+**As a** solo freelance editor (Taylor) or post-production lead (Alex),  
+**I want the** application to automatically restore my active Google session in the background when I refresh the page or restart my browser,  
+**So that** I don't lose my place or get thrown back to the initial connection screen every time my tab reloads.
+
+#### Acceptance Criteria
+1. **Given** a user who previously completed onboarding on this browser, **When** the page reloads, **Then**:
+   - The application detects non-sensitive session hints (`hasCompletedOnboarding: true`, `savedProjectId`, `savedBucketName`) in `localStorage`.
+   - Access tokens are **never read from or written to** persistent storage.
+   - The app immediately attempts silent background token renewal via `gisAuthService.refreshTokenSilent()` (using `prompt: ''` with GIS token client).
+2. **Given** silent re-acquisition succeeds, **When** the new access token is returned:
+   - The token is placed strictly into volatile in-memory runtime store (`useRuntimeStore`).
+   - The application immediately renders the `AssetExplorer` with the user's active bucket and directory path.
+   - Total restoration elapsed time is $< 400\text{ ms}$ with zero layout shifts or error flashes.
+3. **Given** third-party cookies or browser privacy settings prevent silent iframe token acquisition, **When** detected, **Then** the application gracefully transitions to the 1-Click Session Resume prompt (Story 10.3).
+
+---
+
+### Story 10.2: Returning User Direct Workspace Landing & Automated Onboarding Bypass
+**As a** returning media client with an established GCP project and target bucket,  
+**I want to** sign in and immediately access my files without stepping through the 4-step onboarding wizard,  
+**So that** I can start browsing and downloading media assets immediately.
+
+#### Acceptance Criteria
+1. **Given** a user signs in (or completes silent session restoration), **When** evaluating onboarding state:
+   - If `hasCompletedOnboarding === true` and valid `savedProjectId` and `savedBucketName` are present, **Then** the system **completely bypasses the 4-step Onboarding Wizard**.
+   - The user lands directly in the `AssetExplorer` with directory metadata loaded for `savedBucketName`.
+2. **Given** direct workspace landing, **When** mounted, **Then**:
+   - A lightweight 4-point preflight handshake runs asynchronously in the background.
+   - If all checkpoints pass, an ambient green status badge displays in the Header with zero modal interruption.
+   - If preflight fails (e.g. IAM permission changed), an actionable inline warning banner is displayed within the workspace with a direct link to reconfigure.
+3. **Given** the user explicitly wants to reconfigure their connection, **When** clicking "Configure Connection" or "GCP Config" in the Header, **Then** the full Onboarding Wizard or Config Center is accessible on-demand.
+
+---
+
+### Story 10.3: Graceful Session Expiry & 1-Click Interactive Re-Authentication Banner
+**As a** client user whose Google authentication has expired or requires interactive consent,  
+**I want a** 1-click re-authentication prompt that remembers my active project and bucket,  
+**So that** I can refresh my login with a single click without retyping my project IDs or resetting my workspace.
+
+#### Acceptance Criteria
+1. **Given** an expired session or silent refresh failure on a configured workspace, **When** detected, **Then** the UI renders a prominent **"Resume Google Cloud Session"** card:
+   - Displays the user's email hint: *"Welcome back, Taylor (taylor@freelance-edit.com)"*.
+   - Summarizes configured parameters: *"Billed Project: `client-prod-2026` | Target Bucket: `gs://partner-raw-master-archives-2026`"*.
+   - Prominently features a primary button: `[ ⚡ Reconnect Google Session (1-Click) ]`.
+   - Offers secondary action: `[ Switch Account / Reconfigure ]`.
+2. **Given** the user clicks `[ ⚡ Reconnect Google Session ]`, **When** the GIS OAuth popup completes, **Then**:
+   - The fresh token is ingested into volatile memory.
+   - The workspace immediately mounts and refreshes the directory listing for the active bucket.
+   - Zero wizard steps are displayed.
+
+---
+
+### Story 10.4: First-Time vs. Returning User Experience Discrimination & Session Hints
+**As a** new client user opening the portal for the first time,  
+**I want to** receive clear, guided setup instructions, while returning users receive instant access,  
+**So that** both novice and experienced users receive the optimal experience tailored to their status.
+
+#### Acceptance Criteria
+1. **Given** an unconfigured browser environment (`hasCompletedOnboarding: false` or missing project/bucket), **When** visiting the portal, **Then** the initial welcome screen is displayed with the full 4-step guided onboarding wizard.
+2. **Given** a user completes the onboarding wizard and clicks "Finish Setup & Enter", **When** committed:
+   - `hasCompletedOnboarding` is set to `true` in `localStorage`.
+   - `lastAuthUserEmail` is recorded as a non-sensitive hint.
+   - `savedProjectId` and `savedBucketName` are saved to persistent preferences.
+3. **Given** a user clicks "Sign Out" or "Disconnect Session", **When** triggered:
+   - Volatile RAM credentials and active stream handles are purged.
+   - `hasCompletedOnboarding` is reset to `false`.
+   - The app cleanly transitions back to the first-time welcome screen.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -619,3 +714,5 @@ Empower users to switch between multiple production buckets and billing projects
 | **EPIC-7** | Automated Batch & CLI Companion Generator | 2 Stories | Low | P1 (Core) |
 | **EPIC-8** | Security, Resilience & Error Diagnostics | 2 Stories | Medium | P0 (Blocker) |
 | **EPIC-9** | Workspace Navigation, Bucket Switcher & GCP Config Center | 3 Stories | Medium | P1 (Core) |
+| **EPIC-10**| Seamless Session Persistence, Silent Restoration & Onboarding Bypass | 4 Stories | Medium | P0 (Blocker) |
+

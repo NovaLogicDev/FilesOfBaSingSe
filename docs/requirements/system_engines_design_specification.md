@@ -5,7 +5,7 @@
 
 ### Executive Architectural Overview
 
-**Files of Ba Sing Se** is powered by seven modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
+**Files of Ba Sing Se** is powered by eight modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
 
 ```mermaid
 flowchart TD
@@ -17,8 +17,11 @@ flowchart TD
         E5["5. CRC32c Cryptographic Integrity Engine\n(Castagnoli 0x1EDC6F41, Big-Endian Base64)"]
         E6["6. Automated Batch & CLI Generator Engine\n(gcloud storage, gsutil, Firefox Routing)"]
         E7["7. State Isolation & Persistence Engine\n(Zustand Volatile RAM, LocalStorage, IndexedDB)"]
+        E8["8. Session Lifecycle & Restoration Engine\n(Silent Reload, Onboarding Bypass, 1-Click Reconnect)"]
     end
 
+    E8 --> E1
+    E8 --> E7
     E1 --> E2
     E2 --> E3
     E2 --> E4
@@ -27,6 +30,7 @@ flowchart TD
     E7 -.->|"Supplies Ephemeral Token & Project ID"| E1
     E7 -.->|"Supplies Active State"| E2
     E7 -.->|"Maintains Active Stream Handles"| E4
+    E8 -.->|"Rehydrates Active Workspace"| E2
 ```
 
 ---
@@ -825,16 +829,129 @@ export const useRuntimeStore = create<RuntimeSessionState>((set) => ({
 
 ---
 
-## 8. Cross-Engine Integration with Module 9 (GCP Config Center & Controls)
+---
 
-The primary engines integrate with **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`) as follows:
-- **Engine 1 (`GCPOnboardingEngine`)**: Provides the reusable `runPreflightHandshake()` method called in the background when switching buckets via `BucketSwitcherControl` or executing live audits in `GCPConfigCenterModalShell`.
-- **Engine 2 (`BucketExplorerEngine`)**: Triggered with `prefix=""` upon any successful bucket switch.
+## 8. Engine 8: Session Lifecycle & Silent Restoration Engine
+
+### 8.1 Purpose & Domain Scope
+Eliminates session loss on page reloads and removes onboarding friction for returning users. Coordinates with Google Identity Services to silently restore volatile OAuth credentials on boot without disk persistence, evaluates onboarding completion to bypass the 4-step wizard, and manages graceful 1-click re-authentication prompts.
+
+### 8.2 State Machine & Boot Protocol
+
+```mermaid
+stateDiagram-v2
+    [*] --> AppInit: AppShell Mount
+    AppInit --> EvaluateEligibility: Check Local Preferences
+    
+    state EvaluateEligibility {
+        [*] --> CheckPrefs
+        CheckPrefs --> EligibleForRestore: hasCompletedOnboarding == true && savedProjectId && savedBucketName
+        CheckPrefs --> Unconfigured: hasCompletedOnboarding == false || missing config
+    }
+    
+    Unconfigured --> RenderWelcomeLanding: Show First-Time Connect View
+    
+    EligibleForRestore --> SilentTokenHandshake: Call gisAuthService.refreshTokenSilent()
+    
+    state SilentTokenHandshake {
+        [*] --> GISSilentRequest: prompt: ''
+        GISSilentRequest --> RestoreSuccess: Access Token Ingested to RAM
+        GISSilentRequest --> InteractiveRequired: Third-Party Cookie Blocked / Token Revoked
+    }
+    
+    RestoreSuccess --> BackgroundPreflight: runPreflightHandshake()
+    BackgroundPreflight --> DirectWorkspaceMount: Render AssetExplorer (Zero Wizard Steps)
+    
+    InteractiveRequired --> RenderReconnectCard: Show 1-Click "Resume Session" Prompt
+    RenderReconnectCard --> GISPopupConsent: User Clicks "Reconnect"
+    GISPopupConsent --> DirectWorkspaceMount: Token Granted -> Mount Workspace
+    GISPopupConsent --> RenderWelcomeLanding: User Clicks "Switch Account"
+```
+
+### 8.3 TypeScript Contract Specification
+
+```typescript
+export interface SessionRestorationResult {
+  restored: boolean;
+  requiresInteraction: boolean;
+  userEmail?: string;
+  errorMessage?: string;
+}
+
+export class SessionLifecycleEngine {
+  /**
+   * Evaluates whether current client state qualifies for onboarding bypass.
+   */
+  public static shouldBypassOnboarding(
+    hasCompletedOnboarding: boolean,
+    savedProjectId: string,
+    savedBucketName: string
+  ): boolean {
+    return Boolean(
+      hasCompletedOnboarding &&
+      savedProjectId &&
+      savedProjectId.trim().length >= 6 &&
+      savedBucketName &&
+      savedBucketName.trim().length >= 3
+    );
+  }
+
+  /**
+   * Executes silent boot-time session restoration.
+   */
+  public static async restoreSessionOnBoot(
+    gisService: { refreshTokenSilent: () => Promise<{ accessToken: string; userEmail: string; userName: string; expiresIn: number }> },
+    runtimeStore: { setAuth: (t: string, e: string, n?: string, a?: string, exp?: number) => void },
+    persistentConfig: { hasCompletedOnboarding: boolean; savedProjectId: string; savedBucketName: string }
+  ): Promise<SessionRestorationResult> {
+    const { hasCompletedOnboarding, savedProjectId, savedBucketName } = persistentConfig;
+
+    if (!this.shouldBypassOnboarding(hasCompletedOnboarding, savedProjectId, savedBucketName)) {
+      return { restored: false, requiresInteraction: false };
+    }
+
+    try {
+      const session = await gisService.refreshTokenSilent();
+      if (session && session.accessToken) {
+        runtimeStore.setAuth(
+          session.accessToken,
+          session.userEmail,
+          session.userName,
+          undefined,
+          session.expiresIn
+        );
+        return {
+          restored: true,
+          requiresInteraction: false,
+          userEmail: session.userEmail
+        };
+      }
+      return { restored: false, requiresInteraction: true };
+    } catch (err: any) {
+      return {
+        restored: false,
+        requiresInteraction: true,
+        errorMessage: err?.message || 'Silent session renewal requires user prompt.'
+      };
+    }
+  }
+}
+```
+
+---
+
+## 9. Cross-Engine Integration with Module 9 & Module 10 (GCP Config Center & Session Lifecycle)
+
+The primary engines integrate with **[Module 9](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`) and **[Module 10](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`) as follows:
+- **Engine 8 (`SessionLifecycleEngine`)**: Invokes `gisAuthService.refreshTokenSilent()` on boot and coordinates with `PersistentStore` to evaluate onboarding bypass before mounting `AssetExplorer`.
+- **Engine 1 (`GCPOnboardingEngine`)**: Provides the reusable `runPreflightHandshake()` method called in the background upon silent session recovery.
+- **Engine 2 (`BucketExplorerEngine`)**: Triggered directly with `savedBucketName` and `savedProjectId` when onboarding is bypassed.
 - **Engine 3 (`CostGovernanceEngine`)**: Supplies active rate card data ($/GB rates and Free Trial credit status) to the Config Center inspection cards.
-- **Engine 7 (`StatePersistenceEngine`)**: Ingests and persists `savedBucketName`, `savedProjectId`, `recentBuckets`, and `customPricing` changes from the switchers.
+- **Engine 7 (`StatePersistenceEngine`)**: Ingests and persists `savedBucketName`, `savedProjectId`, `recentBuckets`, `hasCompletedOnboarding`, and `lastAuthUserEmail`.
 
 ---
 
 ### Architectural Sign-Off for System Engines
 
-All 7 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly expose state to the Module 9 Configuration Center.
+All 8 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity and frictionless onboarding bypass.
+

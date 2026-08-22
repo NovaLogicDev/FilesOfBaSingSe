@@ -42,6 +42,7 @@ flowchart TD
   2. Bucket reachability & Requester-Pays enforcement.
   3. IAM `roles/storage.objectViewer` permission.
   4. CORS preflight exposure headers (`x-goog-hash`, `Content-Length`, `Range`, `ETag`).
+- **FR-1.7**: Automated Onboarding Bypass for Returning Users: When an authenticated session is established (via interactive sign-in or silent token restoration) and the system verifies that `hasCompletedOnboarding === true` with valid `savedProjectId` and `savedBucketName`, the system shall bypass the 4-step wizard entirely and route the user directly to the active media workspace (`AssetExplorer`) with background preflight verification.
 
 #### Non-Functional Requirements & Security Constraints
 - **NFR-1.1**: OAuth access tokens **MUST NEVER** be written to `localStorage`, `sessionStorage`, or cookies. Tokens reside strictly in volatile closure memory (`Zustand`).
@@ -56,39 +57,49 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor Client as User (Taylor)
-    participant UI as OnboardingWizard (UI)
+    participant UI as OnboardingWizard / AppShell (UI)
     participant GIS as Google Identity Services
     participant CRM as Cloud Resource Manager API
     participant SU as Service Usage API
     participant CB as Cloud Billing API
     participant GCS as GCS REST API
+    participant PStore as PersistentStore
 
-    Client->>UI: Clicks "Sign in with Google"
+    Client->>UI: Clicks "Sign in with Google" (or silent auto-auth on reload)
     UI->>GIS: initTokenClient({ scope: 'devstorage.read_only cloud-platform' })
     GIS-->>Client: Displays Google OAuth Consent
     Client->>GIS: Grants Consent
     GIS-->>UI: Returns Access Token (Stored in volatile RAM)
 
-    UI->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
-    alt Existing Projects Found
-        CRM-->>UI: Returns Project List
-        UI->>Client: Auto-populates Project Dropdown
-    else Zero Projects Found (New User)
-        CRM-->>UI: Empty Project List
-        UI->>Client: Displays "$300 Free Trial Assistant" & "1-Click Auto-Create"
-        Client->>UI: Clicks "1-Click Auto-Create"
-        UI->>CRM: POST /v1/projects { projectId: 'basingse-media-dl-9821' }
-        CRM-->>UI: Project Created OK
-        UI->>SU: POST /v1/projects/.../services/storage.googleapis.com:enable
-        SU-->>UI: Storage API Enabled OK
+    UI->>PStore: Check { hasCompletedOnboarding, savedProjectId, savedBucketName }
+    alt Returning User (hasCompletedOnboarding == true & Config Present)
+        PStore-->>UI: Existing Project & Bucket Found
+        UI->>GCS: Background 4-Point Preflight Handshake
+        GCS-->>UI: HTTP 200 OK (Requester-Pays & IAM OK)
+        UI-->>Client: DIRECT WORKSPACE LANDING (Bypasses Wizard Steps 1-4)
+    else First-Time User (New Setup Required)
+        UI->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
+        alt Existing Projects Found
+            CRM-->>UI: Returns Project List
+            UI->>Client: Auto-populates Project Dropdown (Step 2)
+        else Zero Projects Found (New User)
+            CRM-->>UI: Empty Project List
+            UI->>Client: Displays "$300 Free Trial Assistant" & "1-Click Auto-Create"
+            Client->>UI: Clicks "1-Click Auto-Create"
+            UI->>CRM: POST /v1/projects { projectId: 'basingse-media-dl-9821' }
+            CRM-->>UI: Project Created OK
+            UI->>SU: POST /v1/projects/.../services/storage.googleapis.com:enable
+            SU-->>UI: Storage API Enabled OK
+        end
+
+        UI->>CB: GET /v1/projects/{projectId}/billingInfo
+        CB-->>UI: { billingEnabled: true }
+
+        UI->>GCS: GET /storage/v1/b/TARGET_BUCKET?userProject={projectId}
+        GCS-->>UI: HTTP 200 OK (Requester-Pays & IAM OK)
+        UI->>Client: Displays 4 Green Checkmarks & "Enter Media Portal" Button
+        Client->>UI: Clicks "Enter Media Portal" -> Sets hasCompletedOnboarding = true
     end
-
-    UI->>CB: GET /v1/projects/{projectId}/billingInfo
-    CB-->>UI: { billingEnabled: true }
-
-    UI->>GCS: GET /storage/v1/b/TARGET_BUCKET?userProject={projectId}
-    GCS-->>UI: HTTP 200 OK (Requester-Pays & IAM OK)
-    UI->>Client: Displays 4 Green Checkmarks & "Enter Media Portal" Button
 ```
 
 ---
@@ -130,6 +141,7 @@ export interface OnboardingState {
   targetBucket: string;
   preflight: PreflightCheckResult | null;
   isLoading: boolean;
+  hasCompletedOnboarding: boolean;
 }
 ```
 
@@ -137,10 +149,11 @@ export interface OnboardingState {
 
 ### 5. UI Components & State Transitions
 
-1. **`OnboardingWizard.tsx`**: Main multi-step modal dialog with linear progress bar.
+1. **`OnboardingWizard.tsx`**: Main multi-step modal dialog with linear progress bar (used for first-time onboarding or explicit reconfiguration).
 2. **`GoogleSignInButton.tsx`**: GIS OAuth 2.0 trigger with account switching support.
 3. **`ProjectSelector.tsx`**: Smart combo-box containing auto-discovered projects, 1-click create button, and Free Trial assistant card.
 4. **`PreflightChecklist.tsx`**: Live checklist with spinning loaders transitioning into animated green checkmarks or error diagnosis alerts.
+5. **`SessionReconnectCard.tsx`**: 1-click fast-reconnect prompt for returning users requiring interactive consent.
 
 ---
 
@@ -151,7 +164,7 @@ export interface OnboardingState {
 | **No Billing Linked** | `billingEnabled: false` | Inline warning: *"Billing is unlinked on this project. GCS Requester Pays requires billing."* with 1-click link to GCP Billing Console. |
 | **IAM Access Denied** | `HTTP 403 Forbidden` | Card: *"Your Google account lacks Storage Object Viewer access on this bucket. Request roles/storage.objectViewer from the bucket administrator."* |
 | **CORS Blocked** | `TypeError: Failed to fetch` | Card: *"Bucket CORS origin not configured for this web domain."* with copyable `cors.json` config. |
-| **Token Expired** | Expiry timer reaches 0 | Silent background renewal attempted; if failed, prompts 1-click re-auth without resetting project ID. |
+| **Token Expired** | Expiry timer reaches 0 | Silent background renewal attempted; if failed, prompts 1-click re-auth without resetting project ID or forcing onboarding. |
 
 ---
 
@@ -160,15 +173,19 @@ export interface OnboardingState {
 - **Unit Tests**:
   - `test_project_id_regex`: Validates string formats.
   - `test_billing_status_parser`: Tests JSON response handling for unlinked accounts.
+  - `test_onboarding_bypass_evaluation`: Verifies returning users with complete config bypass steps 1-4.
 - **Integration Tests**:
   - Mock GIS popup response and verify token remains in volatile store.
   - Mock CRM API with empty list $\rightarrow$ verify transition to Free Trial Assistant view.
   - Mock preflight HTTP 403 $\rightarrow$ verify actionable IAM diagnosis message.
+  - Mock returning user sign-in $\rightarrow$ verify immediate workspace mount.
 
 ---
 
 ### 8. Relationship with Downstream Modules & Post-Setup Controls
 
 Once initial onboarding completes, configuration management transitions to post-setup controls:
+- **[Module 10: Session Continuity, Silent Token Restoration & Onboarding Bypass](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`): Manages silent token re-acquisition on reload, session hints, and automated onboarding bypass.
 - **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Provides on-the-fly bucket switching (`BucketSwitcherControl`), project switching (`ProjectSwitcherControl`), and holistic configuration auditing (`GCPConfigCenterModalShell`) without re-running this onboarding wizard.
-- **[Module 8: State Management & Persistence](module_8_state_persistence_design_and_requirements.md)** (`MOD-08-STATE-PERSISTENCE`): Persists `savedProjectId`, `savedBucketName`, and `recentBuckets` across sessions.
+- **[Module 8: State Management & Persistence](module_8_state_persistence_design_and_requirements.md)** (`MOD-08-STATE-PERSISTENCE`): Persists `savedProjectId`, `savedBucketName`, `recentBuckets`, and `hasCompletedOnboarding` across sessions.
+

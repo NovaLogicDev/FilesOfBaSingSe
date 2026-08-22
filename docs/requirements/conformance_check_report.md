@@ -144,13 +144,16 @@ During the conformance audit, the following updates and harmonizations were enac
    - Harmonized the Onboarding Wizard wireframe with the newly added **Taylor (Solo Freelance Client)** persona, adding the direct Free Trial Assistant deep-link and automatic API discovery via `cloudresourcemanager.googleapis.com`.
 3. **Download Manager Telemetry**:
    - Added fixed-memory indicator telemetry (`Fixed RAM: ~11.4 MB - Stable`) into the active Download Manager specifications to give users real-time visual proof that streaming large files does not leak browser memory.
-4. **Firefox Graceful Degradation Protocol**:
-   - Fully harmonized the CLI generator modal to serve as both an automated batch tool for power users and the automatic seamless fallback for Firefox users.
+5. **Session Continuity & Onboarding Bypass Conformance**:
+   - Added Module 10 (`MOD-10-SESSION-LIFECYCLE`), Epic 10 in `user_stories_specification.md`, and Engine 8 in `system_engines_design_specification.md`.
+   - Verified that session continuity on reload uses non-sensitive session hints and silent GIS token requests (`gisAuthService.refreshTokenSilent()`) with zero token storage on disk.
+   - Verified that returning users with valid `savedProjectId` and `savedBucketName` bypass the 4-step wizard directly into the active workspace.
 
 ---
 
 ### Conformance Check Sign-Off
 - **Architecture Alignment**: 100% Conforming
-- **User Story Coverage**: 100% Conforming
-- **UI Wireframe & Design System Consistency**: 100% Conforming
-- **Security & Billing Integrity**: 100% Conforming
+- **User Story Coverage**: 100% Conforming (10 Epics, 30 Stories)
+- **UI Wireframe & Design System Consistency**: 100% Conforming (7 Screens)
+- **Security & Billing Integrity**: 100% Conforming (Zero Token Persistence Guaranteed)
+- **Session Lifecycle & Onboarding Bypass**: 100% Conforming

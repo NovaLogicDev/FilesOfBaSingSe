@@ -91,6 +91,7 @@ flowchart LR
         S4["⚡ OAuth & Preflight API Handshake\nTarget: < 300 ms"]
         S5["💾 Streaming Memory Ceiling\nTarget: < 15 MB Heap (Constant)"]
         S6["📦 Production Bundle Footprint\nTarget: < 150 KB (Brotli / Gzip)"]
+        S7["⚡ Silent Session Restoration on Reload\nTarget: < 400 ms (Zero Layout Shift)"]
     end
 ```
 
@@ -104,6 +105,7 @@ flowchart LR
    - Search/filter input response: **< 50 ms**.
    - Stream cancellation execution (`AbortController.abort()`): **< 200 ms**.
    - Inspection drawer slide-in animation: **< 150 ms** at 60 FPS.
+   - Silent session restoration on boot/reload: **< 400 ms**.
 4. **Initial Bundle Size**:
    - Production JS bundle size **MUST** be **< 150 KB (gzipped / Brotli)** for fast initial loading over cellular or remote production sets.
 
@@ -121,11 +123,14 @@ flowchart LR
 |  • Token Expiration Timestamp & Silent Renewal Timer Handles                                       |
 |  • Active Stream Downloader Handles & AbortControllers                                             |
 |  • Real-time Transfer Speed & CRC32c Intermediate Hash States                                      |
+|  • Session Restoration Live State (isRestoringSession, restorationStatus)                          |
 |                                                                                                    |
-|  [ PERSISTENT LOCALSTORAGE ] (Non-Sensitive User Preferences Only)                                 |
+|  [ PERSISTENT LOCALSTORAGE ] (Non-Sensitive User Preferences & Session Hints Only)                 |
 |  • Client GCP Project ID String (e.g., "client-prod-media-2026")                                   |
 |  • Target GCS Bucket URI (e.g., "gs://partner-raw-master-archives-2026")                           |
 |  • Recent Bucket History Array (Last 5 visited buckets)                                            |
+|  • Onboarding Completion Flag (hasCompletedOnboarding: boolean)                                    |
+|  • Last Authenticated User Email Hint (lastAuthUserEmail: string)                                  |
 |  • UI Theme ("dark" | "light")                                                                     |
 |  • Custom Pricing Rate Card Overrides (if customized by client)                                    |
 |                                                                                                    |
@@ -135,6 +140,7 @@ flowchart LR
 |  [ PROHIBITED STORAGE ] (CRITICAL SECURITY VIOLATIONS)                                             |
 |  X Google Service Account Private Key JSONs (Never accepted or stored)                             |
 |  X Long-lived Google Refresh Tokens or User Passwords                                              |
+|  X OAuth Access Bearer Tokens (Strictly volatile in-memory)                                         |
 |                                                                                                    |
 +----------------------------------------------------------------------------------------------------+
 ```

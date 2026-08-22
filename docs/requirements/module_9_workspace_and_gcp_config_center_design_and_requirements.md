@@ -161,13 +161,16 @@ flowchart TD
 
 ```typescript
 export interface GCPConfigurationSummary {
-  // Identity
+  // Identity & Session Continuity
   userEmail: string | null;
   userName: string | null;
   userAvatar: string | null;
   tokenExpiresAt: number | null;
   remainingTokenMinutes: number;
   scopes: string[];
+  hasCompletedOnboarding: boolean;
+  lastAuthTimestamp: number | null;
+  sessionContinuityActive: boolean;
 
   // GCP Project
   savedProjectId: string;

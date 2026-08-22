@@ -336,10 +336,44 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ---
 
-## 9. Responsive Layout & Viewport Specifications
+## 9. Screen 7: Re-Authentication & Session Reconnect Card
+
+**Trigger**: Displayed when a returning user (`hasCompletedOnboarding: true`) reloads or opens the application and silent GIS refresh encounters partitioned cookies or requires user confirmation.
+
+```
++----------------------------------------------------------------------------------------------------+
+|  [Logo] Files of Ba Sing Se  | [gs://partner-raw-master-archives-2026] | [Billed: client-prod]     |
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|  +----------------------------------------------------------------------------------------------+  |
+|  | [Key] RESUME GOOGLE CLOUD SESSION                                                            |  |
+|  |                                                                                              |  |
+|  | Welcome back, Taylor (taylor@freelance-edit.com)!                                            |  |
+|  | Your workspace configuration is saved and ready. Please re-authenticate your Google          |  |
+|  | account to resume browsing files and direct streaming.                                      |  |
+|  |                                                                                              |  |
+|  | ACTIVE CONFIGURATION:                                                                        |  |
+|  | • Billed Project: client-prod-media-2026                                                      |  |
+|  | • Target Bucket:  gs://partner-raw-master-archives-2026                                       |  |
+|  |                                                                                              |  |
+|  | [ ⚡ Reconnect Google Session (1-Click) ]             [ Switch Account / Reconfigure ]        |  |
+|  +----------------------------------------------------------------------------------------------+  |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+```
+
+### Behavioral Specifications
+1. **Zero State Loss**: Project ID and bucket remain intact; no wizard steps or re-selection needed.
+2. **1-Click GIS Popup**: Clicking "Reconnect Google Session" triggers GIS popup (`signIn()`). Once consented, the card dissolves and mounts the `AssetExplorer` with the loaded directory in $< 200\text{ ms}$.
+3. **Switch Account Option**: Allows clearing the hint and logging in with a different identity or project.
+
+---
+
+## 10. Responsive Layout & Viewport Specifications
 
 | Viewport Breakpoint | Target Devices | Layout Adaptations |
 | :--- | :--- | :--- |
 | **Desktop Wide (1440px+)** | Mac Studio, iMac 5K, Multi-Monitor Workstations | Full multi-column virtualized table, persistent breadcrumb trail, side-by-side Asset Inspector drawer, centered multi-column GCP Configuration Center modal. |
 | **Laptop / Compact Desktop (1024px–1439px)** | MacBook Pro 14"/16", Laptop Workstations | Standard responsive table, overlay modal for Asset Inspector, dockable floating Download Manager in bottom right. |
 | **Tablet / Touch (768px–1023px)** | iPad Pro, Mobile Tablets | Touch-friendly row height (48px), simplified column set (Name, Class, Size, Action), bottom sheet for Inspector Drawer. |
+

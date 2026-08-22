@@ -63,6 +63,7 @@ import { persist } from 'zustand/middleware';
 // 1. Persistent Store (Non-Sensitive Disk Storage)
 export interface PersistentPreferences {
   savedProjectId: string;
+  savedBucketName: string;
   recentBuckets: string[];
   theme: 'dark' | 'light';
   customPricing: {
@@ -70,29 +71,72 @@ export interface PersistentPreferences {
     coldlineRetrieval?: number;
     egress?: number;
   };
+  isFreeTrialAccount: boolean;
+  hasCompletedOnboarding: boolean;
+  lastAuthUserEmail: string | null;
+  lastAuthUserName: string | null;
+  lastAuthTimestamp: number | null;
   setSavedProjectId: (id: string) => void;
+  setSavedBucketName: (bucket: string) => void;
   addRecentBucket: (bucket: string) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setCustomPricing: (pricing: Partial<PersistentPreferences['customPricing']>) => void;
+  setFreeTrialAccount: (isFreeTrial: boolean) => void;
+  setHasCompletedOnboarding: (completed: boolean) => void;
+  setLastAuthUserEmail: (email: string | null) => void;
+  setLastAuthUserName: (name: string | null) => void;
+  resetPreferences: () => void;
 }
 
 export const usePersistentStore = create<PersistentPreferences>()(
   persist(
     (set) => ({
       savedProjectId: '',
+      savedBucketName: '',
       recentBuckets: [],
       theme: 'dark',
       customPricing: {},
+      isFreeTrialAccount: false,
+      hasCompletedOnboarding: false,
+      lastAuthUserEmail: null,
+      lastAuthUserName: null,
+      lastAuthTimestamp: null,
       setSavedProjectId: (id) => set({ savedProjectId: id.trim() }),
+      setSavedBucketName: (bucket) => {
+        const clean = bucket.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+        set({ savedBucketName: `gs://${clean}` });
+      },
       addRecentBucket: (bucket) =>
         set((state) => {
-          const clean = bucket.replace(/^gs:\/\//, '').replace(/\/+$/, '');
+          const clean = bucket.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim();
+          if (!clean) return state;
           const filtered = state.recentBuckets.filter((b) => b !== clean);
           return { recentBuckets: [clean, ...filtered].slice(0, 5) };
         }),
       setTheme: (theme) => set({ theme }),
       setCustomPricing: (pricing) =>
-        set((state) => ({ customPricing: { ...state.customPricing, ...pricing } }))
+        set((state) => ({ customPricing: { ...state.customPricing, ...pricing } })),
+      setFreeTrialAccount: (isFreeTrial) => set({ isFreeTrialAccount: isFreeTrial }),
+      setHasCompletedOnboarding: (completed) =>
+        set({
+          hasCompletedOnboarding: completed,
+          lastAuthTimestamp: completed ? Date.now() : null
+        }),
+      setLastAuthUserEmail: (email) => set({ lastAuthUserEmail: email }),
+      setLastAuthUserName: (name) => set({ lastAuthUserName: name }),
+      resetPreferences: () =>
+        set({
+          savedProjectId: '',
+          savedBucketName: '',
+          recentBuckets: [],
+          theme: 'dark',
+          customPricing: {},
+          isFreeTrialAccount: false,
+          hasCompletedOnboarding: false,
+          lastAuthUserEmail: null,
+          lastAuthUserName: null,
+          lastAuthTimestamp: null
+        })
     }),
     { name: 'basingse-media-client-prefs' }
   )
@@ -102,28 +146,41 @@ export const usePersistentStore = create<PersistentPreferences>()(
 export interface VolatileRuntimeSession {
   oauthToken: string | null;
   userEmail: string | null;
+  userName: string | null;
   userAvatar: string | null;
   tokenExpiresAt: number | null;
   activeAbortController: AbortController | null;
   currentDownloadItem: string | null;
-  setAuthSession: (token: string, email: string, avatar: string, expiresInSeconds: number) => void;
+  isRestoringSession: boolean;
+  sessionRestorationError: string | null;
+  isDemoMode: boolean;
+  setAuthSession: (token: string, email: string, name?: string, avatar?: string, expiresInSeconds?: number) => void;
   clearAuthSession: () => void;
   setActiveStream: (controller: AbortController | null, itemName: string | null) => void;
+  setIsRestoringSession: (restoring: boolean, error?: string | null) => void;
+  setDemoMode: (isDemo: boolean) => void;
 }
 
 export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   oauthToken: null,
   userEmail: null,
+  userName: null,
   userAvatar: null,
   tokenExpiresAt: null,
   activeAbortController: null,
   currentDownloadItem: null,
-  setAuthSession: (token, email, avatar, expiresInSeconds) =>
+  isRestoringSession: false,
+  sessionRestorationError: null,
+  isDemoMode: false,
+  setAuthSession: (token, email, name = 'Google User', avatar = undefined, expiresInSeconds = 3600) =>
     set({
       oauthToken: token,
       userEmail: email,
+      userName: name,
       userAvatar: avatar,
-      tokenExpiresAt: Date.now() + expiresInSeconds * 1000
+      tokenExpiresAt: Date.now() + expiresInSeconds * 1000,
+      isRestoringSession: false,
+      sessionRestorationError: null
     }),
   clearAuthSession: () => {
     const { activeAbortController } = get();
@@ -135,17 +192,26 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
     set({
       oauthToken: null,
       userEmail: null,
+      userName: null,
       userAvatar: null,
       tokenExpiresAt: null,
       activeAbortController: null,
-      currentDownloadItem: null
+      currentDownloadItem: null,
+      isRestoringSession: false,
+      sessionRestorationError: null
     });
   },
   setActiveStream: (controller, itemName) =>
     set({
       activeAbortController: controller,
       currentDownloadItem: itemName
-    })
+    }),
+  setIsRestoringSession: (restoring, error = null) =>
+    set({
+      isRestoringSession: restoring,
+      sessionRestorationError: error
+    }),
+  setDemoMode: (isDemo) => set({ isDemoMode: isDemo })
 }));
 ```
 
@@ -155,13 +221,14 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
 
 1. **`Header.tsx`**: Top navigation bar displaying connected bucket, active project badge, Google user profile avatar, theme switcher, and disconnect button.
 2. **`StorageBoundaryValidator.tsx`**: Diagnostic component auditing `localStorage` on boot to confirm zero credential leakage.
+3. **`SessionReconnectCard.tsx`**: 1-click interactive re-authentication component for expired or cookie-partitioned sessions.
 
 ---
 
 ### 5. Error Handling & Edge Cases
 
 - **LocalStorage Quota Exceeded**: Catch quota exceptions and gracefully degrade to memory-only storage for recent bucket lists.
-- **Tab Crash / Refresh**: Session token is cleared from RAM, prompting 1-click silent re-auth via GIS iframe without losing the user's selected project ID.
+- **Tab Crash / Refresh**: Volatile access token is lost from RAM; application reads non-sensitive session hints and executes silent background renewal via GIS iframe without resetting project ID or forcing the 4-step onboarding wizard.
 
 ---
 
@@ -169,10 +236,13 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
 
 - **Automated Security Tests**:
   - `test_zero_token_in_localstorage`: Performs `localStorage.getItem('basingse-media-client-prefs')` and asserts that `oauthToken`, `access_token`, and `bearer` keys do NOT exist.
+  - `test_session_hints_do_not_contain_secrets`: Asserts that `hasCompletedOnboarding`, `lastAuthUserEmail`, `savedProjectId` do not match token regexes.
   - `test_clear_auth_flushes_all_state`: Asserts that `clearAuthSession()` resets token to `null` and invokes `abort()`.
 
 ---
 
-### 7. Cross-Module Integration with Module 9 (Config Center & Controls)
+### 7. Cross-Module Integration with Module 9 & Module 10
 
+- **[Module 10: Session Continuity, Silent Token Restoration & Onboarding Bypass](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`): Manages the boot restoration lifecycle and onboarding bypass using `hasCompletedOnboarding` and silent GIS token requests.
 - **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`): Directly queries and mutates persistent storage via `usePersistentStore` for `savedBucketName`, `recentBuckets` (capped at 5 FIFO items), `savedProjectId`, and `customPricing` rate card overrides. It also provides the live **Storage Boundary Audit** widget verifying zero token leakage.
+

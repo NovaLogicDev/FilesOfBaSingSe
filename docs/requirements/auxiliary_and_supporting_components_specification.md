@@ -76,10 +76,11 @@ export interface DiagnosticReport {
   serviceWorkerActive: boolean;
   activeBucket: string;
   activeProjectIdMasked: string; // e.g. "clie***-2026"
+  hasCompletedOnboarding: boolean;
   heapMemoryMB: number;
   recentLogs: Array<{
     level: 'info' | 'warn' | 'error';
-    category: 'AUTH' | 'GCS' | 'STREAM' | 'PREFLIGHT';
+    category: 'AUTH' | 'GCS' | 'STREAM' | 'PREFLIGHT' | 'SESSION';
     message: string;
     timestamp: string;
   }>;
@@ -87,7 +88,7 @@ export interface DiagnosticReport {
 ```
 
 ### 2.3 Functional Requirements
-- **FR-AUX-2.1**: In-memory ring buffer capturing the last 100 non-sensitive log events (capped at 500KB RAM).
+- **FR-AUX-2.1**: In-memory ring buffer capturing the last 100 non-sensitive log events (capped at 500KB RAM), including session boot recovery milestones (`SESSION_RESTORE_INIT`, `SESSION_RESTORE_SUCCESS`, `SESSION_RESTORE_INTERACTIVE_REQUIRED`).
 - **FR-AUX-2.2**: 1-Click "Export Diagnostic Report" action in the Help / Error modal, generating a downloadable `basingse-diagnostics-{timestamp}.json` file.
 - **FR-AUX-2.3**: Credential Redaction Filter: Automatically strips OAuth tokens, bearer strings, full emails, and private project numbers before outputting reports.
 
@@ -96,13 +97,13 @@ export interface DiagnosticReport {
 ## 3. AUX-03: Toast Notification & User Feedback System
 
 ### 3.1 Purpose & Scope
-Delivers non-intrusive, accessible notifications for user actions (e.g. copying CLI scripts, copying CRC32c hashes, preflight successes, stream completion, network status updates).
+Delivers non-intrusive, accessible notifications for user actions (e.g. copying CLI scripts, copying CRC32c hashes, preflight successes, stream completion, network status updates, session restoration feedback).
 
 ### 3.2 Notification Queue Architecture
 
 ```mermaid
 flowchart TD
-    Action["User Event (e.g. 'Copied gcloud CLI')"] --> Queue["Toast Notification Queue Manager"]
+    Action["User Event (e.g. 'Copied gcloud CLI' or 'Session Restored')"] --> Queue["Toast Notification Queue Manager"]
     Queue --> Toast["Radix Toast Primitive (Top-Right Viewport)"]
     Toast --> AutoDismiss["Auto-Dismiss Timer (3000ms)"]
     Toast --> ScreenReader["ARIA Live Announcement (role='status')"]
@@ -110,7 +111,7 @@ flowchart TD
 
 ### 3.3 Functional Requirements
 - **FR-AUX-3.1**: Stackable toast notifications with four visual variants:
-  - `Success` (Emerald border + checkmark icon)
+  - `Success` (Emerald border + checkmark icon) — e.g. "Welcome back, Taylor! Resumed session for gs://media-vault"
   - `Info` (Cyan border + info icon)
   - `Warning` (Amber border + alert triangle)
   - `Error` (Rose border + alert circle)

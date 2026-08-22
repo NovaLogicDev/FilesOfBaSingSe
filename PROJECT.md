@@ -69,11 +69,13 @@ Zero-backend, client-side media portal communicating directly from browser runti
 | 26 | High-Cost Confirmation Modal Gate | Warning confirmation modal triggered whenever selected items exceed $5.00 USD or 25 GB | M6 | R6, Module 3 |
 | 27 | 100% E2E Test Suite Pass | 4-tier opaque-box test suite passing 100% of tests | M7 | Acceptance Criteria |
 | 28 | Adversarial Coverage Hardening | White-box adversarial testing (Tier 5) hardening edge cases, race conditions, memory | M7 | Project Spec |
+| 29 | Silent Background Session Restoration on Reload | Background GIS token re-acquisition without disk token storage on page reload | M1 | R1, Module 10 |
+| 30 | Returning User Onboarding Bypass & Direct Workspace Landing | Automatic bypass of 4-step wizard for returning configured users directly to AssetExplorer | M1 | R1, Module 10 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | GIS Auth & In-Memory Token Lifecycle | Live GIS popup, silent refresh, token purge, storage boundary enforcement (R1) | none | DONE |
+| M1 | GIS Auth, Session Continuity & Token Lifecycle | Live GIS popup, silent refresh, token purge, storage boundary, reload recovery, onboarding bypass (R1, Module 10) | none | DONE |
 | M2 | GCP Project Auto-Discovery, Provisioning & Billing | CRM API discovery, 1-click project provisioning, Service Usage, Billing check (R2) | M1 | DONE |
 | M3 | Live GCS REST Client & 4-Point Preflight | Delimiter slicing, pagination, metadata, 4-point preflight, zero-backend ?userProject (R3, R7) | M1, M2 | DONE |
 | M4 | 4MB Micro-Chunk FSAA Stream Engine & CRC32c | Chromium FSAA 4MB streaming, memory <25MB, telemetry, CRC32c parity, abort <200ms (R4, R7) | M3 | DONE |
@@ -86,7 +88,7 @@ Zero-backend, client-side media portal communicating directly from browser runti
 - Publishes `TEST_READY.md` upon completion.
 
 ## Code Layout
-- `src/types/`: `auth.ts`, `gcp.ts`, `gcs.ts`, `stream.ts`, `cost.ts`, `observability.ts`, `store.ts`
+- `src/types/`: `auth.ts`, `gcp.ts`, `gcs.ts`, `stream.ts`, `cost.ts`, `observability.ts`, `store.ts`, `session.ts`
 - `src/services/`:
   - `gisAuthService.ts` (Live GIS OAuth 2.0 & Token Client)
   - `gcpProjectService.ts` (CRM, Service Usage, Cloud Billing)
@@ -96,11 +98,11 @@ Zero-backend, client-side media portal communicating directly from browser runti
   - `mockGcsService.ts` (Demo/sandbox fallback)
   - `storageBoundary.ts` (Storage isolation auditor)
   - `observability.ts` (Sanitized diagnostics ring buffer)
-- `src/engines/`: `cost.ts`, `crc32c.ts`, `cli.ts`
+- `src/engines/`: `cost.ts`, `crc32c.ts`, `cli.ts`, `sessionLifecycle.ts`
 - `src/store/`: `runtimeStore.ts` (volatile RAM), `persistentStore.ts` (localStorage prefs)
 - `src/components/`:
   - `layout/`: `AppShell.tsx`, `Header.tsx`, `Footer.tsx`
-  - `onboarding/`: `OnboardingWizardShell.tsx`, `GisAuthStep.tsx`, `ProjectStep.tsx`, `BucketStep.tsx`, `PreflightStep.tsx`
+  - `onboarding/`: `OnboardingWizardShell.tsx`, `GisAuthStep.tsx`, `ProjectStep.tsx`, `BucketStep.tsx`, `PreflightStep.tsx`, `SessionReconnectCard.tsx`
   - `explorer/`: `AssetExplorerShell.tsx`, `VirtualizedAssetGrid.tsx`, `BreadcrumbNav.tsx`, `FilterToolbar.tsx`
   - `downloader/`: `DownloadManagerShell.tsx`, `DownloadItem.tsx`
   - `inspector/`: `AssetInspectorDrawerShell.tsx`
@@ -113,8 +115,13 @@ Zero-backend, client-side media portal communicating directly from browser runti
 ## Interface Contracts
 ### Auth (`gisAuthService`) ↔ Runtime Store (`useRuntimeStore`)
 - `requestAccessToken(): Promise<TokenResponse>` -> returns `{ accessToken, expiresIn, userEmail, userName, userAvatar }`
+- `refreshTokenSilent(): Promise<TokenResponse>` -> silent background renewal without popup
 - `useRuntimeStore.getState().setAuth(token, email, name, avatar, ttl)`
 - `useRuntimeStore.getState().clearAuth()` -> wipes RAM tokens, aborts active streams
+
+### Session Lifecycle (`SessionLifecycleEngine`) ↔ AppShell
+- `shouldBypassOnboarding(hasCompletedOnboarding: boolean, savedProjectId: string, savedBucketName: string): boolean`
+- `restoreSessionOnBoot(): Promise<{ restored: boolean, requireInteractive: boolean }>`
 
 ### GCP Resource (`gcpProjectService`) ↔ Onboarding Wizard
 - `listProjects(token: string): Promise<GCPProject[]>`
