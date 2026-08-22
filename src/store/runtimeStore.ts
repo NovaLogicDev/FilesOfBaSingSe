@@ -18,6 +18,13 @@ export interface VolatileRuntimeSession {
   isDemoMode: boolean
 
   // Methods
+  setAuth: (
+    token: string,
+    email: string,
+    name?: string,
+    avatar?: string,
+    expiresInSeconds?: number,
+  ) => void
   setAuthSession: (
     token: string,
     email: string,
@@ -25,6 +32,7 @@ export interface VolatileRuntimeSession {
     avatar?: string,
     expiresInSeconds?: number,
   ) => void
+  clearAuth: () => void
   clearAuthSession: () => void
   setDownloadProgress: (progress: DownloadProgressTelemetry | null) => void
   setActiveAbortController: (controller: AbortController | null) => void
@@ -45,10 +53,10 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   isDownloadMinimized: false,
   isDemoMode: true, // Default to demo sandbox mode for immediate interactivity
 
-  setAuthSession: (
+  setAuth: (
     token,
     email,
-    name = 'Media Client',
+    name = 'Google User',
     avatar = undefined,
     expiresInSeconds = 3600,
   ) => {
@@ -58,10 +66,21 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       userName: name,
       userAvatar: avatar,
       tokenExpiresAt: Date.now() + expiresInSeconds * 1000,
+      isDemoMode: false,
     })
   },
 
-  clearAuthSession: () => {
+  setAuthSession: (
+    token,
+    email,
+    name = 'Google User',
+    avatar = undefined,
+    expiresInSeconds = 3600,
+  ) => {
+    get().setAuth(token, email, name, avatar, expiresInSeconds)
+  },
+
+  clearAuth: () => {
     const { activeAbortController } = get()
     if (activeAbortController) {
       try {
@@ -79,7 +98,16 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
     })
   },
 
+  clearAuthSession: () => {
+    get().clearAuth()
+  },
+
   setDownloadProgress: (progress) => {
+    const { oauthToken, isDemoMode } = get()
+    // Suppress downstream progress telemetry mutations if session has been cleared/purged
+    if (!oauthToken && !isDemoMode && progress !== null) {
+      return
+    }
     set({ activeDownload: progress })
   },
 

@@ -55,4 +55,42 @@ describe('CliGeneratorEngine (Shell Command Builder)', () => {
     const escaped = CliGeneratorEngine.escapeShellArg('path/to/my video file.mov')
     expect(escaped).toBe('"path/to/my video file.mov"')
   })
+
+  it('generates direct cURL command for single item with gcloud token fallback', () => {
+    const cmd = CliGeneratorEngine.generateCurlCommand({
+      bucketName: 'gs://partner-raw-master-archives-2026',
+      selectedPaths: ['feature_films/reel_04/reel04_cam_A_raw.mxf'],
+      userProject: 'client-prod-media-2026',
+    })
+
+    expect(cmd).toContain('curl -X GET')
+    expect(cmd).toContain('https://storage.googleapis.com/storage/v1/b/partner-raw-master-archives-2026/o/feature_films%2Freel_04%2Freel04_cam_A_raw.mxf?alt=media&userProject=client-prod-media-2026')
+    expect(cmd).toContain('-H "Authorization: Bearer $(gcloud auth print-access-token)"')
+    expect(cmd).toContain('-o "reel04_cam_A_raw.mxf"')
+  })
+
+  it('generates direct cURL command with explicit in-memory OAuth token', () => {
+    const cmd = CliGeneratorEngine.generateCurlCommand({
+      bucketName: 'partner-raw-master-archives-2026',
+      selectedPaths: ['audio/stems/dialogue.wav'],
+      userProject: 'audio-team-2026',
+      oauthToken: 'ya29.in-memory-token-12345',
+    })
+
+    expect(cmd).toContain('-H "Authorization: Bearer ya29.in-memory-token-12345"')
+    expect(cmd).toContain('-o "dialogue.wav"')
+  })
+
+  it('generates multi-item chained cURL command', () => {
+    const cmd = CliGeneratorEngine.generateCurlCommand({
+      bucketName: 'partner-raw-master-archives-2026',
+      selectedPaths: ['reel_01.mov', 'reel_02.mov'],
+      userProject: 'client-prod-media-2026',
+    })
+
+    expect(cmd).toContain('reel_01.mov')
+    expect(cmd).toContain('reel_02.mov')
+    expect(cmd).toContain(' && \\\n')
+  })
 })
+

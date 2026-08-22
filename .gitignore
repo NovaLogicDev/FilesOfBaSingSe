@@ -34,3 +34,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# Agent teamwork logs & artifacts
+.agents/
+

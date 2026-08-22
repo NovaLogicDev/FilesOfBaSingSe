@@ -107,9 +107,32 @@ export const DownloadManagerShell: React.FC = () => {
               {activeDownload.percentage}%
             </span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5 font-mono">
-            Billed to: <strong className="text-slate-300">{savedProjectId}</strong>
-          </p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10px] text-slate-400 font-mono">
+              Billed to: <strong className="text-slate-300">{savedProjectId}</strong>
+            </p>
+            {/* Strategy Badge */}
+            {(!activeDownload.strategy || activeDownload.strategy === 'fsaa') && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                [FSAA Direct-to-Disk]
+              </span>
+            )}
+            {activeDownload.strategy === 'service_worker' && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                [Safari Service Worker Stream]
+              </span>
+            )}
+            {activeDownload.strategy === 'memory_blob' && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                [Memory Blob (&lt;200MB)]
+              </span>
+            )}
+            {activeDownload.strategy === 'cli_companion' && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                [CLI Companion]
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -158,10 +181,10 @@ export const DownloadManagerShell: React.FC = () => {
           <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
             <div className="text-slate-400 text-[10px] flex items-center space-x-1">
               <Cpu className="w-3 h-3 text-indigo-400" />
-              <span>Fixed Heap:</span>
+              <span>{activeDownload.strategy === 'memory_blob' ? 'Allocated Heap:' : 'Fixed Heap:'}</span>
             </div>
             <div className="text-emerald-300 font-bold mt-0.5">
-              ~{activeDownload.memoryHeapMB.toFixed(1)} MB (Stable)
+              ~{activeDownload.memoryHeapMB.toFixed(1)} MB {activeDownload.strategy === 'memory_blob' ? '(In-Memory)' : '(Stable)'}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 export * from './gcs'
+export * from './gcp'
 export * from './auth'
 export * from './cost'
 export * from './stream'

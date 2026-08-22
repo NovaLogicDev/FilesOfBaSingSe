@@ -14,6 +14,7 @@ import {
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
 import { useToastStore } from '../../store/toastStore'
+import { gisAuthService } from '../../services/gisAuthService'
 
 interface HeaderProps {
   onOpenOnboarding: () => void
@@ -28,9 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
     oauthToken,
     userEmail,
     userName,
+    userAvatar,
     isDemoMode,
     setDemoMode,
-    clearAuthSession,
   } = useRuntimeStore()
 
   const { savedProjectId, savedBucketName, theme, setTheme } = usePersistentStore()
@@ -58,8 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }
 
-  const handleSignOut = () => {
-    clearAuthSession()
+  const handleSignOut = async () => {
+    await gisAuthService.signOut()
     addToast({
       type: 'info',
       title: 'Session Disconnected',
@@ -152,15 +153,23 @@ export const Header: React.FC<HeaderProps> = ({
           {oauthToken || isDemoMode ? (
             <div className="flex items-center space-x-2 pl-1 sm:pl-2 border-l border-slate-800">
               <div className="flex items-center space-x-2 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-xs font-bold text-emerald-300">
-                  {userName ? userName.charAt(0).toUpperCase() : <User className="w-3.5 h-3.5" />}
-                </div>
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt={userName || 'User avatar'}
+                    className="w-6 h-6 rounded-full border border-emerald-400/40 object-cover"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-xs font-bold text-emerald-300">
+                    {userName ? userName.charAt(0).toUpperCase() : <User className="w-3.5 h-3.5" />}
+                  </div>
+                )}
                 <div className="hidden sm:block text-left">
                   <div className="text-xs font-medium text-white leading-tight">
-                    {userName || 'Taylor (Editor)'}
+                    {userName || (isDemoMode ? 'Taylor (Colorist)' : 'Google User')}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate max-w-[110px]">
-                    {userEmail || 'taylor@freelance-edit.com'}
+                    {userEmail || (isDemoMode ? 'taylor@freelance-edit.com' : 'user@google.com')}
                   </div>
                 </div>
               </div>

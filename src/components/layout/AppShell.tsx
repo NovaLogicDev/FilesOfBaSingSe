@@ -12,14 +12,16 @@ import { ToastContainer } from '../ui/Toast'
 import { usePersistentStore } from '../../store/persistentStore'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { useToastStore } from '../../store/toastStore'
-import { MockGCSService } from '../../services/mockGcsService'
+import { gcsClientService } from '../../services/gcsClientService'
+import { streamDownloadService, BrowserCapabilityDetector } from '../../services/streamDownloadService'
 import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
-  const { savedBucketName, isFreeTrialAccount } = usePersistentStore()
+  const { savedBucketName, savedProjectId, isFreeTrialAccount } = usePersistentStore()
   const {
+    oauthToken,
     setDownloadProgress,
     setActiveAbortController,
     isDemoMode,
@@ -30,6 +32,7 @@ export const AppShell: React.FC = () => {
   const [currentPrefix, setCurrentPrefix] = useState<string>('feature_films/reel_04/')
   const [folders, setFolders] = useState<string[]>([])
   const [files, setFiles] = useState<GCSMediaItem[]>([])
+  const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined)
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false)
 
   // Modals & Drawers state
@@ -44,14 +47,24 @@ export const AppShell: React.FC = () => {
 
   // Load directory contents
   const loadDirectory = useCallback(
-    async (prefix: string) => {
+    async (prefix: string, pageToken?: string) => {
       setIsLoadingDirectory(true)
       try {
         ObservabilityService.info('GCS', `Listing directory prefix: "${prefix}"`)
-        const res = await MockGCSService.listDirectory(savedBucketName, prefix)
+        const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
+        const res =
+          isDemoMode || !oauthToken
+            ? await gcsClientService.listDemoObjects(prefix)
+            : await gcsClientService.listObjects(oauthToken, cleanBucket, {
+                prefix,
+                delimiter: '/',
+                userProject: savedProjectId,
+                pageToken,
+              })
         setFolders(res.folders)
         setFiles(res.files)
         setCurrentPrefix(prefix)
+        setNextPageToken(res.nextPageToken)
       } catch (err: any) {
         ObservabilityService.error('GCS', `Failed to list directory: ${err.message}`)
         addToast({
@@ -63,7 +76,7 @@ export const AppShell: React.FC = () => {
         setIsLoadingDirectory(false)
       }
     },
-    [savedBucketName, addToast],
+    [savedBucketName, savedProjectId, oauthToken, isDemoMode, addToast],
   )
 
   useEffect(() => {
@@ -109,39 +122,111 @@ export const AppShell: React.FC = () => {
     }
   }
 
-  // Execute Stream Simulation
-  const executeStreamDownload = (item: GCSMediaItem) => {
+  // Execute Stream Download Pipeline
+  const executeStreamDownload = async (item: GCSMediaItem) => {
+    const strategy = BrowserCapabilityDetector.resolveStrategy(item.sizeBytes)
+
+    // Firefox large asset routing
+    if (strategy === 'cli_companion') {
+      ObservabilityService.warn(
+        'STREAM',
+        `Firefox large asset download (${item.displayName}) routed to CLI Companion`,
+      )
+      setCliModalPaths([item.name])
+      addToast({
+        type: 'warning',
+        title: 'Firefox Degradation Notice',
+        message: `${item.displayName} (${item.formattedSize}) requires CLI Companion on Firefox to prevent memory crashes.`,
+      })
+      return
+    }
+
     ObservabilityService.info(
       'STREAM',
-      `Starting memory-bounded stream download for ${item.displayName} (${item.formattedSize})`,
+      `Starting memory-bounded stream download for ${item.displayName} (${item.formattedSize}) [strategy: ${strategy}]`,
     )
     const abortController = new AbortController()
     setActiveAbortController(abortController)
 
+    const strategyDescriptions: Record<string, string> = {
+      fsaa: 'File System Access API direct-to-disk',
+      service_worker: 'Safari Service Worker Stream Interceptor',
+      memory_blob: 'Universal in-memory blob handling',
+    }
+
     addToast({
       type: 'info',
       title: 'Download Stream Initiated',
-      message: `Streaming ${item.displayName} directly to disk via File System Access API.`,
+      message: `Streaming ${item.displayName} via ${strategyDescriptions[strategy] || strategy}.`,
     })
 
-    MockGCSService.simulateStream(
-      item,
-      (progress) => {
-        setDownloadProgress(progress)
-        if (progress.status === 'completed') {
-          ObservabilityService.info(
-            'STREAM',
-            `Stream completed and CRC32c verified: ${item.displayName}`,
-          )
-          addToast({
-            type: 'success',
-            title: 'Download & Integrity Verified',
-            message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
-          })
-        }
-      },
-      abortController.signal,
-    )
+    const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
+
+    try {
+      if (isDemoMode || !oauthToken) {
+        await streamDownloadService.streamDemoDownload(item, {
+          onProgress: (progress) => {
+            const currentToken = useRuntimeStore.getState().oauthToken
+            const currentDemo = useRuntimeStore.getState().isDemoMode
+            if (!currentToken && !currentDemo && progress !== null) return
+
+            setDownloadProgress(progress)
+            if (progress.status === 'completed') {
+              ObservabilityService.info(
+                'STREAM',
+                `Stream completed and CRC32c verified: ${item.displayName}`,
+              )
+              addToast({
+                type: 'success',
+                title: 'Download & Integrity Verified',
+                message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
+              })
+            }
+          },
+          abortSignal: abortController.signal,
+        })
+      } else {
+        await streamDownloadService.downloadFile(item, {
+          bucketName: cleanBucket,
+          objectName: item.name,
+          suggestedFilename: item.displayName,
+          userProject: savedProjectId,
+          oauthToken,
+          expectedCrc32c: item.crc32c,
+          fileSize: item.sizeBytes,
+          onProgress: (progress) => {
+            const currentToken = useRuntimeStore.getState().oauthToken
+            const currentDemo = useRuntimeStore.getState().isDemoMode
+            if (!currentToken && !currentDemo && progress !== null) return
+
+            setDownloadProgress(progress)
+            if (progress.status === 'completed') {
+              ObservabilityService.info(
+                'STREAM',
+                `Stream completed and CRC32c verified: ${item.displayName}`,
+              )
+              addToast({
+                type: 'success',
+                title: 'Download & Integrity Verified',
+                message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
+              })
+            }
+          },
+          abortSignal: abortController.signal,
+        })
+      }
+    } catch (err: any) {
+      if (err.name === 'UserCancelledPickerError' || err.name === 'AbortError') {
+        ObservabilityService.info('STREAM', `Download cancelled by user: ${item.displayName}`)
+        return
+      }
+      ObservabilityService.error('STREAM', `Stream download failed: ${err.message}`)
+      addToast({
+        type: 'error',
+        title: 'Download Failed',
+        message: err.message,
+      })
+    }
   }
 
   return (
@@ -164,7 +249,9 @@ export const AppShell: React.FC = () => {
             currentPrefix={currentPrefix}
             folders={folders}
             files={files}
+            nextPageToken={nextPageToken}
             onNavigatePrefix={(prefix) => loadDirectory(prefix)}
+            onLoadNextPage={() => nextPageToken && loadDirectory(currentPrefix, nextPageToken)}
             onInspectAsset={(item) => setInspectedAsset(item)}
             onDownloadAsset={handleInitiateDownload}
             onGenerateCli={(paths) => setCliModalPaths(paths)}

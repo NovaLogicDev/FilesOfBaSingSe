@@ -81,6 +81,50 @@ export class CliGeneratorEngine {
   }
 
   /**
+   * Generates direct HTTPS cURL download command.
+   * Format:
+   * curl -X GET \
+   *   "https://storage.googleapis.com/storage/v1/b/BUCKET/o/PATH?alt=media&userProject=PROJECT_ID" \
+   *   -H "Authorization: Bearer TOKEN" \
+   *   -o "filename"
+   */
+  public static generateCurlCommand(options: CLIGeneratorOptions & { oauthToken?: string }): string {
+    const { bucketName, selectedPaths, userProject, oauthToken } = options
+    const cleanBucket = this.cleanBucketName(bucketName)
+    const tokenExpression = oauthToken ? oauthToken : '$(gcloud auth print-access-token)'
+    const project = userProject || 'YOUR_GCP_PROJECT_ID'
+
+    if (!selectedPaths || selectedPaths.length === 0) {
+      return `curl -X GET \\\n  "https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(
+        cleanBucket,
+      )}/o?userProject=${encodeURIComponent(project)}" \\\n  -H "Authorization: Bearer ${tokenExpression}"`
+    }
+
+    if (selectedPaths.length === 1) {
+      const path = selectedPaths[0].replace(/^\/+/, '')
+      const filename = path.includes('/') ? path.split('/').pop()! : path
+      return `curl -X GET \\\n  "https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(
+        cleanBucket,
+      )}/o/${encodeURIComponent(path)}?alt=media&userProject=${encodeURIComponent(
+        project,
+      )}" \\\n  -H "Authorization: Bearer ${tokenExpression}" \\\n  -o "${filename}"`
+    }
+
+    // Multi-item script
+    return selectedPaths
+      .map((p) => {
+        const cleanPath = p.replace(/^\/+/, '')
+        const filename = cleanPath.includes('/') ? cleanPath.split('/').pop()! : cleanPath
+        return `curl -X GET "https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(
+          cleanBucket,
+        )}/o/${encodeURIComponent(cleanPath)}?alt=media&userProject=${encodeURIComponent(
+          project,
+        )}" -H "Authorization: Bearer ${tokenExpression}" -o "${filename}"`
+      })
+      .join(' && \\\n')
+  }
+
+  /**
    * Cleans bucket name by stripping gs:// prefix and trailing slashes.
    */
   public static cleanBucketName(bucket: string): string {

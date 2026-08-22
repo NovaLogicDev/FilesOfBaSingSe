@@ -1,43 +1,59 @@
 import React, { useState } from 'react'
-import { X, Copy, Check, Terminal, Info, FolderDown } from 'lucide-react'
+import { X, Copy, Check, Terminal, Info, FolderDown, AlertTriangle } from 'lucide-react'
 import { CliGeneratorEngine } from '../../engines/cli'
+import { BrowserCapabilityDetector } from '../../services/streamDownloadService'
 import { usePersistentStore } from '../../store/persistentStore'
+import { useRuntimeStore } from '../../store/runtimeStore'
 import { useToastStore } from '../../store/toastStore'
 
 interface CliGeneratorModalShellProps {
   isOpen: boolean
   selectedPaths: string[]
+  isFirefoxNotice?: boolean
   onClose: () => void
 }
 
 export const CliGeneratorModalShell: React.FC<CliGeneratorModalShellProps> = ({
   isOpen,
   selectedPaths,
+  isFirefoxNotice = false,
   onClose,
 }) => {
   const { savedBucketName, savedProjectId } = usePersistentStore()
+  const { oauthToken } = useRuntimeStore()
   const { addToast } = useToastStore()
 
-  const [activeTab, setActiveTab] = useState<'gcloud' | 'gsutil'>('gcloud')
+  const [activeTab, setActiveTab] = useState<'gcloud' | 'gsutil' | 'curl'>('gcloud')
   const [destinationDir, setDestinationDir] = useState('./destination_folder/')
   const [isCopied, setIsCopied] = useState(false)
 
   if (!isOpen) return null
 
-  const command =
-    activeTab === 'gcloud'
-      ? CliGeneratorEngine.generateGcloudCommand({
-          bucketName: savedBucketName,
-          selectedPaths,
-          userProject: savedProjectId,
-          destinationDir,
-        })
-      : CliGeneratorEngine.generateGsutilCommand({
-          bucketName: savedBucketName,
-          selectedPaths,
-          userProject: savedProjectId,
-          destinationDir,
-        })
+  const showFirefoxBanner = isFirefoxNotice || BrowserCapabilityDetector.isFirefox()
+
+  let command = ''
+  if (activeTab === 'gcloud') {
+    command = CliGeneratorEngine.generateGcloudCommand({
+      bucketName: savedBucketName,
+      selectedPaths,
+      userProject: savedProjectId,
+      destinationDir,
+    })
+  } else if (activeTab === 'gsutil') {
+    command = CliGeneratorEngine.generateGsutilCommand({
+      bucketName: savedBucketName,
+      selectedPaths,
+      userProject: savedProjectId,
+      destinationDir,
+    })
+  } else {
+    command = CliGeneratorEngine.generateCurlCommand({
+      bucketName: savedBucketName,
+      selectedPaths,
+      userProject: savedProjectId,
+      oauthToken: oauthToken || undefined,
+    })
+  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(command).then(() => {
@@ -109,36 +125,64 @@ export const CliGeneratorModalShell: React.FC<CliGeneratorModalShellProps> = ({
           >
             <span>Legacy gsutil Script</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('curl')}
+            className={`pb-3 transition-colors border-b-2 ${
+              activeTab === 'curl'
+                ? 'border-cyan-400 text-cyan-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>Direct cURL (HTTPS)</span>
+          </button>
         </div>
 
         {/* Body Content */}
         <div className="p-6 space-y-4">
-          {/* Destination Directory Input */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-300">
-              Local Destination Directory:
-            </label>
-            <div className="relative">
-              <FolderDown className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={destinationDir}
-                onChange={(e) => setDestinationDir(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-mono text-white focus:border-cyan-400 focus:outline-none"
-              />
+          {/* Firefox Compatibility Notice Banner */}
+          {showFirefoxBanner && (
+            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-start space-x-3 text-xs text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-semibold block text-amber-300">Firefox Compatibility Notice</strong>
+                <p className="mt-0.5 text-amber-200/90 leading-relaxed">
+                  Multi-GB direct browser streaming is optimized for Chromium (Chrome/Edge) and Safari. For Firefox, use our 1-click CLI script generator or switch to Chrome.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Destination Directory Input (shown for gcloud and gsutil) */}
+          {activeTab !== 'curl' && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-300">
+                Local Destination Directory:
+              </label>
+              <div className="relative">
+                <FolderDown className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={destinationDir}
+                  onChange={(e) => setDestinationDir(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-mono text-white focus:border-cyan-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Formatted Code Block */}
           <div className="relative rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-emerald-300 overflow-x-auto max-h-56 leading-relaxed select-all">
             <pre>{command}</pre>
           </div>
 
-          {/* Firefox / Terminal Notice */}
+          {/* Notice */}
           <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-start space-x-3 text-xs text-slate-400">
             <Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Multi-threaded terminal transfers support automatic resume and run directly on your workstation or headless render nodes with your active GCP billing account pre-configured.
+              {activeTab === 'curl'
+                ? 'Direct HTTPS transfers using cURL bypass browser memory limits and stream directly to local disk with client billing attribution.'
+                : 'Multi-threaded terminal transfers support automatic resume and run directly on your workstation or headless render nodes with your active GCP billing account pre-configured.'}
             </p>
           </div>
         </div>
@@ -164,3 +208,4 @@ export const CliGeneratorModalShell: React.FC<CliGeneratorModalShellProps> = ({
     </div>
   )
 }
+
