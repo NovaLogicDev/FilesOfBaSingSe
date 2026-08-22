@@ -133,14 +133,13 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
         className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 hover:border-amber-500/40 text-slate-300 hover:text-white transition-all cursor-pointer text-xs"
       >
         <Lock className="w-3.5 h-3.5 text-amber-400" />
-        <span className="hidden sm:inline text-slate-400">Billed to:</span>
+        <span className="hidden sm:inline text-slate-400 whitespace-nowrap">Billed to:</span>
         <span className="font-mono font-medium text-emerald-400 max-w-[140px] truncate">
           {activeDisplayProject}
         </span>
         <ChevronDown
-          className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-amber-400' : ''
-          }`}
+          className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-amber-400' : ''
+            }`}
         />
       </button>
 
@@ -196,11 +195,10 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
                 return (
                   <div
                     key={project.projectId}
-                    className={`flex items-center justify-between p-2.5 rounded-xl text-xs transition-colors ${
-                      isActive
+                    className={`flex items-center justify-between p-2.5 rounded-xl text-xs transition-colors ${isActive
                         ? 'bg-slate-800/40 border border-slate-800'
                         : 'bg-slate-950/40 hover:bg-slate-800/80 border border-slate-800/60'
-                    }`}
+                      }`}
                   >
                     <div className="min-w-0 pr-2">
                       <div className="font-semibold text-white truncate text-[11px]">
@@ -258,11 +256,10 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
                     }
                   }}
                   placeholder="e.g. corporate-media-prod-2026"
-                  className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none ${
-                    validationError
+                  className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-xs text-white font-mono placeholder-slate-600 focus:outline-none ${validationError
                       ? 'border-rose-500 focus:border-rose-400'
                       : 'border-slate-700 focus:border-amber-400'
-                  }`}
+                    }`}
                 />
               </div>
 

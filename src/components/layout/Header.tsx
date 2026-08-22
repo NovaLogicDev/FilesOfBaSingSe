@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Active Context Badges & Interactive Switchers */}
         {oauthToken || isDemoMode ? (
-          <div className="hidden lg:flex items-center space-x-3 text-xs">
+          <div className="hidden lg:flex items-center space-x-3 text-xs p-2">
             <BucketSwitcherPopover
               onBucketSwitch={onBucketSwitch}
               onOpenWizard={onOpenOnboarding}
