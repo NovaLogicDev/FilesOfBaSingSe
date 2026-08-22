@@ -165,6 +165,7 @@ export interface ListObjectsOptions {
   pageToken?: string
   maxResults?: number
   userProject: string
+  signal?: AbortSignal
 }
 
 /**

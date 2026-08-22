@@ -17,10 +17,9 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
       recentBuckets: [
         'gs://mediaserverrecovery',
       ],
-      savedProjectId: 'demo-client-media-2026',
+      savedProjectId: 'client-media-project-2026',
     })
     useRuntimeStore.setState({
-      isDemoMode: true,
       oauthToken: 'mock-oauth-token',
     })
     useToastStore.setState({ toasts: [] })

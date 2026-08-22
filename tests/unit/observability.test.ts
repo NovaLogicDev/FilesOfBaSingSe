@@ -49,11 +49,11 @@ describe('ObservabilityService (Logging & Sanitized Diagnostics)', () => {
 
     const report = ObservabilityService.generateReport(
       'gs://partner-raw-master-archives-2026',
-      'demo-client-media-2026',
+      'client-media-project-2026',
     )
 
     expect(report.appVersion).toBe('0.2.0-alpha')
-    expect(report.activeProjectIdMasked).toBe('demo***-2026')
+    expect(report.activeProjectIdMasked).toBe('clie***-2026')
     expect(report.recentLogs.length).toBeGreaterThan(0)
     expect(report.heapMemoryMB).toBe(11.4)
   })

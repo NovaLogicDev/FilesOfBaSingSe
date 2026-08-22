@@ -14,9 +14,6 @@ export interface VolatileRuntimeSession {
   activeAbortController: AbortController | null
   isDownloadMinimized: boolean
 
-  // Sandbox Mode
-  isDemoMode: boolean
-
   // Session Restoration & Continuity (VOLATILE RAM ONLY)
   isRestoringSession: boolean
   sessionRestorationError: string | null
@@ -43,7 +40,6 @@ export interface VolatileRuntimeSession {
   setActiveAbortController: (controller: AbortController | null) => void
   setDownloadMinimized: (minimized: boolean) => void
   abortActiveDownload: () => void
-  setDemoMode: (isDemo: boolean) => void
 }
 
 export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
@@ -56,7 +52,6 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   activeDownload: null,
   activeAbortController: null,
   isDownloadMinimized: false,
-  isDemoMode: false, // Default to live GCS mode
   isRestoringSession: false,
   sessionRestorationError: null,
 
@@ -73,7 +68,6 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       userName: name,
       userAvatar: avatar,
       tokenExpiresAt: Date.now() + expiresInSeconds * 1000,
-      isDemoMode: false,
       isRestoringSession: false,
       sessionRestorationError: null,
     })
@@ -121,9 +115,9 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   },
 
   setDownloadProgress: (progress) => {
-    const { oauthToken, isDemoMode } = get()
+    const { oauthToken } = get()
     // Suppress downstream progress telemetry mutations if session has been cleared/purged
-    if (!oauthToken && !isDemoMode && progress !== null) {
+    if (!oauthToken && progress !== null) {
       return
     }
     set({ activeDownload: progress })
@@ -156,9 +150,5 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
         activeAbortController: null,
       })
     }
-  },
-
-  setDemoMode: (isDemo) => {
-    set({ isDemoMode: isDemo })
   },
 }))

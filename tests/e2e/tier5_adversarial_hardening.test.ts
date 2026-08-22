@@ -109,7 +109,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
         strategy: 'fsaa',
       })
 
-      // Downstream telemetry MUST NOT resurrect activeDownload in unauthenticated non-demo state
+      // Downstream telemetry MUST NOT resurrect activeDownload in unauthenticated state
       expect(useRuntimeStore.getState().activeDownload).toBeNull()
     })
 

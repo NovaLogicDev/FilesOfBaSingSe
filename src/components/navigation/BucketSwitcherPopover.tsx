@@ -26,7 +26,7 @@ export const BucketSwitcherPopover: React.FC<BucketSwitcherPopoverProps> = ({
   variant = 'badge',
 }) => {
   const { savedBucketName, recentBuckets, addRecentBucket, savedProjectId } = usePersistentStore()
-  const { isDemoMode, oauthToken } = useRuntimeStore()
+  const { oauthToken } = useRuntimeStore()
   const { addToast } = useToastStore()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -87,7 +87,7 @@ export const BucketSwitcherPopover: React.FC<BucketSwitcherPopoverProps> = ({
 
     setIsSwitching(true)
     try {
-      if (!isDemoMode && oauthToken && savedProjectId) {
+      if (oauthToken && savedProjectId) {
         // Run on-the-fly preflight handshake
         const preflight = await gcsClientService.run4PointPreflight(
           oauthToken,
@@ -126,9 +126,7 @@ export const BucketSwitcherPopover: React.FC<BucketSwitcherPopoverProps> = ({
     }
   }
 
-  const activeDisplayBucket = isDemoMode
-    ? 'gs://partner-raw-master-archives-2026'
-    : savedBucketName || 'No Bucket Connected'
+  const activeDisplayBucket = savedBucketName || 'No Bucket Connected'
 
   return (
     <div className="relative inline-block" ref={popoverRef}>
@@ -186,11 +184,6 @@ export const BucketSwitcherPopover: React.FC<BucketSwitcherPopoverProps> = ({
                 Target GCS Bucket Switcher
               </span>
             </div>
-            {isDemoMode && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Sandbox
-              </span>
-            )}
           </div>
 
           {/* Currently Connected Bucket */}

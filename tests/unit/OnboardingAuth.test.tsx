@@ -14,18 +14,16 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     resetAllStores()
     vi.restoreAllMocks()
     usePersistentStore.setState({
-      savedProjectId: 'demo-client-media-2026',
+      savedProjectId: 'client-media-project-2026',
       savedBucketName: 'gs://partner-raw-master-archives-2026',
     })
     useRuntimeStore.setState({
-      isDemoMode: true,
       oauthToken: 'mock-oauth-token',
     })
   })
 
   it('renders Google Sign-In button on Step 1 when unauthenticated and blanks inputs', () => {
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: null,
     })
 
@@ -39,7 +37,6 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
 
   it('triggers gisAuthService.signIn() when Sign In with Google is clicked', async () => {
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: null,
     })
 
@@ -161,7 +158,6 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     ])
 
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: 'live-oauth-token',
     })
     usePersistentStore.setState({ savedProjectId: '' })
@@ -209,7 +205,6 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     ])
 
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: 'live-token-api-disabled',
     })
     usePersistentStore.setState({ savedProjectId: 'test-api-disabled-proj' })
@@ -235,7 +230,6 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     const signOutSpy = vi.spyOn(gisAuthService, 'signOut').mockResolvedValue()
 
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: 'live-token-to-cancel',
     })
     usePersistentStore.setState({
@@ -279,7 +273,6 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     })
 
     useRuntimeStore.setState({
-      isDemoMode: false,
       oauthToken: 'live-token-for-step-4',
     })
     usePersistentStore.setState({

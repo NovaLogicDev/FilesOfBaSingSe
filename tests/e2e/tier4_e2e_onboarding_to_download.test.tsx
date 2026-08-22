@@ -1,17 +1,73 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { OnboardingWizardShell } from '../../src/components/onboarding/OnboardingWizardShell'
-import { MockGCSService } from '../../src/services/mockGcsService'
+import { streamDownloadService } from '../../src/services/streamDownloadService'
 import { useRuntimeStore } from '../../src/store/runtimeStore'
 import { usePersistentStore } from '../../src/store/persistentStore'
 import { renderWithProviders, resetAllStores } from '../helpers/testUtils'
 import { STUDIO_MASTER_DATASET } from '../fixtures/mediaDatasets'
-import { DownloadProgressTelemetry } from '../../src/types'
+import { DownloadProgressTelemetry, FileSystemFileHandle, FileSystemWritableFileStream } from '../../src/types'
+import { CRC32cIntegrityEngine } from '../../src/engines/crc32c'
+
+function createMockFileHandle(name = 'test_asset.mxf'): {
+  handle: FileSystemFileHandle
+  writable: FileSystemWritableFileStream
+  writtenChunks: Uint8Array[]
+  isClosed: () => boolean
+} {
+  let closed = false
+  const writtenChunks: Uint8Array[] = []
+
+  const writable: FileSystemWritableFileStream = {
+    locked: false,
+    write: vi.fn(async (data: any) => {
+      if (closed) throw new Error('Stream is closed')
+      if (data instanceof Uint8Array) {
+        writtenChunks.push(data)
+      }
+    }),
+    seek: vi.fn(async () => {}),
+    truncate: vi.fn(async () => {}),
+    close: vi.fn(async () => {
+      closed = true
+    }),
+    abort: vi.fn(async () => {}),
+    getWriter: vi.fn() as any,
+  }
+
+  const handle: FileSystemFileHandle = {
+    kind: 'file',
+    name,
+    createWritable: vi.fn(async () => writable),
+    getFile: vi.fn(async () => new File([], name)),
+  }
+
+  return {
+    handle,
+    writable,
+    writtenChunks,
+    isClosed: () => closed,
+  }
+}
+
+function createMockReadableStream(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
+  let index = 0
+  return new ReadableStream({
+    async pull(controller) {
+      if (index < chunks.length) {
+        controller.enqueue(chunks[index++])
+      } else {
+        controller.close()
+      }
+    },
+  })
+}
 
 describe('Tier 4 - Scenario 2: Full End-to-End Onboarding to Verified Direct-to-Disk Download', () => {
   beforeEach(() => {
     resetAllStores()
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('completes entire user journey: Sign In -> Project Discovery -> 4-Point Preflight -> Streaming -> CRC32c Parity', async () => {
@@ -62,6 +118,9 @@ describe('Tier 4 - Scenario 2: Full End-to-End Onboarding to Verified Direct-to-
       expect(screen.getByText(/Step 3: Target Google Cloud Storage Bucket/i)).toBeInTheDocument()
     })
 
+    const bucketInput = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
+    fireEvent.change(bucketInput, { target: { value: 'gs://partner-raw-master-archives-2026' } })
+
     // Advance to Step 4
     const continueToPreflightBtn = screen.getByRole('button', { name: /continue/i })
     fireEvent.click(continueToPreflightBtn)
@@ -88,23 +147,51 @@ describe('Tier 4 - Scenario 2: Full End-to-End Onboarding to Verified Direct-to-
 
     // 6. Direct-to-Disk Stream Execution for 18.4GB MXF master reel
     const targetAsset = STUDIO_MASTER_DATASET[0]
+    const { handle } = createMockFileHandle(targetAsset.displayName)
+
+    const chunk1 = new Uint8Array(4 * 1024 * 1024).fill(0xaa)
+    const chunk2 = new Uint8Array(4 * 1024 * 1024).fill(0xbb)
+    const totalBytes = chunk1.length + chunk2.length
+
+    const crcEngine = new CRC32cIntegrityEngine()
+    crcEngine.update(chunk1)
+    crcEngine.update(chunk2)
+    const expectedBase64 = crcEngine.digestBase64()
+    const expectedHex = crcEngine.digestHex()
+
+    const mockResponse = new Response(createMockReadableStream([chunk1, chunk2]), {
+      status: 200,
+      headers: {
+        'content-length': String(totalBytes),
+        'x-goog-hash': `crc32c=${expectedBase64}`,
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse))
+
     const streamTelemetryHistory: DownloadProgressTelemetry[] = []
 
-    await MockGCSService.simulateStream(targetAsset, (progress) => {
-      streamTelemetryHistory.push(progress)
-      useRuntimeStore.getState().setDownloadProgress(progress)
+    const downloadResult = await streamDownloadService.downloadFileFSAA(targetAsset, {
+      bucketName: targetAsset.bucket,
+      objectName: targetAsset.name,
+      userProject: usePersistentStore.getState().savedProjectId,
+      oauthToken: useRuntimeStore.getState().oauthToken!,
+      customFileHandle: handle,
+      onProgress: (progress) => {
+        streamTelemetryHistory.push(progress)
+        useRuntimeStore.getState().setDownloadProgress(progress)
+      },
     })
 
     // 7. Verify Stream Results and Checksum Parity
+    expect(downloadResult.success).toBe(true)
     expect(streamTelemetryHistory.length).toBeGreaterThan(1)
     const finalTelemetry = streamTelemetryHistory[streamTelemetryHistory.length - 1]
 
     expect(finalTelemetry.status).toBe('completed')
     expect(finalTelemetry.percentage).toBe(100)
-    expect(finalTelemetry.loadedBytes).toBe(targetAsset.sizeBytes)
-    expect(finalTelemetry.computedCrc32cBase64).toBe(targetAsset.crc32c)
-    expect(finalTelemetry.computedCrc32cHex).toBe(targetAsset.crc32cHex)
+    expect(finalTelemetry.loadedBytes).toBe(totalBytes)
+    expect(finalTelemetry.computedCrc32cBase64).toBe(expectedBase64)
+    expect(finalTelemetry.computedCrc32cHex).toBe(expectedHex)
     expect(finalTelemetry.integrityVerified).toBe(true)
-    expect(finalTelemetry.memoryHeapMB).toBe(11.4) // Strictly bounded memory
   })
 })

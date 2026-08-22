@@ -16,7 +16,6 @@ import {
 } from '../types/gcs'
 import { CostGovernanceEngine } from '../engines/cost'
 import { ObservabilityService } from './observability'
-import { MockGCSService } from './mockGcsService'
 
 /**
  * Google Cloud Storage (GCS) JSON REST API v1 Client Service
@@ -300,6 +299,7 @@ export class GCSClientService {
           Authorization: `Bearer ${token.trim()}`,
           Accept: 'application/json',
         },
+        signal: options.signal,
       })
 
       if (!response.ok) {
@@ -383,6 +383,10 @@ export class GCSClientService {
         totalEstimatedItems: folders.length + files.length,
       }
     } catch (err: any) {
+      if (err.name === 'AbortError' || options.signal?.aborted) {
+        throw err
+      }
+
       if (err instanceof GCSClientError) {
         throw err
       }
@@ -649,136 +653,6 @@ export class GCSClientService {
       errorMessage: allPassed ? undefined : (bucketError || iamError),
       remediationStep: allPassed ? undefined : (bucketRemediation || iamRemediation),
       remediationUrl: allPassed ? undefined : (bucketRemediationUrl || iamRemediationUrl),
-    }
-  }
-
-  // --- Demo & Sandbox Fallback Methods ---
-
-  /**
-   * Returns synthetic directory listing for sandbox / demo mode
-   */
-  public async listDemoObjects(prefix: string = ''): Promise<DirectoryListingResult> {
-    return MockGCSService.listDirectory('partner-raw-master-archives-2026', prefix)
-  }
-
-  /**
-   * Executes 4-point preflight in sandbox / demo mode
-   */
-  public async runDemoPreflight(_bucket: string, userProject: string): Promise<PreflightCheckResult> {
-    const cleanProject = (userProject || '').trim()
-
-    if (!cleanProject) {
-      return {
-        oauthTokenValid: true,
-        oauthExpiresInSeconds: 3600,
-        bucketReachable: true,
-        requesterPaysActive: true,
-        iamViewerGranted: false,
-        corsConfigured: false,
-        steps: [
-          {
-            id: 'token',
-            name: 'OAuth 2.0 Token Valid',
-            description: 'Verifies volatile in-memory access token validity and remaining TTL.',
-            status: 'passed',
-            detail: 'Expires in ~58m (Auto-Renewal)',
-          },
-          {
-            id: 'bucket',
-            name: 'Requester-Pays Enforced',
-            description: 'Validates bucket reachability and billing attribution.',
-            status: 'warning',
-            detail: 'Requester Pays requires a valid Google Cloud Project ID.',
-            errorMessage: 'Requester Pays is enabled on this bucket. Enter a valid GCP Project ID.',
-            remediation: 'Provide a valid Google Cloud Project ID with billing enabled.',
-          },
-          {
-            id: 'iam',
-            name: 'IAM Object Viewer Granted',
-            description: 'Probes roles/storage.objectViewer permission on bucket.',
-            status: 'failed',
-            detail: 'Cannot evaluate IAM permissions without an active billing project.',
-          },
-          {
-            id: 'cors',
-            name: 'CORS Preflight Headers OK',
-            description: 'Validates browser CORS preflight and exposure headers.',
-            status: 'failed',
-            detail: 'Preflight probe could not execute without billing project.',
-          },
-        ],
-        rawError: 'HTTP 400 UserProjectMissing',
-        errorMessage: 'Requester Pays is enabled on this bucket. Enter a valid GCP Project ID.',
-        remediationStep: 'Provide a valid Google Cloud Project ID with billing enabled.',
-      }
-    }
-
-    return {
-      oauthTokenValid: true,
-      oauthExpiresInSeconds: 3600,
-      bucketReachable: true,
-      requesterPaysActive: true,
-      iamViewerGranted: true,
-      corsConfigured: true,
-      steps: [
-        {
-          id: 'token',
-          name: 'OAuth 2.0 Token Valid',
-          description: 'Verifies volatile in-memory access token validity and remaining TTL.',
-          status: 'passed',
-          detail: 'Expires in ~58m (Auto-Renewal)',
-        },
-        {
-          id: 'bucket',
-          name: 'Requester-Pays Enforced',
-          description: 'Validates bucket reachability and billing attribution.',
-          status: 'passed',
-          detail: `Billed to: ${cleanProject}`,
-        },
-        {
-          id: 'iam',
-          name: 'IAM Object Viewer Granted',
-          description: 'Probes roles/storage.objectViewer permission on bucket.',
-          status: 'passed',
-          detail: 'roles/storage.objectViewer OK',
-        },
-        {
-          id: 'cors',
-          name: 'CORS Preflight Headers OK',
-          description: 'Validates browser CORS preflight and exposure headers.',
-          status: 'passed',
-          detail: 'x-goog-hash, Content-Length Exposed',
-        },
-      ],
-    }
-  }
-
-  /**
-   * Returns synthetic bucket metadata for sandbox / demo mode
-   */
-  public async getDemoBucketMetadata(bucket: string, _userProject?: string): Promise<GCSBucket> {
-    const cleanBucket = this.cleanBucketName(bucket)
-    return {
-      kind: 'storage#bucket',
-      id: cleanBucket,
-      name: cleanBucket,
-      projectNumber: '891029384712',
-      location: 'US',
-      locationType: 'multi-region',
-      storageClass: 'STANDARD',
-      billing: {
-        requesterPays: true,
-      },
-      cors: [
-        {
-          origin: ['*'],
-          method: ['GET', 'HEAD', 'OPTIONS'],
-          responseHeader: ['x-goog-hash', 'Content-Length', 'Range', 'ETag'],
-          maxAgeSeconds: 3600,
-        },
-      ],
-      timeCreated: '2026-01-01T00:00:00Z',
-      updated: '2026-01-01T00:00:00Z',
     }
   }
 }

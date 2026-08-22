@@ -17,7 +17,7 @@ import { resetAllStores } from '../helpers/testUtils'
 describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Preflight Handshake', () => {
   const sampleToken = 'ya29.sample_gcs_test_token'
   const sampleBucket = 'partner-raw-master-archives-2026'
-  const sampleProject = 'demo-client-media-2026'
+  const sampleProject = 'client-media-project-2026'
   let originalFetch: typeof globalThis.fetch
 
   beforeEach(() => {
@@ -595,46 +595,6 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
       expect(result.corsConfigured).toBe(false)
       expect(result.steps?.find((s) => s.id === 'cors')?.status).toBe('failed')
       expect(result.remediationStep).toContain('cors.json')
-    })
-  })
-
-  describe('Demo & Sandbox Fallback Methods', () => {
-    it('listDemoObjects returns authentic demo dataset and folder slices', async () => {
-      const rootListing = await gcsClientService.listDemoObjects('')
-      expect(rootListing.folders).toContain('feature_films/')
-      expect(rootListing.folders).toContain('sound_stems/')
-      expect(rootListing.folders).toContain('vfx_plates/')
-
-      const reelListing = await gcsClientService.listDemoObjects('feature_films/reel_04/')
-      expect(reelListing.files.length).toBeGreaterThan(0)
-      const mxf = reelListing.files.find((f) => f.displayName === 'reel04_cam_A_raw.mxf')
-      expect(mxf).toBeDefined()
-      expect(mxf?.crc32cHex).toBe('0xAF82F6C0')
-    })
-
-    it('runDemoPreflight returns passing result with valid project', async () => {
-      const preflight = await gcsClientService.runDemoPreflight(sampleBucket, sampleProject)
-      expect(preflight.oauthTokenValid).toBe(true)
-      expect(preflight.bucketReachable).toBe(true)
-      expect(preflight.requesterPaysActive).toBe(true)
-      expect(preflight.iamViewerGranted).toBe(true)
-      expect(preflight.corsConfigured).toBe(true)
-      expect(preflight.steps?.every((s) => s.status === 'passed')).toBe(true)
-    })
-
-    it('runDemoPreflight returns warning when userProject is empty', async () => {
-      const preflight = await gcsClientService.runDemoPreflight(sampleBucket, '')
-      expect(preflight.requesterPaysActive).toBe(true)
-      expect(preflight.iamViewerGranted).toBe(false)
-      expect(preflight.corsConfigured).toBe(false)
-      expect(preflight.rawError).toContain('UserProjectMissing')
-    })
-
-    it('getDemoBucketMetadata returns valid synthetic GCSBucket', async () => {
-      const meta = await gcsClientService.getDemoBucketMetadata(sampleBucket, sampleProject)
-      expect(meta.name).toBe(sampleBucket)
-      expect(meta.billing?.requesterPays).toBe(true)
-      expect(meta.cors?.[0].responseHeader).toContain('x-goog-hash')
     })
   })
 

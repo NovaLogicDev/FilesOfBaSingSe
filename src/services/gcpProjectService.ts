@@ -9,7 +9,6 @@ import {
   GCPServiceError,
   GCPErrorCode,
 } from '../types/gcp'
-import { useRuntimeStore } from '../store/runtimeStore'
 import { ObservabilityService } from './observability'
 
 /**
@@ -29,34 +28,11 @@ export class GCPProjectService {
   public static readonly BILLING_CONSOLE_URL = 'https://console.cloud.google.com/billing/linkedaccount?project='
   public static readonly PROJECT_ID_PREFIX = 'basingse-media-dl-'
 
-  private static readonly INITIAL_DEMO_PROJECTS: GCPProject[] = [
-    {
-      projectId: 'demo-client-media-2026',
-      name: 'Client Post Production Studio',
-      projectNumber: '891029384712',
-      lifecycleState: 'ACTIVE',
-      createTime: '2026-01-10T12:00:00Z',
-    },
-    {
-      projectId: 'avatar-freelance-vfx',
-      name: 'Avatar Freelance VFX Works',
-      projectNumber: '109283746501',
-      lifecycleState: 'ACTIVE',
-      createTime: '2026-02-15T08:30:00Z',
-    },
-  ]
-
-  private demoProjects: GCPProject[] = [...GCPProjectService.INITIAL_DEMO_PROJECTS]
-
   public static getInstance(): GCPProjectService {
     if (!GCPProjectService.instance) {
       GCPProjectService.instance = new GCPProjectService()
     }
     return GCPProjectService.instance
-  }
-
-  public resetDemoProjects(): void {
-    this.demoProjects = [...GCPProjectService.INITIAL_DEMO_PROJECTS]
   }
 
   /**
@@ -81,11 +57,6 @@ export class GCPProjectService {
    * Filters lifecycleState === 'ACTIVE' and handles 403 gracefully for brand new users.
    */
   public async listProjects(token?: string): Promise<GCPProject[]> {
-    const isDemo = useRuntimeStore.getState().isDemoMode
-    if ((!token && isDemo) || token?.startsWith('demo-')) {
-      return this.listDemoProjects()
-    }
-
     if (!token) {
       throw this.createError('UNAUTHENTICATED', 'No OAuth token provided for project discovery.', 401)
     }
@@ -429,11 +400,6 @@ export class GCPProjectService {
     onProgress?: (progress: ProvisioningProgress) => void,
     maxRetries = 3,
   ): Promise<AutoProvisionResult> {
-    const isDemo = useRuntimeStore.getState().isDemoMode
-    if ((!token && isDemo) || isDemo || token?.startsWith('demo-')) {
-      return this.autoProvisionDemoFlow(onProgress)
-    }
-
     if (!token) {
       throw this.createError('UNAUTHENTICATED', 'No OAuth token provided for auto-provisioning.', 401)
     }
@@ -623,117 +589,6 @@ export class GCPProjectService {
     }
 
     return { valid: true }
-  }
-
-  // --- Offline / Demo Sandbox Methods ---
-
-  public listDemoProjects(): GCPProject[] {
-    return [...this.demoProjects]
-  }
-
-  public autoProvisionDemoProject(): GCPProject {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-    const newProject: GCPProject = {
-      projectId: `basingse-media-dl-${randomSuffix}`,
-      name: 'Ba Sing Se Media Downloads',
-      projectNumber: String(Math.floor(100000000000 + Math.random() * 900000000000)),
-      lifecycleState: 'ACTIVE',
-      createTime: new Date().toISOString(),
-    }
-    this.demoProjects = [newProject, ...this.demoProjects]
-    return newProject
-  }
-
-  public checkDemoBilling(projectId: string): BillingStatus {
-    return {
-      projectId,
-      billingAccountName: 'billingAccounts/0182A9-983FBC-7721AA',
-      billingEnabled: true,
-      hasActiveBilling: true,
-    }
-  }
-
-  private async autoProvisionDemoFlow(
-    onProgress?: (progress: ProvisioningProgress) => void,
-  ): Promise<AutoProvisionResult> {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-    const targetProjectId = `${GCPProjectService.PROJECT_ID_PREFIX}${randomSuffix}`
-    const projectName = 'Ba Sing Se Media Downloads'
-
-    onProgress?.({
-      stage: 'generating_id',
-      stageIndex: 1,
-      totalStages: 4,
-      projectId: targetProjectId,
-      projectName,
-      status: 'in_progress',
-      message: `Generated candidate project ID: ${targetProjectId}`,
-    })
-    await new Promise((r) => setTimeout(r, 10))
-
-    onProgress?.({
-      stage: 'creating_project',
-      stageIndex: 2,
-      totalStages: 4,
-      projectId: targetProjectId,
-      projectName,
-      status: 'in_progress',
-      message: `Creating Google Cloud project "${targetProjectId}"...`,
-    })
-    await new Promise((r) => setTimeout(r, 10))
-
-    const project: GCPProject = {
-      projectId: targetProjectId,
-      name: projectName,
-      projectNumber: String(Math.floor(100000000000 + Math.random() * 900000000000)),
-      lifecycleState: 'ACTIVE',
-      createTime: new Date().toISOString(),
-    }
-    this.demoProjects = [project, ...this.demoProjects]
-
-    onProgress?.({
-      stage: 'enabling_storage_api',
-      stageIndex: 3,
-      totalStages: 4,
-      projectId: targetProjectId,
-      projectName,
-      status: 'in_progress',
-      message: 'Enabling Google Cloud Storage API (storage.googleapis.com)...',
-    })
-    await new Promise((r) => setTimeout(r, 10))
-
-    onProgress?.({
-      stage: 'checking_billing',
-      stageIndex: 4,
-      totalStages: 4,
-      projectId: targetProjectId,
-      projectName,
-      status: 'in_progress',
-      message: 'Verifying Cloud Billing account attachment...',
-    })
-    await new Promise((r) => setTimeout(r, 10))
-
-    onProgress?.({
-      stage: 'completed',
-      stageIndex: 4,
-      totalStages: 4,
-      projectId: targetProjectId,
-      projectName,
-      status: 'success',
-      message: 'Project auto-provisioned successfully with active billing.',
-    })
-
-    return {
-      success: true,
-      project,
-      billing: {
-        name: `projects/${targetProjectId}/billingInfo`,
-        projectId: targetProjectId,
-        billingAccountName: 'billingAccounts/0182A9-983FBC-7721AA',
-        billingEnabled: true,
-      },
-      storageApiEnabled: true,
-    }
   }
 }
 

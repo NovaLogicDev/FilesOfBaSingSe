@@ -38,16 +38,12 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 }) => {
   const { savedProjectId, setSavedProjectId, savedBucketName, setSavedBucketName, recentBuckets, addRecentBucket } =
     usePersistentStore()
-  const { oauthToken, userEmail, userName, userAvatar, tokenExpiresAt, isDemoMode } = useRuntimeStore()
+  const { oauthToken, userEmail, userName, userAvatar, tokenExpiresAt } = useRuntimeStore()
   const { addToast } = useToastStore()
 
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1)
-  const [projectIdInput, setProjectIdInput] = useState(
-    isDemoMode ? (savedProjectId || 'demo-client-media-2026') : (oauthToken ? savedProjectId : ''),
-  )
-  const [bucketInput, setBucketInput] = useState(
-    isDemoMode ? (savedBucketName || 'gs://partner-raw-master-archives-2026') : (oauthToken ? savedBucketName : ''),
-  )
+  const [projectIdInput, setProjectIdInput] = useState(savedProjectId || '')
+  const [bucketInput, setBucketInput] = useState(savedBucketName || '')
   const [discoveredProjects, setDiscoveredProjects] = useState<GCPProject[]>([])
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const [isCreatingProject, setIsCreatingProject] = useState(false)
@@ -68,7 +64,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   useEffect(() => {
     if (!isOpen) return
 
-    if (!oauthToken && !isDemoMode) {
+    if (!oauthToken) {
       setDiscoveredProjects([])
       setProjectIdInput('')
       setBucketInput('')
@@ -81,51 +77,36 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
       return
     }
 
-    if (isDemoMode && !oauthToken) {
-      const fallback = gcpProjectService.listDemoProjects()
-      setDiscoveredProjects(fallback)
-      setProjectSetupTab('existing_project')
-      if (!projectIdInput) {
-        setProjectIdInput('demo-client-media-2026')
-      }
-      if (!bucketInput) {
-        setBucketInput('gs://partner-raw-master-archives-2026')
-      }
-      return
-    }
-
-    if (oauthToken) {
-      setIsLoadingProjects(true)
-      gcpProjectService
-        .listProjects(oauthToken)
-        .then((projects) => {
-          setDiscoveredProjects(projects)
-          if (projects.length > 0) {
-            setProjectSetupTab('existing_project')
-            // Only retain projectIdInput if user already had an explicit valid project in this account
-            if (projectIdInput && projects.some((p) => p.projectId === projectIdInput)) {
-              // keep user's active choice
-            } else {
-              setProjectIdInput('')
-              setBillingStatus(null)
-            }
+    setIsLoadingProjects(true)
+    gcpProjectService
+      .listProjects(oauthToken)
+      .then((projects) => {
+        setDiscoveredProjects(projects)
+        if (projects.length > 0) {
+          setProjectSetupTab('existing_project')
+          // Only retain projectIdInput if user already had an explicit valid project in this account
+          if (projectIdInput && projects.some((p) => p.projectId === projectIdInput)) {
+            // keep user's active choice
           } else {
-            setProjectSetupTab('new_user')
             setProjectIdInput('')
             setBillingStatus(null)
           }
-        })
-        .catch(() => {
-          setDiscoveredProjects([])
+        } else {
           setProjectSetupTab('new_user')
           setProjectIdInput('')
           setBillingStatus(null)
-        })
-        .finally(() => {
-          setIsLoadingProjects(false)
-        })
-    }
-  }, [isOpen, oauthToken, isDemoMode])
+        }
+      })
+      .catch(() => {
+        setDiscoveredProjects([])
+        setProjectSetupTab('new_user')
+        setProjectIdInput('')
+        setBillingStatus(null)
+      })
+      .finally(() => {
+        setIsLoadingProjects(false)
+      })
+  }, [isOpen, oauthToken])
 
   // Validate Project ID & Verify Billing
   useEffect(() => {
@@ -148,11 +129,13 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     setProjectValidationError(null)
     setIsCheckingBilling(true)
 
-    const checkPromise = oauthToken
-      ? gcpProjectService.checkBillingStatus(oauthToken, projectIdInput)
-      : Promise.resolve(gcpProjectService.checkDemoBilling(projectIdInput))
+    if (!oauthToken) {
+      setIsCheckingBilling(false)
+      return
+    }
 
-    checkPromise
+    gcpProjectService
+      .checkBillingStatus(oauthToken, projectIdInput)
       .then((status) => {
         setBillingStatus(status)
       })
@@ -317,12 +300,10 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   }
 
   const handleRecheckBilling = async () => {
-    if (!projectIdInput) return
+    if (!projectIdInput || !oauthToken) return
     setIsCheckingBilling(true)
     try {
-      const status = oauthToken
-        ? await gcpProjectService.checkBillingStatus(oauthToken, projectIdInput)
-        : gcpProjectService.checkDemoBilling(projectIdInput)
+      const status = await gcpProjectService.checkBillingStatus(oauthToken, projectIdInput)
       setBillingStatus(status)
       if (status.billingEnabled) {
         addToast({
@@ -343,19 +324,17 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   }
 
   const handleRunPreflight = async () => {
+    if (!oauthToken) return
     setIsPreflightRunning(true)
     setPreflightStatus(null)
     try {
       const cleanBucket = gcsClientService.cleanBucketName(bucketInput)
-      const result =
-        isDemoMode || !oauthToken
-          ? await gcsClientService.runDemoPreflight(cleanBucket, projectIdInput)
-          : await gcsClientService.run4PointPreflight(
-              oauthToken,
-              cleanBucket,
-              projectIdInput,
-              tokenExpiresAt || undefined,
-            )
+      const result = await gcsClientService.run4PointPreflight(
+        oauthToken,
+        cleanBucket,
+        projectIdInput,
+        tokenExpiresAt || undefined,
+      )
       setPreflightStatus(result)
       if (result.bucketReachable && result.iamViewerGranted && result.corsConfigured) {
         addToast({
@@ -391,11 +370,11 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
 
   const handleContinueStep = () => {
     if (activeStep === 1) {
-      if (!oauthToken && !isDemoMode) {
+      if (!oauthToken) {
         addToast({
           type: 'warning',
           title: 'Sign-In Required',
-          message: 'Please sign in with Google or select Demo Sandbox to continue.',
+          message: 'Please sign in with Google to continue.',
         })
         return
       }
@@ -428,8 +407,8 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   }
 
   const handleCancelOrClose = async () => {
-    // If cancelling before finishing setup in live mode, sign out and clear session state
-    if (!isDemoMode && (!savedProjectId || !savedBucketName || activeStep < 4 || !isPreflightPassed)) {
+    // If cancelling before finishing setup, sign out and clear session state
+    if (!savedProjectId || !savedBucketName || activeStep < 4 || !isPreflightPassed) {
       await gisAuthService.signOut()
       setSavedProjectId('')
       setSavedBucketName('')
@@ -668,32 +647,6 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                         </svg>
                       )}
                       <span>{isSigningIn ? 'Opening Google Sign-In...' : 'Sign In with Google'}</span>
-                    </button>
-
-                    <div className="relative flex items-center justify-center pt-2">
-                      <div className="border-t border-slate-800 w-full" />
-                      <span className="bg-slate-950 px-3 text-[11px] text-slate-500 uppercase font-mono absolute">
-                        or
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        gisAuthService.signInDemo()
-                        setProjectIdInput('demo-client-media-2026')
-                        setBucketInput('gs://partner-raw-master-archives-2026')
-                        addToast({
-                          type: 'info',
-                          title: 'Demo Sandbox Initialized',
-                          message: 'Exploring with synthetic GCS media assets.',
-                        })
-                        setActiveStep(2)
-                      }}
-                      className="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Explore in Demo Sandbox (No Sign-In Required)</span>
                     </button>
                   </div>
                 )}
@@ -1368,9 +1321,9 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
           ) : (
             <button
               onClick={handleFinish}
-              disabled={!isDemoMode && !isPreflightPassed}
+              disabled={!isPreflightPassed}
               className={`px-6 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-lg ${
-                !isDemoMode && !isPreflightPassed
+                !isPreflightPassed
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                   : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 cursor-pointer'
               }`}

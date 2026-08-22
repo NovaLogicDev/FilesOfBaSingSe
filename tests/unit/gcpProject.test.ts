@@ -127,16 +127,8 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
       })
     })
 
-    it('returns demo projects when in demo mode and no token is provided', async () => {
-      useRuntimeStore.getState().setDemoMode(true)
-      const result = await gcpProjectService.listProjects()
-      expect(result.length).toBeGreaterThanOrEqual(2)
-      expect(result.some((p) => p.projectId === 'demo-client-media-2026')).toBe(true)
-    })
-
-    it('throws UNAUTHENTICATED error if no token is provided and not in demo mode', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-      await expect(gcpProjectService.listProjects()).rejects.toMatchObject({
+    it('throws UNAUTHENTICATED error if no token is provided', async () => {
+      await expect(gcpProjectService.listProjects('')).rejects.toMatchObject({
         code: 'UNAUTHENTICATED',
       })
     })
@@ -320,8 +312,6 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
 
   describe('autoProvisionProject', () => {
     it('orchestrates end-to-end auto-provisioning with progress callback in live mode', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let crmCalled = false
       let suCalled = false
       let billingCalled = false
@@ -380,8 +370,6 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
     })
 
     it('retries project creation on 409 conflict and succeeds with new ID', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let crmAttempts = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -421,19 +409,6 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
       expect(result.success).toBe(true)
       expect(result.project.projectId).toMatch(/^basingse-media-dl-[a-f0-9]{4}$/)
     })
-
-    it('runs demo flow when in demo mode', async () => {
-      useRuntimeStore.getState().setDemoMode(true)
-      const progressSteps: any[] = []
-      const result = await gcpProjectService.autoProvisionProject('', (p) => {
-        progressSteps.push(p)
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.project.projectId).toMatch(/^basingse-media-dl-\d{4}$/)
-      expect(result.billing.billingEnabled).toBe(true)
-      expect(progressSteps.length).toBeGreaterThanOrEqual(4)
-    })
   })
 
   describe('detectNewProjects', () => {
@@ -452,26 +427,6 @@ describe('GCPProjectService - CRM, Service Usage & Cloud Billing REST Client', (
       const newProjects = await gcpProjectService.detectNewProjects(sampleToken, ['existing-proj-1'])
       expect(newProjects).toHaveLength(1)
       expect(newProjects[0].projectId).toBe('brand-new-proj-2')
-    })
-  })
-
-  describe('Demo sandbox methods', () => {
-    it('listDemoProjects returns demo project list', () => {
-      const demoList = gcpProjectService.listDemoProjects()
-      expect(demoList.length).toBeGreaterThanOrEqual(2)
-      expect(demoList[0].projectId).toBe('demo-client-media-2026')
-    })
-
-    it('autoProvisionDemoProject creates unique demo project', () => {
-      const demoProject = gcpProjectService.autoProvisionDemoProject()
-      expect(demoProject.projectId).toMatch(/^basingse-media-dl-\d{4}$/)
-      expect(demoProject.lifecycleState).toBe('ACTIVE')
-    })
-
-    it('checkDemoBilling returns active billing', () => {
-      const billing = gcpProjectService.checkDemoBilling('demo-client-media-2026')
-      expect(billing.billingEnabled).toBe(true)
-      expect(billing.hasActiveBilling).toBe(true)
     })
   })
 })

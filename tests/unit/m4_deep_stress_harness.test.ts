@@ -107,7 +107,6 @@ describe('M4 Deep Adversarial Stress Harness — Volatile RAM & Abort Latency', 
 
       // Verify authenticated state
       expect(useRuntimeStore.getState().oauthToken).toBe(sampleToken)
-      expect(useRuntimeStore.getState().isDemoMode).toBe(false)
 
       const chunk = new Uint8Array(1024 * 1024).fill(0xaa)
       let pullCount = 0
@@ -166,7 +165,6 @@ describe('M4 Deep Adversarial Stress Harness — Volatile RAM & Abort Latency', 
     it('suppresses trailing out-of-order setDownloadProgress calls when session is unauthenticated', () => {
       // Setup authenticated session then clear it
       useRuntimeStore.getState().setAuth(sampleToken, 'iroh@tea.shop')
-      expect(useRuntimeStore.getState().isDemoMode).toBe(false)
       useRuntimeStore.getState().clearAuth()
 
       expect(useRuntimeStore.getState().activeDownload).toBeNull()

@@ -55,7 +55,6 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     userName,
     userAvatar,
     tokenExpiresAt,
-    isDemoMode,
   } = useRuntimeStore()
 
   const { addToast } = useToastStore()
@@ -85,18 +84,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
   const runPreflightAudit = async () => {
     setIsRunningPreflight(true)
     try {
-      if (isDemoMode) {
-        // Synthetic preflight pass
-        await new Promise((resolve) => setTimeout(resolve, 600))
-        setPreflightResult({
-          oauthTokenValid: true,
-          oauthExpiresInSeconds: 3300,
-          bucketReachable: true,
-          requesterPaysActive: true,
-          iamViewerGranted: true,
-          corsConfigured: true,
-        })
-      } else if (oauthToken && savedBucketName && savedProjectId) {
+      if (oauthToken && savedBucketName && savedProjectId) {
         const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
         const res = await gcsClientService.run4PointPreflight(
           oauthToken,
@@ -135,7 +123,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     if (isOpen) {
       runPreflightAudit()
     }
-  }, [isOpen, oauthToken, savedBucketName, savedProjectId, isDemoMode])
+  }, [isOpen, oauthToken, savedBucketName, savedProjectId])
 
   // Storage Boundary Audit (Confirm 0 leaked tokens in localStorage)
   const auditStorageBoundary = (): { isClean: boolean; violations: string[] } => {
@@ -184,13 +172,8 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
 
   if (!isOpen) return null
 
-  const displayBucket = isDemoMode
-    ? 'gs://partner-raw-master-archives-2026'
-    : savedBucketName || 'No Bucket Connected'
-
-  const displayProject = isDemoMode
-    ? 'demo-client-media-2026'
-    : savedProjectId || 'Unconfigured'
+  const displayBucket = savedBucketName || 'No Bucket Connected'
+  const displayProject = savedProjectId || 'Unconfigured'
 
   const activeRates = CostGovernanceEngine.resolveRateCard(customPricing)
 
@@ -240,7 +223,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                     1. Google Identity & Credentials
                   </span>
                 </div>
-                {oauthToken || isDemoMode ? (
+                {oauthToken ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     Authenticated
                   </span>
@@ -265,10 +248,10 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-white truncate">
-                    {userName || (isDemoMode ? 'Taylor (Colorist)' : 'Google User')}
+                    {userName || 'Google User'}
                   </div>
                   <div className="text-xs text-slate-400 font-mono truncate">
-                    {userEmail || (isDemoMode ? 'taylor@freelance-edit.com' : 'Not signed in')}
+                    {userEmail || 'Not signed in'}
                   </div>
                 </div>
               </div>

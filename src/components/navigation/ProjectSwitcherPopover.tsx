@@ -23,7 +23,7 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
   onProjectSwitch,
 }) => {
   const { savedProjectId, setSavedProjectId } = usePersistentStore()
-  const { isDemoMode, oauthToken } = useRuntimeStore()
+  const { oauthToken } = useRuntimeStore()
   const { addToast } = useToastStore()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -36,30 +36,15 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
 
   // Fetch projects on popover open
   useEffect(() => {
-    if (isOpen && oauthToken && !isDemoMode) {
+    if (isOpen && oauthToken) {
       setIsLoadingProjects(true)
       gcpProjectService
         .listProjects(oauthToken)
         .then((res: GCPProject[]) => setProjects(res))
         .catch(() => setProjects([]))
         .finally(() => setIsLoadingProjects(false))
-    } else if (isDemoMode) {
-      setProjects([
-        {
-          projectId: 'demo-client-media-2026',
-          name: 'Demo Client Production Media',
-          projectNumber: '1029384756',
-          lifecycleState: 'ACTIVE',
-        },
-        {
-          projectId: 'avatar-vfx-vault-2026',
-          name: 'Avatar VFX Post Studio',
-          projectNumber: '9847561029',
-          lifecycleState: 'ACTIVE',
-        },
-      ])
     }
-  }, [isOpen, oauthToken, isDemoMode])
+  }, [isOpen, oauthToken])
 
   // Close on outside click or Escape
   useEffect(() => {
@@ -118,9 +103,7 @@ export const ProjectSwitcherPopover: React.FC<ProjectSwitcherPopoverProps> = ({
     })
   }
 
-  const activeDisplayProject = isDemoMode
-    ? 'demo-client-media-2026'
-    : savedProjectId || 'Unconfigured'
+  const activeDisplayProject = savedProjectId || 'Unconfigured'
 
   return (
     <div className="relative inline-block" ref={popoverRef}>

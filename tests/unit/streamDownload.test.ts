@@ -613,20 +613,5 @@ describe('StreamDownloadService (Native Chromium 4MB Micro-Chunk Direct-to-Disk 
       }),
     ).rejects.toThrow(StreamDownloadError)
   })
-
-  it('executes demo sandbox fallback stream simulation correctly', async () => {
-    const asset = STUDIO_MASTER_DATASET[0]
-    const telemetryEvents: DownloadProgressTelemetry[] = []
-
-    const result = await streamDownloadService.streamDemoDownload(asset, {
-      onProgress: (p) => telemetryEvents.push(p),
-    })
-
-    expect(result.success).toBe(true)
-    expect(result.status).toBe('completed')
-    expect(result.integrityVerified).toBe(true)
-    expect(result.crc32cBase64).toBe(asset.crc32c)
-    expect(telemetryEvents.length).toBeGreaterThan(1)
-  })
 })
 

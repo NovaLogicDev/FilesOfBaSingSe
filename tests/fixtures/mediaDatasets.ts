@@ -95,6 +95,21 @@ export const STUDIO_MASTER_DATASET: GCSMediaItem[] = [
     crc32cHex: '0xE3069283',
     etag: 'CPP2sS12y8gHEHA=',
   },
+  {
+    id: 'fixture-07',
+    name: 'vfx_plates/scene_01/plate_01.exr',
+    displayName: 'plate_01.exr',
+    type: 'file',
+    bucket: 'partner-raw-master-archives-2026',
+    sizeBytes: 120_000_000,
+    formattedSize: '120.00 MB',
+    storageClass: 'STANDARD',
+    contentType: 'image/x-exr',
+    updated: '2026-07-16T14:00:00Z',
+    crc32c: '9aB3cD==',
+    crc32cHex: '0x12345678',
+    etag: 'CVFX01EXR01=',
+  },
 ]
 
 /**
@@ -214,7 +229,7 @@ export function generate10kMediaItems(count: number = 10000): GCSMediaItem[] {
  */
 export const MOCK_GCP_PROJECTS: GCPProject[] = [
   {
-    projectId: 'demo-client-media-2026',
+    projectId: 'client-media-project-2026',
     name: 'Client Post Production Studio',
     projectNumber: '891029384712',
     lifecycleState: 'ACTIVE',

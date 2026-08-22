@@ -22,7 +22,7 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = memo(
         <button
           type="button"
           onClick={() => onNavigatePrefix('')}
-          className={`font-mono flex items-center space-x-1 transition-colors cursor-pointer ${
+          className={`font-mono flex items-center space-x-1 transition-colors cursor-pointer rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             isAtRoot
               ? 'font-bold text-white cursor-default'
               : 'text-slate-400 hover:text-emerald-400'
@@ -43,12 +43,13 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = memo(
               <button
                 type="button"
                 onClick={() => onNavigatePrefix(pathUpToSegment)}
-                className={`font-mono transition-colors cursor-pointer ${
+                className={`font-mono transition-colors cursor-pointer rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                   isLast
                     ? 'font-bold text-white cursor-default'
                     : 'text-slate-400 hover:text-emerald-400'
                 }`}
                 aria-current={isLast ? 'location' : undefined}
+                aria-label={isLast ? `Current folder ${segment}` : `Navigate up to folder ${segment}`}
               >
                 {segment}
               </button>

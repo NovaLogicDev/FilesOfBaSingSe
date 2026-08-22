@@ -15,7 +15,7 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
     vi.clearAllMocks()
     usePersistentStore.setState({
       savedBucketName: 'gs://partner-raw-master-archives-2026',
-      savedProjectId: 'demo-client-media-2026',
+      savedProjectId: 'client-media-project-2026',
       recentBuckets: ['gs://mediaserverrecovery'],
       isFreeTrialAccount: true,
       customPricing: {
@@ -27,7 +27,6 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
       },
     })
     useRuntimeStore.setState({
-      isDemoMode: true,
       oauthToken: 'mock-oauth-token',
       userName: 'Taylor (Colorist)',
       userEmail: 'taylor@freelance-edit.com',
@@ -68,7 +67,7 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
 
     // 2. Billed GCP Project
     expect(screen.getByText(/2\. Billed GCP Project/i)).toBeDefined()
-    expect(screen.getByText('demo-client-media-2026')).toBeDefined()
+    expect(screen.getByText('client-media-project-2026')).toBeDefined()
 
     // 3. Target GCS Bucket
     expect(screen.getByText(/3\. Target GCS Bucket/i)).toBeDefined()

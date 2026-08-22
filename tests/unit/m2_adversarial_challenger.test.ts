@@ -178,8 +178,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
   // ==========================================================================
   describe('Section 2: Collision Retry Exhaustion & CRM Faults', () => {
     it('exhausts all retries when CRM consistently returns 409 Conflict', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let crmCalls = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -215,8 +213,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('recovers on last retry attempt after preceding 409 collisions', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let crmCalls = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -258,8 +254,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('fails immediately on CRM 403 Forbidden (Quota Exceeded) without retrying uselessly', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let crmCalls = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -291,8 +285,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('handles unexpected CRM 500 Internal Server Error with typed UNKNOWN error', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
           return {
@@ -333,27 +325,7 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
   // Section 3: Rapid Repeated & Concurrent Provisioning Stress
   // ==========================================================================
   describe('Section 3: Rapid Repeated & Concurrent Auto-Provisioning Calls', () => {
-    it('executes 100 rapid concurrent autoProvisionDemoProject calls without collision or mutation corruption', () => {
-      gcpProjectService.resetDemoProjects()
-      const initialCount = gcpProjectService.listDemoProjects().length
-
-      const results = Array.from({ length: 100 }, () => gcpProjectService.autoProvisionDemoProject())
-
-      expect(results).toHaveLength(100)
-      for (const proj of results) {
-        expect(proj.projectId).toMatch(/^basingse-media-dl-\d{4}$/)
-        expect(proj.lifecycleState).toBe('ACTIVE')
-        expect(proj.name).toBe('Ba Sing Se Media Downloads')
-        expect(proj.projectNumber).toBeDefined()
-      }
-
-      const totalDemoProjects = gcpProjectService.listDemoProjects()
-      expect(totalDemoProjects.length).toBe(initialCount + 100)
-    })
-
     it('executes 30 rapid concurrent autoProvisionProject calls in live mode with clean isolation', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let invocationCount = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -410,35 +382,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
         ])
       }
     })
-
-    it('handles concurrent interleaved demo and live provisioning requests safely', async () => {
-      useRuntimeStore.getState().setDemoMode(true)
-      const demoResult = await gcpProjectService.autoProvisionProject('')
-      expect(demoResult.success).toBe(true)
-      expect(demoResult.project.projectId).toMatch(/^basingse-media-dl-\d{4}$/)
-
-      useRuntimeStore.getState().setDemoMode(false)
-      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
-        if (url.includes('cloudresourcemanager.googleapis.com')) {
-          return { ok: true, status: 200, json: async () => ({ projectNumber: '7766554433' }) }
-        }
-        if (url.includes('serviceusage.googleapis.com')) {
-          return { ok: true, status: 200, json: async () => ({ done: true }) }
-        }
-        if (url.includes('cloudbilling.googleapis.com')) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({ billingAccountName: 'billingAccounts/123', billingEnabled: true }),
-          }
-        }
-        return { ok: false, status: 404 }
-      })
-
-      const liveResult = await gcpProjectService.autoProvisionProject(sampleToken)
-      expect(liveResult.success).toBe(true)
-      expect(liveResult.project.projectNumber).toBe('7766554433')
-    })
   })
 
   // ==========================================================================
@@ -446,8 +389,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
   // ==========================================================================
   describe('Section 4: Network Drop & Fault Injection during Multi-Stage Provisioning', () => {
     it('handles abrupt network drop (TypeError: Failed to fetch) during Stage 2 (CRM createProject)', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
           throw new TypeError('Failed to fetch: Network offline or DNS resolution error')
@@ -469,8 +410,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('survives transient network drop during Stage 3 (Service Usage enableStorageApi) via retry', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       let suAttempts = 0
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
@@ -503,8 +442,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('degrades gracefully when Stage 3 completely fails (network unreachable) while preserving created project', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
           return { ok: true, status: 200, json: async () => ({ projectNumber: '1122334455' }) }
@@ -533,8 +470,6 @@ describe('M2 Challenger - Comprehensive Empirical Adversarial Stress & Fuzz Suit
     })
 
     it('handles network drop during Stage 4 (Billing Check) by returning warning without breaking project creation', async () => {
-      useRuntimeStore.getState().setDemoMode(false)
-
       globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes('cloudresourcemanager.googleapis.com')) {
           return { ok: true, status: 200, json: async () => ({ projectNumber: '1122334455' }) }

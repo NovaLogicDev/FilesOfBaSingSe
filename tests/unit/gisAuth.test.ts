@@ -41,8 +41,9 @@ describe('GISAuthService - Unit Tests', () => {
     }
 
     // Setup global fetch mock for userinfo endpoint
-    mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('userinfo')) {
+    mockFetch = vi.fn().mockImplementation((url: any) => {
+      const urlStr = typeof url === 'string' ? url : (url?.url || String(url || ''))
+      if (urlStr.includes('userinfo')) {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -57,9 +58,9 @@ describe('GISAuthService - Unit Tests', () => {
           }),
         })
       }
-      return Promise.reject(new Error('Unknown URL'))
+      return Promise.reject(new Error(`Unknown URL: ${urlStr}`))
     })
-    global.fetch = mockFetch as any
+    vi.stubGlobal('fetch', mockFetch)
 
     gisAuthService.configure({
       clientId: 'test-client-id.apps.googleusercontent.com',
@@ -309,15 +310,5 @@ describe('GISAuthService - Unit Tests', () => {
     const remaining = gisAuthService.getRemainingTTLSeconds()
     expect(remaining).toBeGreaterThan(1190)
     expect(remaining).toBeLessThanOrEqual(1200)
-  })
-
-  it('provides synthetic sandbox session via signInDemo()', () => {
-    const session = gisAuthService.signInDemo()
-
-    expect(session.accessToken).toBe('demo-oauth-token-ya29-sample')
-    expect(session.userEmail).toBe('taylor@freelance-edit.com')
-    expect(session.userName).toBe('Taylor (Colorist)')
-    expect(useRuntimeStore.getState().oauthToken).toBe('demo-oauth-token-ya29-sample')
-    expect(gisAuthService.isAuthenticated()).toBe(true)
   })
 })

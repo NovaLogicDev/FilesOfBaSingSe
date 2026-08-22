@@ -12,10 +12,9 @@ describe('Unit - Module 9: ProjectSwitcherPopover', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usePersistentStore.setState({
-      savedProjectId: 'demo-client-media-2026',
+      savedProjectId: 'client-media-project-2026',
     })
     useRuntimeStore.setState({
-      isDemoMode: true,
       oauthToken: 'mock-oauth-token',
     })
     useToastStore.setState({ toasts: [] })
@@ -24,36 +23,37 @@ describe('Unit - Module 9: ProjectSwitcherPopover', () => {
   it('renders closed trigger displaying the active billed project', () => {
     render(<ProjectSwitcherPopover onProjectSwitch={onProjectSwitchMock} />)
 
-    expect(screen.getByText('demo-client-media-2026')).toBeDefined()
+    expect(screen.getByText('client-media-project-2026')).toBeDefined()
     expect(screen.queryByText(/Billed GCP Project Switcher/i)).toBeNull()
   })
 
-  it('opens project switcher popover and displays discovered projects in sandbox', async () => {
+  it('opens project switcher popover and displays discovered projects', async () => {
     render(<ProjectSwitcherPopover onProjectSwitch={onProjectSwitchMock} />)
 
     fireEvent.click(screen.getByRole('button', { name: /switch billed gcp project/i }))
 
     expect(screen.getByText(/Billed GCP Project Switcher/i)).toBeDefined()
     await waitFor(() => {
-      expect(screen.getByText('Avatar VFX Post Studio')).toBeDefined()
-      expect(screen.getByText('avatar-vfx-vault-2026')).toBeDefined()
+      expect(screen.getByText('Client Post Production Studio')).toBeDefined()
+      expect(screen.getAllByText('client-media-project-2026').length).toBeGreaterThan(0)
     })
   })
 
   it('switches to a selected project from list', async () => {
+    usePersistentStore.setState({ savedProjectId: 'initial-other-project' })
     render(<ProjectSwitcherPopover onProjectSwitch={onProjectSwitchMock} />)
 
     fireEvent.click(screen.getByRole('button', { name: /switch billed gcp project/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Avatar VFX Post Studio')).toBeDefined()
+      expect(screen.getByText('Client Post Production Studio')).toBeDefined()
     })
 
     const selectBtn = screen.getByRole('button', { name: /select/i })
     fireEvent.click(selectBtn)
 
-    expect(onProjectSwitchMock).toHaveBeenCalledWith('avatar-vfx-vault-2026')
-    expect(usePersistentStore.getState().savedProjectId).toBe('avatar-vfx-vault-2026')
+    expect(onProjectSwitchMock).toHaveBeenCalledWith('client-media-project-2026')
+    expect(usePersistentStore.getState().savedProjectId).toBe('client-media-project-2026')
   })
 
   it('validates manual project ID format and applies valid override', async () => {

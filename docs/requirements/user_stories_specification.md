@@ -18,6 +18,7 @@ flowchart TD
     subgraph ClientEnvironment ["Client Local Environment"]
         Browser["Client Web Browser (SPA)"]
         Disk["Local File System (Direct Stream via FSAA)"]
+        OSFileManager["OS File Manager (Finder / Explorer / Dolphin / Nautilus)"]
         ClientGCP["Client GCP Project & Billing Account"]
     end
 
@@ -40,11 +41,13 @@ flowchart TD
     GCP_Billing -->|"6. Charge Client Account ($0.05/GB + $0.12/GB)"| ClientGCP
     GCS_API -->|"7. Stream Binary Chunks (Zero Host Proxy)"| Browser
     Browser -->|"8. Direct Pipe (4MB Buffer) to Disk"| Disk
+    Browser -->|"9. Emit Post-Download OS Reveal Feedback"| OSFileManager
     HostGCS -.->|"Object Data (Zero Host Egress Cost)"| GCS_API
 
     style ClientGCP fill:#ff9999,stroke:#cc0000,stroke-width:2px;
     style HostEnvironment fill:#d4edda,stroke:#28a745,stroke-width:2px;
     style Disk fill:#cce5ff,stroke:#004085,stroke-width:2px;
+    style OSFileManager fill:#e2e8f0,stroke:#475569,stroke-width:2px;
 ```
 
 ---

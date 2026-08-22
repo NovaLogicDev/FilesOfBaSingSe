@@ -16,7 +16,6 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     sessionStorage.clear()
     usePersistentStore.getState().resetPreferences()
     useRuntimeStore.getState().clearAuth()
-    useRuntimeStore.getState().setDemoMode(false)
     useToastStore.setState({ toasts: [] })
     vi.restoreAllMocks()
   })

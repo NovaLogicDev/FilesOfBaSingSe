@@ -52,8 +52,9 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
       },
     }
 
-    mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('userinfo')) {
+    mockFetch = vi.fn().mockImplementation((url: any) => {
+      const urlStr = typeof url === 'string' ? url : (url?.url || String(url || ''))
+      if (urlStr.includes('userinfo')) {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -65,9 +66,9 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
           }),
         })
       }
-      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`))
+      return Promise.reject(new Error(`Unexpected fetch URL: ${urlStr}`))
     })
-    global.fetch = mockFetch as any
+    vi.stubGlobal('fetch', mockFetch)
 
     gisAuthService.configure({
       clientId: 'adversarial-client-id.apps.googleusercontent.com',
@@ -77,6 +78,7 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.restoreAllMocks()
     vi.useRealTimers()
     delete (window as any).google
@@ -141,8 +143,8 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
       }
     })
 
-    it('handles 50 randomized interleaved login, demo, and logout operations without orphaned state', async () => {
-      const operations = ['login', 'demo', 'logout', 'refresh', 'switch']
+    it('handles 50 randomized interleaved login and logout operations without orphaned state', async () => {
+      const operations = ['login', 'logout', 'refresh', 'switch']
 
       for (let i = 0; i < 50; i++) {
         const op = operations[i % operations.length]
@@ -152,12 +154,6 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
             const token = `ya29.rand_token_${i}`
             useRuntimeStore.getState().setAuth(token, `user_${i}@test.com`, `User ${i}`)
             gisAuthService.scheduleTokenRefresh(1800)
-            expect(gisAuthService.isAuthenticated()).toBe(true)
-            break
-          }
-          case 'demo': {
-            const session = gisAuthService.signInDemo()
-            expect(session.accessToken).toBe('demo-oauth-token-ya29-sample')
             expect(gisAuthService.isAuthenticated()).toBe(true)
             break
           }
@@ -573,6 +569,7 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
     })
 
     it('handles abortActiveDownload directly and sets download status to cancelled', () => {
+      useRuntimeStore.getState().setAuth('ya29.sample-token', 'user@test.com')
       const controller = new AbortController()
       useRuntimeStore.getState().setActiveAbortController(controller)
       useRuntimeStore.getState().setDownloadProgress({
@@ -614,7 +611,6 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
   describe('Stress 6: GIS Script Loading Fault Injection', () => {
     it('handles script load network failure and rejects with SCRIPT_LOAD_FAILED', async () => {
       delete (window as any).google
-      useRuntimeStore.getState().setDemoMode(false)
 
       const service = new GISAuthService()
 
@@ -632,7 +628,6 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
 
     it('handles script load timeout when network hangs', async () => {
       delete (window as any).google
-      useRuntimeStore.getState().setDemoMode(false)
 
       const service = new GISAuthService()
       // Short timeout of 50ms
@@ -641,14 +636,15 @@ describe('Adversarial Stress & Fuzz Suite: GIS Auth & In-Memory Token Lifecycle 
       })
     })
 
-    it('falls back seamlessly to demo mode in sandbox environment when GIS script fails', async () => {
+    it('fails signIn when GIS script fails to load and window.google is absent', async () => {
       delete (window as any).google
-      useRuntimeStore.getState().setDemoMode(true)
-
-      const session = await gisAuthService.signIn()
-      expect(session.accessToken).toBe('demo-oauth-token-ya29-sample')
-      expect(session.userEmail).toBe('taylor@freelance-edit.com')
-      expect(gisAuthService.isAuthenticated()).toBe(true)
+      const service = new GISAuthService()
+      const signInPromise = service.signIn()
+      const scriptTag = document.querySelector('script[src*="accounts.google.com"]')
+      scriptTag?.dispatchEvent(new Event('error'))
+      await expect(signInPromise).rejects.toMatchObject({
+        code: 'SCRIPT_LOAD_FAILED',
+      })
     })
   })
 

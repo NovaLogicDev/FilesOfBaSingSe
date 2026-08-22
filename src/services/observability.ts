@@ -72,7 +72,7 @@ export class ObservabilityService {
    */
   public static generateReport(
     activeBucket: string = 'gs://partner-raw-master-archives-2026',
-    activeProjectId: string = 'demo-client-media-2026',
+    activeProjectId: string = 'client-media-project-2026',
   ): DiagnosticReport {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'
     let browserEngine: 'Chromium' | 'WebKit' | 'Gecko' | 'Unknown' = 'Unknown'

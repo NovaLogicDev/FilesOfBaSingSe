@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { STUDIO_MASTER_DATASET } from '../../tests/fixtures/mediaDatasets'
 
 // Mock crypto.getRandomValues if not present in jsdom
 if (!globalThis.crypto) {
@@ -177,7 +178,7 @@ globalThis.fetch = async (input: any, init?: any) => {
         name: 'Ba Sing Se Media Downloads',
         projects: [
           {
-            projectId: 'demo-client-media-2026',
+            projectId: 'client-media-project-2026',
             name: 'Client Post Production Studio',
             projectNumber: '891029384712',
             lifecycleState: 'ACTIVE',
@@ -212,6 +213,56 @@ globalThis.fetch = async (input: any, init?: any) => {
         ctrl.close()
       },
     })
+
+    if (url.includes('/o?') || url.endsWith('/o')) {
+      const urlObj = new URL(url)
+      const prefix = urlObj.searchParams.get('prefix') || ''
+      const delimiter = urlObj.searchParams.get('delimiter') || ''
+
+      const prefixesSet = new Set<string>()
+      const matchedItems: any[] = []
+
+      for (const item of STUDIO_MASTER_DATASET) {
+        if (!item.name.startsWith(prefix)) continue
+        const remainder = item.name.slice(prefix.length)
+        if (delimiter && remainder.includes(delimiter)) {
+          const folderName = remainder.slice(0, remainder.indexOf(delimiter) + delimiter.length)
+          prefixesSet.add(prefix + folderName)
+        } else {
+          matchedItems.push({
+            id: item.id,
+            name: item.name,
+            bucket: item.bucket,
+            size: String(item.sizeBytes),
+            contentType: item.contentType,
+            storageClass: item.storageClass,
+            updated: item.updated,
+            crc32c: item.crc32c,
+            etag: item.etag,
+            generation: item.generation || '1721038935129482',
+            timeCreated: item.updated,
+          })
+        }
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          'content-length': '1024',
+          'x-goog-hash': 'crc32c=AAAAAA==',
+          'access-control-allow-origin': '*',
+          'access-control-expose-headers': 'x-goog-hash, Content-Length, Range, ETag',
+        }),
+        body: isMedia ? stream : undefined,
+        json: async () => ({
+          kind: 'storage#objects',
+          prefixes: Array.from(prefixesSet),
+          items: matchedItems,
+        }),
+      } as any
+    }
+
     return {
       ok: true,
       status: 200,
@@ -225,7 +276,14 @@ globalThis.fetch = async (input: any, init?: any) => {
       json: async () => ({
         name: 'partner-raw-master-archives-2026',
         billing: { requesterPays: true },
-        items: [],
+        cors: [
+          {
+            origin: ['*'],
+            method: ['GET', 'HEAD', 'OPTIONS'],
+            responseHeader: ['x-goog-hash', 'Content-Length', 'Range', 'ETag'],
+            maxAgeSeconds: 3600,
+          },
+        ],
       }),
     } as any
   }

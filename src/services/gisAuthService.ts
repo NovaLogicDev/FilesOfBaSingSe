@@ -37,6 +37,7 @@ export class GISAuthService {
   private clientId: string = DEFAULT_CLIENT_ID
   private scopes: string[] = [...GIS_DEFAULT_SCOPES]
   private refreshBufferSeconds: number = 300 // 5 minutes before expiry
+  public userinfoEndpoint: string = 'https://www.googleapis.com/oauth2/v3/userinfo'
 
   // Pending resolver / rejecter for active popup requests
   private pendingAuthResolver: ((session: AuthSession) => void) | null = null
@@ -77,10 +78,6 @@ export class GISAuthService {
     if (typeof window === 'undefined') return
 
     if (window.google?.accounts?.oauth2) {
-      return
-    }
-
-    if (useRuntimeStore.getState().isDemoMode) {
       return
     }
 
@@ -198,14 +195,10 @@ export class GISAuthService {
         ? parseInt(response.expires_in, 10)
         : response.expires_in || 3600
 
-    let userInfo: GoogleUserInfo = {
-      sub: 'google-user',
-      email: 'user@google.com',
-      name: 'Google User',
-    }
+    let userProfile: GoogleUserInfo | null = null
 
     try {
-      userInfo = await this.fetchUserProfile(accessToken)
+      userProfile = await this.fetchUserProfile(accessToken)
     } catch (e) {
       ObservabilityService.warn(
         'AUTH',
@@ -214,9 +207,9 @@ export class GISAuthService {
       )
     }
 
-    const email = userInfo.email || 'user@google.com'
-    const name = userInfo.name || 'Google User'
-    const avatar = userInfo.picture
+    const email = userProfile?.email || 'user@google.com'
+    const name = userProfile?.name || 'Google User'
+    const avatar = userProfile?.picture
 
     // 1. Commit strictly to volatile in-memory store
     useRuntimeStore.getState().setAuth(accessToken, email, name, avatar, expiresIn)
@@ -287,25 +280,11 @@ export class GISAuthService {
   public async signIn(options?: {
     prompt?: string
     selectAccount?: boolean
-    isDemo?: boolean
     hint?: string
   }): Promise<AuthSession> {
-    // Check if demo mode is requested or GIS is absent in demo runtime
-    if (
-      options?.isDemo ||
-      (useRuntimeStore.getState().isDemoMode &&
-        (typeof window === 'undefined' || !window?.google?.accounts?.oauth2))
-    ) {
-      return this.signInDemo()
-    }
-
     try {
       await this.loadGisScript()
     } catch {
-      // If script loading fails and we are in demo environment, fallback to demo
-      if (useRuntimeStore.getState().isDemoMode) {
-        return this.signInDemo()
-      }
       throw {
         code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
         message: 'Could not load Google Identity Services library.',
@@ -346,51 +325,37 @@ export class GISAuthService {
   }
 
   /**
-   * Signs in using synthetic demo credentials (used for sandbox / offline testing).
-   */
-  public signInDemo(): AuthSession {
-    const demoToken = 'demo-oauth-token-ya29-sample'
-    const demoEmail = 'taylor@freelance-edit.com'
-    const demoName = 'Taylor (Colorist)'
-    const demoExpiresIn = 3600
-
-    useRuntimeStore
-      .getState()
-      .setAuth(demoToken, demoEmail, demoName, undefined, demoExpiresIn)
-    useRuntimeStore.getState().setDemoMode(true)
-
-    this.scheduleTokenRefresh(demoExpiresIn)
-
-    ObservabilityService.info('AUTH', 'Demo sandbox credentials initialized', {
-      userEmail: demoEmail,
-    })
-
-    return {
-      accessToken: demoToken,
-      expiresIn: demoExpiresIn,
-      tokenExpiresAt: Date.now() + demoExpiresIn * 1000,
-      userEmail: demoEmail,
-      userName: demoName,
-      userAvatar: undefined,
-      scopes: [...this.scopes],
-    }
-  }
-
-  /**
    * Retrieves Google User Profile metadata via standard OpenID Connect endpoint.
    */
-  public async fetchUserProfile(accessToken: string): Promise<GoogleUserInfo> {
-    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
+  public async fetchUserProfile(accessToken: string): Promise<GoogleUserInfo | null> {
+    try {
+      const res = await fetch(this.userinfoEndpoint, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+      })
 
-    if (!response.ok) {
-      throw new Error(`UserInfo endpoint returned HTTP ${response.status}`)
+      if (!res.ok) {
+        ObservabilityService.warn(
+          'AUTH',
+          `Failed to fetch user profile metadata: HTTP ${res.status}`,
+        )
+        return null
+      }
+
+      const data = await res.json()
+      return {
+        sub: data.sub,
+        email: data.email,
+        name: data.name,
+        picture: data.picture,
+        email_verified: data.email_verified,
+      }
+    } catch (err: any) {
+      ObservabilityService.warn('AUTH', `User profile network error: ${err.message}`)
+      return null
     }
-
-    return (await response.json()) as GoogleUserInfo
   }
 
   /**
@@ -423,13 +388,6 @@ export class GISAuthService {
    * Performs silent token refresh via `prompt: ''` without user interaction.
    */
   public async refreshTokenSilent(): Promise<AuthSession> {
-    if (
-      useRuntimeStore.getState().isDemoMode &&
-      (typeof window === 'undefined' || !window?.google?.accounts?.oauth2)
-    ) {
-      return this.signInDemo()
-    }
-
     const client = this.initTokenClient()
 
     return new Promise<AuthSession>((resolve, reject) => {

@@ -3,7 +3,7 @@ import { screen, fireEvent } from '@testing-library/react'
 import { useRuntimeStore } from '../../src/store/runtimeStore'
 import { usePersistentStore } from '../../src/store/persistentStore'
 import { useToastStore } from '../../src/store/toastStore'
-import { MockGCSService } from '../../src/services/mockGcsService'
+import { gcsClientService } from '../../src/services/gcsClientService'
 import { ObservabilityService } from '../../src/services/observability'
 import { CostGovernanceEngine } from '../../src/engines/cost'
 import { CliGeneratorEngine } from '../../src/engines/cli'
@@ -67,7 +67,8 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
     expect(usePersistentStore.getState().savedProjectId).toBe('project-beta-vfx-2026')
 
     // Run preflight with new project ID
-    const preflight = await MockGCSService.runPreflight(
+    const preflight = await gcsClientService.run4PointPreflight(
+      'ya29.test-token',
       'partner-raw-master-archives-2026',
       usePersistentStore.getState().savedProjectId,
     )
@@ -197,11 +198,11 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
     ObservabilityService.info('STREAM', 'Micro-chunk pipe active')
     const report = ObservabilityService.generateReport(
       'gs://partner-raw-master-archives-2026',
-      'demo-client-media-2026',
+      'client-media-project-2026',
     )
 
     expect(report.heapMemoryMB).toBe(11.4)
-    expect(report.activeProjectIdMasked).toBe('demo***-2026')
+    expect(report.activeProjectIdMasked).toBe('clie***-2026')
     expect(report.recentLogs.length).toBeGreaterThan(0)
     expect(report.activeBucket).toContain('partner-raw-master-archives-2026')
   })
@@ -265,17 +266,5 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
 
     fireEvent.click(themeToggleBtn)
     expect(usePersistentStore.getState().theme).toBe('dark')
-  })
-
-  // 12. Demo mode toggle in Header dispatches info toast
-  it('Pairwise 12: Toggling Demo Mode in Header switches mode and logs event', () => {
-    renderWithProviders(
-      <Header onOpenOnboarding={() => {}} onOpenDiagnostics={() => {}} />,
-    )
-
-    const demoBtn = screen.getByTitle(/toggle between synthetic demo mode/i)
-    fireEvent.click(demoBtn)
-    expect(useRuntimeStore.getState().isDemoMode).toBe(false)
-    expect(useToastStore.getState().toasts.length).toBeGreaterThan(0)
   })
 })

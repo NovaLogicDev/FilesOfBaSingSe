@@ -16,7 +16,6 @@ import {
   FileSystemWritableFileStream,
   SaveFilePickerOptions,
   StreamDownloadOptions,
-  StreamStatus,
   UserCancelledPickerError,
   StreamDownloadError,
 } from '../types/stream'
@@ -24,7 +23,6 @@ import { CRC32cIntegrityEngine } from '../engines/crc32c'
 import { formatDuration, formatSpeed } from '../engines/formatters'
 import { ObservabilityService } from './observability'
 import { gcsClientService } from './gcsClientService'
-import { MockGCSService } from './mockGcsService'
 import { swService } from './swService'
 
 interface ThroughputSample {
@@ -699,46 +697,6 @@ export class StreamDownloadService {
       averageSpeedBytesPerSec: avgSpeed,
       status: 'completed',
       strategy: 'fsaa',
-    }
-  }
-
-  /**
-   * Simulates realistic direct-to-disk micro-chunk streaming for Demo / Sandbox mode.
-   */
-  public async streamDemoDownload(
-    asset: AssetItem | GCSMediaItem,
-    options?: Partial<StreamDownloadOptions>,
-  ): Promise<DownloadResult> {
-    const startTime = performance.now()
-    const progressHolder: { current: DownloadProgressTelemetry | null } = { current: null }
-
-    await MockGCSService.simulateStream(
-      asset as GCSMediaItem,
-      (progress) => {
-        progressHolder.current = progress
-        options?.onProgress?.(progress)
-      },
-      options?.abortSignal,
-    )
-
-    const lastProgress = progressHolder.current
-    const elapsed = Math.max(1, Math.round((performance.now() - startTime) / 1000))
-    const isCancelled = lastProgress?.status === 'cancelled'
-    const success = !isCancelled && (lastProgress?.integrityVerified ?? true)
-
-    return {
-      success,
-      itemId: asset.id,
-      itemName: asset.displayName || asset.name,
-      bytesDownloaded: lastProgress?.loadedBytes || (isCancelled ? 0 : asset.sizeBytes),
-      crc32cBase64: lastProgress?.computedCrc32cBase64 || asset.crc32c || '',
-      crc32cHex: lastProgress?.computedCrc32cHex || asset.crc32cHex || '0x00000000',
-      expectedCrc32c: asset.crc32c,
-      integrityVerified: lastProgress?.integrityVerified ?? !isCancelled,
-      durationSeconds: elapsed,
-      averageSpeedBytesPerSec: isCancelled ? 0 : asset.sizeBytes / elapsed,
-      status: (lastProgress?.status as StreamStatus) || (isCancelled ? 'cancelled' : 'completed'),
-      errorMessage: lastProgress?.errorMessage,
     }
   }
 

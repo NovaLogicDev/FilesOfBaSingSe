@@ -15,7 +15,6 @@ describe('Header - Top Bar State & Neutrality Pre-Sign-In / Pre-Setup', () => {
   it('renders neutral GCS Disconnected state and Connect GCS button when unauthenticated', () => {
     useRuntimeStore.setState({
       oauthToken: null,
-      isDemoMode: false,
     })
 
     renderWithProviders(
@@ -45,7 +44,6 @@ describe('Header - Top Bar State & Neutrality Pre-Sign-In / Pre-Setup', () => {
       oauthToken: 'live-token-123',
       userEmail: 'colorist@post-house.org',
       userName: 'Taylor Colorist',
-      isDemoMode: false,
     })
     usePersistentStore.setState({
       savedProjectId: 'my-color-suite-prod',
@@ -74,27 +72,5 @@ describe('Header - Top Bar State & Neutrality Pre-Sign-In / Pre-Setup', () => {
     expect(screen.getByText('Taylor Colorist')).toBeInTheDocument()
     expect(screen.getByText('colorist@post-house.org')).toBeInTheDocument()
     expect(screen.getByLabelText(/Disconnect Session/i)).toBeInTheDocument()
-  })
-
-  it('renders demo sandbox state when in demo mode', () => {
-    useRuntimeStore.setState({
-      oauthToken: null,
-      isDemoMode: true,
-    })
-
-    renderWithProviders(
-      <Header
-        onOpenOnboarding={() => {}}
-        onOpenDiagnostics={() => {}}
-        onOpenPricingSettings={() => {}}
-        onOpenGcpConfig={() => {}}
-        onBucketSwitch={() => {}}
-        onProjectSwitch={() => {}}
-      />,
-    )
-
-    expect(screen.getByText(/Demo Sandbox/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Switch Active Target Bucket/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Switch Billed GCP Project/i)).toBeInTheDocument()
   })
 })

@@ -1,7 +1,6 @@
 import React from 'react'
 import {
   HardDrive,
-  Sparkles,
   User,
   LogOut,
   Moon,
@@ -39,24 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
     userEmail,
     userName,
     userAvatar,
-    isDemoMode,
-    setDemoMode,
   } = useRuntimeStore()
 
   const { theme, setTheme, setSavedProjectId, setSavedBucketName } = usePersistentStore()
   const { addToast } = useToastStore()
-
-  const handleToggleDemo = () => {
-    const newDemo = !isDemoMode
-    setDemoMode(newDemo)
-    addToast({
-      type: 'info',
-      title: newDemo ? 'Demo Sandbox Active' : 'Live GCS Mode Active',
-      message: newDemo
-        ? 'Using synthetic GCS bucket and simulated transfer pipes.'
-        : 'Connecting directly to Google Cloud Storage endpoints.',
-    })
-  }
 
   const handleToggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
@@ -104,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex p-1">&nbsp;</div>
 
         {/* Active Context Badges & Interactive Switchers */}
-        {oauthToken || isDemoMode ? (
+        {oauthToken ? (
           <div className="hidden lg:flex items-center space-x-3 text-xs p-2">
             <BucketSwitcherPopover
               onBucketSwitch={onBucketSwitch}
@@ -123,20 +108,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls & Profile */}
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Demo Sandbox Mode Toggle */}
-          <button
-            onClick={handleToggleDemo}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-              isDemoMode
-                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Toggle between Synthetic Demo Mode and Live GCP Mode"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{isDemoMode ? 'Demo Sandbox' : 'Live GCS'}</span>
-          </button>
-
           {/* Unified GCP Configuration Center Button */}
           <button
             onClick={onOpenGcpConfig}
@@ -182,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Google Auth / Profile Button */}
-          {oauthToken || isDemoMode ? (
+          {oauthToken ? (
             <div className="flex items-center space-x-2 pl-1 sm:pl-2 border-l border-slate-800">
               <div className="flex items-center space-x-2 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700">
                 {userAvatar ? (
@@ -198,10 +169,10 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
                 <div className="hidden sm:block text-left">
                   <div className="text-xs font-medium text-white leading-tight">
-                    {userName || (isDemoMode ? 'Taylor (Colorist)' : 'Google User')}
+                    {userName || 'Google User'}
                   </div>
                   <div className="text-[10px] text-slate-400 truncate max-w-[110px]">
-                    {userEmail || (isDemoMode ? 'taylor@freelance-edit.com' : 'user@google.com')}
+                    {userEmail || 'user@google.com'}
                   </div>
                 </div>
               </div>

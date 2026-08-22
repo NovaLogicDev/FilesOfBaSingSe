@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ShieldCheck,
-  Sparkles,
   ArrowRight,
   FolderLock,
 } from 'lucide-react'
@@ -28,6 +27,7 @@ import { streamDownloadService, BrowserCapabilityDetector } from '../../services
 import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
 import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
+import { BrowserHistoryRouterEngine } from '../../engines/browserHistoryRouter'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
@@ -47,8 +47,6 @@ export const AppShell: React.FC = () => {
     oauthToken,
     setDownloadProgress,
     setActiveAbortController,
-    isDemoMode,
-    setDemoMode,
     isRestoringSession,
     sessionRestorationError,
   } = useRuntimeStore()
@@ -74,41 +72,46 @@ export const AppShell: React.FC = () => {
   } | null>(null)
 
   const isBatchDownloadingRef = useRef(false)
+  const inFlightDirectoryAbortControllerRef = useRef<AbortController | null>(null)
 
   // Load directory contents
   const loadDirectory = useCallback(
-    async (prefix: string, pageToken?: string) => {
-      // If unauthenticated or unconfigured in Live mode, skip loading
-      if (!isDemoMode && (!oauthToken || !savedBucketName || !savedProjectId)) {
+    async (prefix: string, pageToken?: string, targetBucket?: string) => {
+      const effectiveBucket = targetBucket || savedBucketName
+      // If unauthenticated or unconfigured, skip loading
+      if (!oauthToken || !effectiveBucket || !savedProjectId) {
         setFolders([])
         setFiles([])
         return
       }
 
+      // Abort prior in-flight request if a new navigation occurred
+      if (inFlightDirectoryAbortControllerRef.current) {
+        inFlightDirectoryAbortControllerRef.current.abort()
+      }
+      const abortController = new AbortController()
+      inFlightDirectoryAbortControllerRef.current = abortController
+
       setIsLoadingDirectory(true)
       try {
-        ObservabilityService.info('GCS', `Listing directory prefix: "${prefix}"`)
-        const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
+        ObservabilityService.info('GCS', `Listing directory prefix: "${prefix}" in gs://${effectiveBucket}`)
+        const cleanBucket = gcsClientService.cleanBucketName(effectiveBucket)
 
-        if (isDemoMode) {
-          const res = await gcsClientService.listDemoObjects(prefix)
-          setFolders(res.folders)
-          setFiles(res.files)
-          setCurrentPrefix(prefix)
-          setNextPageToken(res.nextPageToken)
-        } else {
-          const res = await gcsClientService.listObjects(oauthToken!, cleanBucket, {
-            prefix,
-            delimiter: '/',
-            userProject: savedProjectId,
-            pageToken,
-          })
-          setFolders(res.folders)
-          setFiles(res.files)
-          setCurrentPrefix(prefix)
-          setNextPageToken(res.nextPageToken)
-        }
+        const res = await gcsClientService.listObjects(oauthToken, cleanBucket, {
+          prefix,
+          delimiter: '/',
+          userProject: savedProjectId,
+          pageToken,
+          signal: abortController.signal,
+        })
+        setFolders(res.folders)
+        setFiles(res.files)
+        setCurrentPrefix(prefix)
+        setNextPageToken(res.nextPageToken)
       } catch (err: any) {
+        if (err.name === 'AbortError' || abortController.signal.aborted) {
+          return
+        }
         ObservabilityService.error('GCS', `Failed to list directory: ${err.message}`)
         addToast({
           type: 'error',
@@ -116,16 +119,72 @@ export const AppShell: React.FC = () => {
           message: err.message,
         })
       } finally {
-        setIsLoadingDirectory(false)
+        if (inFlightDirectoryAbortControllerRef.current === abortController) {
+          setIsLoadingDirectory(false)
+        }
       }
     },
-    [savedBucketName, savedProjectId, oauthToken, isDemoMode, addToast],
+    [savedBucketName, savedProjectId, oauthToken, addToast],
   )
+
+  // Handle forward navigation from breadcrumb click or folder row click
+  const handleNavigatePrefix = useCallback(
+    (prefix: string) => {
+      if (savedBucketName) {
+        BrowserHistoryRouterEngine.pushNavigation(savedBucketName, prefix)
+      }
+      loadDirectory(prefix)
+    },
+    [savedBucketName, loadDirectory],
+  )
+
+  // Handle browser popstate event (Back/Forward buttons)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const historyState = event.state
+      if (historyState && historyState.bucket) {
+        if (historyState.bucket !== savedBucketName) {
+          setSavedBucketName(historyState.bucket)
+        }
+        loadDirectory(historyState.prefix || '', undefined, historyState.bucket)
+        return
+      }
+
+      const parsed = BrowserHistoryRouterEngine.parseHash(window.location.hash)
+      if (parsed.isValid && parsed.view === 'browse') {
+        if (parsed.bucket && parsed.bucket !== savedBucketName) {
+          setSavedBucketName(parsed.bucket)
+        }
+        loadDirectory(parsed.prefix, undefined, parsed.bucket || savedBucketName)
+      } else if (savedBucketName) {
+        loadDirectory('', undefined, savedBucketName)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [savedBucketName, setSavedBucketName, loadDirectory])
+
+  // Initial boot deep-link hash hydration
+  useEffect(() => {
+    const parsed = BrowserHistoryRouterEngine.parseHash(window.location.hash)
+    if (parsed.isValid && parsed.view === 'browse') {
+      if (parsed.bucket && parsed.bucket !== savedBucketName) {
+        setSavedBucketName(parsed.bucket)
+      }
+      if (parsed.prefix !== currentPrefix) {
+        setCurrentPrefix(parsed.prefix)
+      }
+    } else if (savedBucketName) {
+      BrowserHistoryRouterEngine.replaceNavigation(savedBucketName, currentPrefix)
+    }
+  }, [])
 
   // Boot-time silent session restoration (MOD-10)
   useEffect(() => {
     if (
-      !isDemoMode &&
       !oauthToken &&
       SessionLifecycleEngine.shouldBypassOnboarding(
         hasCompletedOnboarding,
@@ -147,14 +206,15 @@ export const AppShell: React.FC = () => {
 
   useEffect(() => {
     loadDirectory(currentPrefix)
-  }, [loadDirectory, currentPrefix, isDemoMode, oauthToken, savedProjectId, savedBucketName])
+  }, [loadDirectory, currentPrefix, oauthToken, savedProjectId, savedBucketName])
 
   // Handle on-the-fly bucket switch
   const handleBucketSwitch = useCallback(
     (newBucket: string) => {
       setSavedBucketName(newBucket)
       setCurrentPrefix('')
-      loadDirectory('')
+      BrowserHistoryRouterEngine.pushNavigation(newBucket, '', { source: 'bucket_switch' })
+      loadDirectory('', undefined, newBucket)
     },
     [setSavedBucketName, loadDirectory],
   )
@@ -315,58 +375,33 @@ export const AppShell: React.FC = () => {
     const cleanBucket = gcsClientService.cleanBucketName(savedBucketName)
 
     try {
-      if (isDemoMode) {
-        await streamDownloadService.streamDemoDownload(item, {
-          onProgress: (progress) => {
-            const currentToken = useRuntimeStore.getState().oauthToken
-            const currentDemo = useRuntimeStore.getState().isDemoMode
-            if (!currentToken && !currentDemo && progress !== null) return
+      await streamDownloadService.downloadFile(item, {
+        bucketName: cleanBucket,
+        objectName: item.name,
+        suggestedFilename: item.displayName,
+        userProject: savedProjectId,
+        oauthToken: oauthToken || '',
+        expectedCrc32c: item.crc32c,
+        fileSize: item.sizeBytes,
+        onProgress: (progress) => {
+          const currentToken = useRuntimeStore.getState().oauthToken
+          if (!currentToken && progress !== null) return
 
-            setDownloadProgress(progress)
-            if (progress.status === 'completed') {
-              ObservabilityService.info(
-                'STREAM',
-                `Stream completed and CRC32c verified: ${item.displayName}`,
-              )
-              addToast({
-                type: 'success',
-                title: 'Download & Integrity Verified',
-                message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
-              })
-            }
-          },
-          abortSignal: abortController.signal,
-        })
-      } else {
-        await streamDownloadService.downloadFile(item, {
-          bucketName: cleanBucket,
-          objectName: item.name,
-          suggestedFilename: item.displayName,
-          userProject: savedProjectId,
-          oauthToken: oauthToken || '',
-          expectedCrc32c: item.crc32c,
-          fileSize: item.sizeBytes,
-          onProgress: (progress) => {
-            const currentToken = useRuntimeStore.getState().oauthToken
-            const currentDemo = useRuntimeStore.getState().isDemoMode
-            if (!currentToken && !currentDemo && progress !== null) return
-
-            setDownloadProgress(progress)
-            if (progress.status === 'completed') {
-              ObservabilityService.info(
-                'STREAM',
-                `Stream completed and CRC32c verified: ${item.displayName}`,
-              )
-              addToast({
-                type: 'success',
-                title: 'Download & Integrity Verified',
-                message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
-              })
-            }
-          },
-          abortSignal: abortController.signal,
-        })
-      }
+          setDownloadProgress(progress)
+          if (progress.status === 'completed') {
+            ObservabilityService.info(
+              'STREAM',
+              `Stream completed and CRC32c verified: ${item.displayName}`,
+            )
+            addToast({
+              type: 'success',
+              title: 'Download & Integrity Verified',
+              message: `${item.displayName} downloaded. CRC32c checksum match confirmed.`,
+            })
+          }
+        },
+        abortSignal: abortController.signal,
+      })
     } catch (err: any) {
       if (err.name === 'UserCancelledPickerError' || err.name === 'AbortError') {
         ObservabilityService.info('STREAM', `Download cancelled by user: ${item.displayName}`)
@@ -381,7 +416,7 @@ export const AppShell: React.FC = () => {
     }
   }
 
-  const isUnconfiguredLive = !isDemoMode && (!oauthToken || !savedBucketName || !savedProjectId)
+  const isUnconfiguredLive = !oauthToken || !savedBucketName || !savedProjectId
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
@@ -405,38 +440,6 @@ export const AppShell: React.FC = () => {
         onBucketSwitch={handleBucketSwitch}
         onProjectSwitch={handleProjectSwitch}
       />
-
-      {/* Demo Sandbox Mode Sticky Banner Indicator */}
-      {isDemoMode && (
-        <aside
-          aria-label="Sandbox Status"
-          className="bg-emerald-950/80 border-b border-emerald-500/30 px-4 py-2 text-xs flex items-center justify-between text-emerald-200 backdrop-blur-sm"
-        >
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
-            <span className="font-semibold">Demo Sandbox Active</span>
-            <span className="text-emerald-400/80 hidden sm:inline">&bull;</span>
-            <span className="text-emerald-300/80 hidden sm:inline font-mono">
-              Exploring gs://partner-raw-master-archives-2026 with 24 synthetic assets
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setDemoMode(false)
-              addToast({
-                type: 'info',
-                title: 'Live GCS Mode Activated',
-                message: 'Switched to Live Google Cloud Storage mode.',
-              })
-            }}
-            className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] transition-colors cursor-pointer"
-          >
-            Switch to Live GCS
-          </button>
-        </aside>
-      )}
 
       {/* Main Workspace Area */}
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -499,7 +502,7 @@ export const AppShell: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <div className="flex items-center justify-center pt-2">
                 <button
                   type="button"
                   onClick={() => setIsOnboardingOpen(true)}
@@ -508,25 +511,6 @@ export const AppShell: React.FC = () => {
                   <ShieldCheck className="w-5 h-5" />
                   <span>Launch Connection Wizard</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    gisAuthService.signInDemo()
-                    setSavedProjectId('demo-client-media-2026')
-                    setSavedBucketName('gs://partner-raw-master-archives-2026')
-                    setDemoMode(true)
-                    addToast({
-                      type: 'info',
-                      title: 'Demo Sandbox Initialized',
-                      message: 'Exploring 24 cinematic media master files.',
-                    })
-                  }}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center space-x-2 transition-all cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span>Explore Demo Sandbox</span>
                 </button>
               </div>
 
@@ -564,7 +548,7 @@ export const AppShell: React.FC = () => {
             folders={folders}
             files={files}
             nextPageToken={nextPageToken}
-            onNavigatePrefix={(prefix) => loadDirectory(prefix)}
+            onNavigatePrefix={handleNavigatePrefix}
             onLoadNextPage={() => nextPageToken && loadDirectory(currentPrefix, nextPageToken)}
             onInspectAsset={(item) => setInspectedAsset(item)}
             onDownloadAsset={handleInitiateDownload}
@@ -647,19 +631,11 @@ export const AppShell: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-slate-400">Files of Ba Sing Se</span>
-            {isDemoMode ? <>
-              <span>&bull;</span>
-              <span className="font-mono text-emerald-400">
-                Sandbox Mode Active
-              </span>
-            </> : <>
-              <span>&bull;</span>
-              <span className="text-white">&copy;</span>
-              <span className="font-mono text-white">
-                2026 Max Paulson
-              </span>
-            </>
-            }
+            <span>&bull;</span>
+            <span className="text-white">&copy;</span>
+            <span className="font-mono text-white">
+              2026 Max Paulson
+            </span>
           </div>
         </div>
       </footer>
