@@ -20,6 +20,7 @@ import {
   StreamDownloadError,
 } from '../types/stream'
 import { CRC32cIntegrityEngine } from '../engines/crc32c'
+import { OSFileSystemRevealEngine } from '../engines/osFileSystemReveal'
 import { formatDuration, formatSpeed } from '../engines/formatters'
 import { ObservabilityService } from './observability'
 import { gcsClientService } from './gcsClientService'
@@ -656,6 +657,9 @@ export class StreamDownloadService {
     // Commit and close writable file stream on disk
     await writable.close()
 
+    // Synthesize platform-aware OS File Reveal command (Module 12)
+    const revealAction = OSFileSystemRevealEngine.generateRevealAction(itemName)
+
     // Emitting Final Completed Status
     options.onProgress?.({
       itemId,
@@ -677,11 +681,13 @@ export class StreamDownloadService {
       expectedCrc32cBase64: expectedHash,
       integrityVerified,
       fileHandleName: fileHandle?.name,
+      fileHandle,
+      revealAction,
     })
 
     ObservabilityService.info(
       'STREAM',
-      `Stream transfer finished for ${itemName}: CRC32c=${computedCrc32cBase64} (Verified=${integrityVerified})`,
+      `Stream transfer finished for ${itemName}: CRC32c=${computedCrc32cBase64} (Verified=${integrityVerified}) [Reveal: ${revealAction.command}]`,
     )
 
     return {
@@ -697,6 +703,8 @@ export class StreamDownloadService {
       averageSpeedBytesPerSec: avgSpeed,
       status: 'completed',
       strategy: 'fsaa',
+      fileHandle,
+      revealAction,
     }
   }
 

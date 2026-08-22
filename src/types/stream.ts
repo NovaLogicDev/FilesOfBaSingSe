@@ -1,4 +1,5 @@
 import { AssetItem, GCSMediaItem } from './gcs'
+import { LocalFileRevealAction } from './osFileSystem'
 
 /**
  * Discrete lifecycle state of a streaming download task
@@ -89,6 +90,8 @@ export interface DownloadProgressTelemetry {
   integrityVerified?: boolean
   errorMessage?: string
   fileHandleName?: string
+  fileHandle?: FileSystemFileHandle
+  revealAction?: LocalFileRevealAction
 }
 
 export type StreamTelemetry = DownloadProgressTelemetry // Backward-compatible alias
@@ -129,6 +132,8 @@ export interface DownloadResult {
   status: StreamStatus
   strategy?: DownloadStrategy
   errorMessage?: string
+  fileHandle?: FileSystemFileHandle
+  revealAction?: LocalFileRevealAction
 }
 
 export type StreamResult = DownloadResult // Backward-compatible alias

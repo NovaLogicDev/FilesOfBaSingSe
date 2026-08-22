@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { RateCard } from '../types/cost'
+import { DownloadStrategy } from '../types/stream'
 
 export interface PersistentPreferences {
   savedProjectId: string
@@ -13,6 +14,7 @@ export interface PersistentPreferences {
   lastAuthUserEmail: string | null
   lastAuthUserName: string | null
   lastAuthTimestamp: number | null
+  preferredDownloadStrategy: DownloadStrategy | null
 
   setSavedProjectId: (projectId: string) => void
   setSavedBucketName: (bucketName: string) => void
@@ -23,6 +25,7 @@ export interface PersistentPreferences {
   setHasCompletedOnboarding: (completed: boolean) => void
   setLastAuthUserEmail: (email: string | null) => void
   setLastAuthUserName: (name: string | null) => void
+  setPreferredDownloadStrategy: (strategy: DownloadStrategy | null) => void
   resetPreferences: () => void
 }
 
@@ -39,6 +42,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
       lastAuthUserEmail: null,
       lastAuthUserName: null,
       lastAuthTimestamp: null,
+      preferredDownloadStrategy: null,
 
       setSavedProjectId: (projectId) =>
         set({ savedProjectId: projectId.trim() }),
@@ -74,6 +78,9 @@ export const usePersistentStore = create<PersistentPreferences>()(
 
       setLastAuthUserName: (name) => set({ lastAuthUserName: name }),
 
+      setPreferredDownloadStrategy: (strategy) =>
+        set({ preferredDownloadStrategy: strategy }),
+
       resetPreferences: () =>
         set({
           savedProjectId: '',
@@ -86,6 +93,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
           lastAuthUserEmail: null,
           lastAuthUserName: null,
           lastAuthTimestamp: null,
+          preferredDownloadStrategy: null,
         }),
     }),
     {
