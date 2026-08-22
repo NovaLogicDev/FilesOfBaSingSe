@@ -1,0 +1,272 @@
+import React, { useState } from 'react'
+import {
+  X,
+  Copy,
+  Check,
+  Download,
+  Terminal,
+  FileCode,
+  DollarSign,
+  ShieldCheck,
+  Layers,
+} from 'lucide-react'
+import { GCSMediaItem } from '../../types'
+import { CostGovernanceEngine } from '../../engines/cost'
+import { useToastStore } from '../../store/toastStore'
+import { usePersistentStore } from '../../store/persistentStore'
+
+interface AssetInspectorDrawerShellProps {
+  item: GCSMediaItem | null
+  isOpen: boolean
+  onClose: () => void
+  onDownload: (item: GCSMediaItem) => void
+  onGenerateCli: (item: GCSMediaItem) => void
+}
+
+export const AssetInspectorDrawerShell: React.FC<AssetInspectorDrawerShellProps> = ({
+  item,
+  isOpen,
+  onClose,
+  onDownload,
+  onGenerateCli,
+}) => {
+  const { isFreeTrialAccount, savedProjectId } = usePersistentStore()
+  const { addToast } = useToastStore()
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  if (!isOpen || !item) return null
+
+  const cost = CostGovernanceEngine.calculateSingle(
+    item.sizeBytes,
+    item.storageClass,
+    undefined,
+    isFreeTrialAccount,
+  )
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(fieldName)
+      addToast({
+        type: 'success',
+        title: 'Copied to Clipboard',
+        message: `${fieldName} copied.`,
+      })
+      setTimeout(() => setCopiedField(null), 2000)
+    })
+  }
+
+  const handleCopyJson = () => {
+    copyToClipboard(JSON.stringify(item, null, 2), 'Object JSON Metadata')
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Asset Details for ${item.displayName}`}
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
+        <div className="flex items-center space-x-2">
+          <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+            <Layers className="w-4 h-4" />
+          </div>
+          <h3 className="text-sm font-bold text-white truncate max-w-[260px]">
+            {item.displayName}
+          </h3>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+          aria-label="Close drawer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Body Content */}
+      <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        {/* Storage Class & Size Hero */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 font-medium">Storage Class:</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-sky-950 text-sky-400 border border-sky-800/60">
+              {item.storageClass}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 font-medium">Exact Size:</span>
+            <span className="font-mono text-white font-semibold">
+              {item.sizeBytes.toLocaleString()} bytes ({item.formattedSize})
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 font-medium">MIME Content-Type:</span>
+            <span className="font-mono text-slate-300">{item.contentType}</span>
+          </div>
+        </div>
+
+        {/* Itemized Direct Cost Calculation Callout */}
+        <div className="rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 to-slate-950 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5 text-cyan-300 font-bold">
+              <DollarSign className="w-4 h-4" />
+              <span>DIRECT BILLING ESTIMATE</span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono">Billed to: {savedProjectId}</span>
+          </div>
+
+          <div className="space-y-1.5 border-t border-slate-800 pt-2 font-mono text-slate-300">
+            <div className="flex justify-between">
+              <span>Archive Retrieval ($0.05/GB):</span>
+              <span className="text-white">${cost.retrievalTotalUSD.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Google Egress ($0.12/GB):</span>
+              <span className="text-white">${cost.egressTotalUSD.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-slate-800 font-bold text-cyan-300 text-sm">
+              <span>TOTAL ESTIMATE:</span>
+              <span>${cost.grandTotalUSD.toFixed(2)} USD</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Cryptographic Checksums */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>CRYPTOGRAPHIC CHECKSUMS</span>
+            </div>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Verified
+            </span>
+          </div>
+
+          {/* CRC32c Base64 */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-slate-400">
+              <span>CRC32c (Base64):</span>
+              <button
+                onClick={() => copyToClipboard(item.crc32c, 'CRC32c Base64')}
+                className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+              >
+                {copiedField === 'CRC32c Base64' ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+                <span>Copy</span>
+              </button>
+            </div>
+            <div className="p-2 rounded bg-slate-900 font-mono text-white text-[11px] truncate">
+              {item.crc32c}
+            </div>
+          </div>
+
+          {/* CRC32c Hex */}
+          {item.crc32cHex && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-slate-400">
+                <span>CRC32c (Hex):</span>
+                <button
+                  onClick={() => copyToClipboard(item.crc32cHex!, 'CRC32c Hex')}
+                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+                >
+                  {copiedField === 'CRC32c Hex' ? (
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                  <span>Copy</span>
+                </button>
+              </div>
+              <div className="p-2 rounded bg-slate-900 font-mono text-white text-[11px] truncate">
+                {item.crc32cHex}
+              </div>
+            </div>
+          )}
+
+          {/* MD5 Checksum */}
+          {item.md5Hash && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-slate-400">
+                <span>MD5 Hash:</span>
+                <button
+                  onClick={() => copyToClipboard(item.md5Hash!, 'MD5 Hash')}
+                  className="hover:text-emerald-400 flex items-center space-x-1 transition-colors"
+                >
+                  {copiedField === 'MD5 Hash' ? (
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                  <span>Copy</span>
+                </button>
+              </div>
+              <div className="p-2 rounded bg-slate-900 font-mono text-white text-[11px] truncate">
+                {item.md5Hash}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* GCS Object Properties */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 font-mono">
+          <div className="flex justify-between text-slate-400">
+            <span>ETag:</span>
+            <span className="text-white truncate max-w-[200px]">{item.etag}</span>
+          </div>
+          {item.generation && (
+            <div className="flex justify-between text-slate-400">
+              <span>Generation:</span>
+              <span className="text-white">{item.generation}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-slate-400">
+            <span>Updated:</span>
+            <span className="text-white">{item.updated.replace('T', ' ').substring(0, 19)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="p-4 border-t border-slate-800 bg-slate-950/80 space-y-2">
+        <button
+          onClick={() => {
+            onDownload(item)
+            onClose()
+          }}
+          className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950/50"
+        >
+          <Download className="w-4 h-4" />
+          <span>Stream Download to Disk</span>
+        </button>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => {
+              onGenerateCli(item)
+              onClose()
+            }}
+            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1.5 transition-all"
+          >
+            <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Generate CLI</span>
+          </button>
+          <button
+            onClick={handleCopyJson}
+            className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center space-x-1.5 transition-all"
+          >
+            <FileCode className="w-3.5 h-3.5 text-amber-400" />
+            <span>Copy JSON</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
