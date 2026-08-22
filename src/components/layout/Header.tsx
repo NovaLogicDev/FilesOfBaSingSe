@@ -83,21 +83,21 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand & Version */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-950/50 border border-emerald-400/30">
             <HardDrive className="w-5 h-5 text-slate-950" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold tracking-tight text-white text-base sm:text-lg">
+            <div className="flex items-center gap-2">
+              <span className="font-bold leading-tight tracking-tight text-white whitespace-nowrap text-base sm:text-lg">
                 Files of Ba Sing Se
               </span>
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="whitespace-nowrap px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 leading-none">
                 v0.2.0-alpha
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">
-              Zero-Host-Liability GCS Requester-Pays Media Portal
+              Requester-Pays File Distribution Portal
             </p>
           </div>
         </div>
@@ -125,11 +125,10 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Demo Sandbox Mode Switcher */}
           <button
             onClick={handleToggleDemo}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-              isDemoMode
-                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${isDemoMode
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+              : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+              }`}
             title="Toggle between Synthetic Demo Mode and Live GCP Mode"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
