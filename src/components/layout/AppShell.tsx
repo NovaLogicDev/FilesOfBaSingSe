@@ -647,14 +647,20 @@ export const AppShell: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-slate-400">Files of Ba Sing Se</span>
-            <span>&bull;</span>
-            <span>Zero-Backend Media Distribution Portal</span>
-            <span>&bull;</span>
-            <span className="font-mono text-emerald-400">
-              {isDemoMode ? 'Sandbox Active' : 'Live GCP'}
-            </span>
+            {isDemoMode ? <>
+              <span>&bull;</span>
+              <span className="font-mono text-emerald-400">
+                Sandbox Mode Active
+              </span>
+            </> : <>
+              <span>&bull;</span>
+              <span className="text-white">&copy;</span>
+              <span className="font-mono text-white">
+                2026 Max Paulson
+              </span>
+            </>
+            }
           </div>
-          <div>React 19 &bull; TypeScript 5.7 &bull; Vite 6 &bull; Tailwind CSS v4</div>
         </div>
       </footer>
     </div>

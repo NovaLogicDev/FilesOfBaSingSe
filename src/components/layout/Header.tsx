@@ -101,6 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             </p>
           </div>
         </div>
+        <div className="flex p-1">&nbsp;</div>
 
         {/* Active Context Badges & Interactive Switchers */}
         {oauthToken || isDemoMode ? (
