@@ -45,6 +45,8 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     customPricing,
     isFreeTrialAccount,
     hasCompletedOnboarding,
+    preferredDownloadStrategy,
+    setPreferredDownloadStrategy,
     setSavedProjectId,
     setSavedBucketName,
   } = usePersistentStore()
@@ -507,6 +509,81 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
             <p className="text-xs text-slate-400 leading-relaxed font-mono">
               OAuth 2.0 access bearer tokens are held exclusively in volatile RAM and are never written to disk or LocalStorage.
             </p>
+          </div>
+
+          {/* 7. Download Pipeline Strategy & OS Integration (Module 12) */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+              <div className="flex items-center space-x-2">
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  7. Download Pipeline Strategy & OS Integration
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                Module 12
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Configure how media transfers are handled in your browser. Choose between direct-to-disk streaming with OS reveal commands or routing through Chrome&apos;s download shelf.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferredDownloadStrategy('fsaa')
+                  addToast({
+                    type: 'success',
+                    title: 'Strategy Updated',
+                    message: 'Selected: Direct to Disk (FSAA) with OS File Reveal feedback.',
+                  })
+                }}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  preferredDownloadStrategy === 'fsaa' || !preferredDownloadStrategy
+                    ? 'border-emerald-500/60 bg-emerald-950/20 text-white'
+                    : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-xs text-emerald-300">Direct to Disk (FSAA)</span>
+                  {(preferredDownloadStrategy === 'fsaa' || !preferredDownloadStrategy) && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">[Active]</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Prompts OS folder picker, streams direct to disk with constant &lt;15MB RAM, and provides 1-click OS reveal commands (Finder/Explorer/Dolphin).
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferredDownloadStrategy('service_worker')
+                  addToast({
+                    type: 'success',
+                    title: 'Strategy Updated',
+                    message: 'Selected: Chrome Download Manager (Service Worker Stream).',
+                  })
+                }}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  preferredDownloadStrategy === 'service_worker'
+                    ? 'border-purple-500/60 bg-purple-950/20 text-white'
+                    : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-xs text-purple-300">Chrome Download Manager</span>
+                  {preferredDownloadStrategy === 'service_worker' && (
+                    <span className="text-[10px] font-mono text-purple-400 font-bold">[Active]</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Streams via Service Worker interceptor, appearing directly in Chrome&apos;s download tray and <code className="font-mono text-slate-300">chrome://downloads</code> with native &quot;Show in folder&quot;.
+                </p>
+              </button>
+            </div>
           </div>
         </div>
 

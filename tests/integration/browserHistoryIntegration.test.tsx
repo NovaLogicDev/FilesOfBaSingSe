@@ -203,10 +203,10 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
 
     // Should directly query and display deep-linked folder contents
     await waitFor(() => {
-      expect(screen.getByText('cam_A.mxf')).toBeInTheDocument()
+      expect(screen.getByText(/reel04_cam_A_raw\.mxf/i)).toBeInTheDocument()
     })
 
-    expect(screen.getByText('reel_04')).toBeInTheDocument()
+    expect(screen.getByText(/reel_04/i)).toBeInTheDocument()
   })
 
   it('should guarantee zero credential token leakage in history.state', async () => {

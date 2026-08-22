@@ -28,6 +28,7 @@ import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
 import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { BrowserHistoryRouterEngine } from '../../engines/browserHistoryRouter'
+import { OSFileSystemRevealEngine } from '../../engines/osFileSystemReveal'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
@@ -259,6 +260,26 @@ export const AppShell: React.FC = () => {
         e.preventDefault()
         setIsGcpConfigOpen((prev) => !prev)
       }
+
+      // 4. Global OS Reveal shortcut Ctrl+R or Cmd+R when download is complete (Module 12 / AUX-04)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r' && !e.shiftKey) {
+        const { activeDownload } = useRuntimeStore.getState()
+        if (activeDownload && activeDownload.status === 'completed') {
+          e.preventDefault()
+          const revealAction =
+            activeDownload.revealAction ||
+            OSFileSystemRevealEngine.generateRevealAction(activeDownload.itemName)
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            navigator.clipboard.writeText(revealAction.command).then(() => {
+              addToast({
+                type: 'success',
+                title: 'Reveal Command Copied',
+                message: `Copied reveal command for ${revealAction.osMetadata.fileManagerLabel}: ${revealAction.command}`,
+              })
+            })
+          }
+        }
+      }
     }
 
     window.addEventListener('keydown', handleGlobalKeyDown)
@@ -271,6 +292,7 @@ export const AppShell: React.FC = () => {
     isPricingSettingsOpen,
     isDiagnosticsOpen,
     isOnboardingOpen,
+    addToast,
   ])
 
   // Single Item Download Trigger
@@ -336,7 +358,11 @@ export const AppShell: React.FC = () => {
 
   // Execute Stream Download Pipeline
   const executeStreamDownload = async (item: GCSMediaItem) => {
-    const strategy = BrowserCapabilityDetector.resolveStrategy(item.sizeBytes)
+    const { preferredDownloadStrategy } = usePersistentStore.getState()
+    const strategy = BrowserCapabilityDetector.resolveStrategy(
+      item.sizeBytes,
+      preferredDownloadStrategy || undefined,
+    )
 
     // Firefox large asset routing
     if (strategy === 'cli_companion') {

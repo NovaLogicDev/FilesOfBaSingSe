@@ -13,7 +13,12 @@ export class OSFileSystemRevealEngine {
    * Detects client operating system and desktop environment heuristics.
    */
   public static detectOS(customNavigator?: any): OSFileSystemMetadata {
-    const nav = customNavigator || (typeof navigator !== 'undefined' ? navigator : null)
+    const nav =
+      customNavigator !== undefined
+        ? customNavigator
+        : typeof navigator !== 'undefined'
+        ? navigator
+        : null
 
     if (!nav) {
       return {
@@ -22,7 +27,7 @@ export class OSFileSystemRevealEngine {
         fileManager: 'generic',
         fileManagerLabel: 'File Manager',
         iconName: 'folder',
-      };
+      }
     }
 
     const ua = nav.userAgent || ''
