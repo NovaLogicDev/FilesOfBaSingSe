@@ -15,6 +15,7 @@ export interface PersistentPreferences {
   lastAuthUserName: string | null
   lastAuthTimestamp: number | null
   preferredDownloadStrategy: DownloadStrategy | null
+  localDestinationPath: string
 
   setSavedProjectId: (projectId: string) => void
   setSavedBucketName: (bucketName: string) => void
@@ -26,6 +27,7 @@ export interface PersistentPreferences {
   setLastAuthUserEmail: (email: string | null) => void
   setLastAuthUserName: (name: string | null) => void
   setPreferredDownloadStrategy: (strategy: DownloadStrategy | null) => void
+  setLocalDestinationPath: (path: string) => void
   resetPreferences: () => void
 }
 
@@ -43,6 +45,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
       lastAuthUserName: null,
       lastAuthTimestamp: null,
       preferredDownloadStrategy: null,
+      localDestinationPath: '~/Downloads',
 
       setSavedProjectId: (projectId) =>
         set({ savedProjectId: projectId.trim() }),
@@ -81,6 +84,9 @@ export const usePersistentStore = create<PersistentPreferences>()(
       setPreferredDownloadStrategy: (strategy) =>
         set({ preferredDownloadStrategy: strategy }),
 
+      setLocalDestinationPath: (path) =>
+        set({ localDestinationPath: path.trim() || '~/Downloads' }),
+
       resetPreferences: () =>
         set({
           savedProjectId: '',
@@ -94,6 +100,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
           lastAuthUserName: null,
           lastAuthTimestamp: null,
           preferredDownloadStrategy: null,
+          localDestinationPath: '~/Downloads',
         }),
     }),
     {

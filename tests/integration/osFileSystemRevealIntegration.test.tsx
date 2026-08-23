@@ -73,17 +73,17 @@ describe('OS File System Feedback & Reveal Integration Tests (Module 12 / Epic 1
 
       expect(screen.getByText('Saved File Location')).toBeInTheDocument()
       expect(screen.getByText('[✓ Flushed to Disk]')).toBeInTheDocument()
-      expect(screen.getByText('Local Path on Disk:')).toBeInTheDocument()
+      expect(screen.getByText('Canonical Local Path:')).toBeInTheDocument()
 
       // Copy file path
-      const copyBtn = screen.getByRole('button', { name: /Copy Path/i })
+      const copyBtn = screen.getByRole('button', { name: /Copy Full Path/i })
       expect(copyBtn).toBeInTheDocument()
 
       await act(async () => {
         fireEvent.click(copyBtn)
       })
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('reel04_cam_A_raw.mxf')
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('~/Downloads/reel04_cam_A_raw.mxf')
       expect(screen.getByText('Copied')).toBeInTheDocument()
 
       // Inspect disk handle
@@ -186,7 +186,7 @@ describe('OS File System Feedback & Reveal Integration Tests (Module 12 / Epic 1
         fireEvent.keyDown(window, { key: 'r', ctrlKey: true })
       })
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalled()
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('~/Downloads/master_reel.mxf')
     })
   })
 })

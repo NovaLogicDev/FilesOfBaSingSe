@@ -28,7 +28,6 @@ import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
 import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { BrowserHistoryRouterEngine } from '../../engines/browserHistoryRouter'
-import { OSFileSystemRevealEngine } from '../../engines/osFileSystemReveal'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
@@ -261,20 +260,21 @@ export const AppShell: React.FC = () => {
         setIsGcpConfigOpen((prev) => !prev)
       }
 
-      // 4. Global OS Reveal shortcut Ctrl+R or Cmd+R when download is complete (Module 12 / AUX-04)
+      // 4. Global Canonical Path shortcut Ctrl+R or Cmd+R when download is complete (Module 12 / AUX-04)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r' && !e.shiftKey) {
         const { activeDownload } = useRuntimeStore.getState()
+        const { localDestinationPath } = usePersistentStore.getState()
         if (activeDownload && activeDownload.status === 'completed') {
           e.preventDefault()
-          const revealAction =
-            activeDownload.revealAction ||
-            OSFileSystemRevealEngine.generateRevealAction(activeDownload.itemName)
+          const folder = (localDestinationPath || '~/Downloads').replace(/\/+$/, '')
+          const filename = activeDownload.fileHandleName || activeDownload.itemName
+          const canonicalLocation = `${folder}/${filename}`
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
-            navigator.clipboard.writeText(revealAction.command).then(() => {
+            navigator.clipboard.writeText(canonicalLocation).then(() => {
               addToast({
                 type: 'success',
-                title: 'Reveal Command Copied',
-                message: `Copied reveal command for ${revealAction.osMetadata.fileManagerLabel}: ${revealAction.command}`,
+                title: 'Canonical Path Copied',
+                message: `Copied "${canonicalLocation}" to clipboard.`,
               })
             })
           }

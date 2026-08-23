@@ -13,6 +13,7 @@ import {
   Search,
   Settings2,
   FileCheck,
+  Edit2,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
@@ -33,18 +34,26 @@ export const DownloadManagerShell: React.FC = () => {
     savedProjectId,
     preferredDownloadStrategy,
     setPreferredDownloadStrategy,
+    localDestinationPath,
+    setLocalDestinationPath,
   } = usePersistentStore()
   const { addToast } = useToastStore()
 
   const [copiedReveal, setCopiedReveal] = useState(false)
   const [handleInspection, setHandleInspection] = useState<LocalHandleInspectionResult | null>(null)
   const [isInspectingHandle, setIsInspectingHandle] = useState(false)
+  const [isEditingFolder, setIsEditingFolder] = useState(false)
+  const [folderInput, setFolderInput] = useState(localDestinationPath || '~/Downloads')
 
   if (!activeDownload) return null
 
   const isComplete = activeDownload.status === 'completed'
   const isCancelled = activeDownload.status === 'cancelled'
   const isStreaming = activeDownload.status === 'streaming' || activeDownload.status === 'verifying'
+
+  const folder = (localDestinationPath || '~/Downloads').replace(/\/+$/, '')
+  const filename = activeDownload.fileHandleName || activeDownload.itemName
+  const canonicalLocation = `${folder}/${filename}`
 
   const handleInspectDiskHandle = async () => {
     if (!activeDownload.fileHandle) {
@@ -285,31 +294,72 @@ export const DownloadManagerShell: React.FC = () => {
               </span>
             </div>
 
-            {/* Path Display Box */}
-            <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
-              <div className="text-[10px] text-slate-500 font-mono">Local Path on Disk:</div>
-              <div className="font-mono text-xs font-bold text-slate-200 break-all select-all flex items-center justify-between gap-2">
-                <span className="truncate">{activeDownload.fileHandleName || activeDownload.itemName}</span>
+            {/* Canonical Path Display Box */}
+            <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                <span>Canonical Local Path:</span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingFolder((prev) => !prev)}
+                  className="text-cyan-400 hover:text-cyan-300 flex items-center space-x-1 underline cursor-pointer"
+                  title="Configure base destination folder path"
+                >
+                  <Edit2 className="w-2.5 h-2.5" />
+                  <span>{isEditingFolder ? 'Close' : 'Edit Folder'}</span>
+                </button>
+              </div>
+
+              {/* Folder Configuration Input */}
+              {isEditingFolder && (
+                <div className="flex items-center gap-1.5 pt-1 pb-1">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={folderInput}
+                      onChange={(e) => setFolderInput(e.target.value)}
+                      placeholder="e.g. ~/Downloads or /home/user/Footage"
+                      className="w-full px-2 py-1 rounded bg-slate-950 border border-cyan-500/40 text-cyan-200 text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalDestinationPath(folderInput)
+                      setIsEditingFolder(false)
+                      addToast({
+                        type: 'success',
+                        title: 'Destination Path Updated',
+                        message: `Local folder set to "${folderInput}".`,
+                      })
+                    }}
+                    className="px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs cursor-pointer"
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+
+              <div className="font-mono text-xs font-bold text-slate-200 break-all select-all flex items-center justify-between gap-2 bg-slate-950/60 p-2 rounded border border-slate-800/80">
+                <span className="truncate">{canonicalLocation}</span>
                 <button
                   type="button"
                   onClick={async () => {
-                    const pathToCopy = activeDownload.fileHandleName || activeDownload.itemName
                     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                      await navigator.clipboard.writeText(pathToCopy)
+                      await navigator.clipboard.writeText(canonicalLocation)
                       setCopiedReveal(true)
                       setTimeout(() => setCopiedReveal(false), 2500)
                       addToast({
                         type: 'success',
-                        title: 'Path Copied',
-                        message: `Copied "${pathToCopy}" to clipboard.`,
+                        title: 'Canonical Path Copied',
+                        message: `Copied "${canonicalLocation}" to clipboard.`,
                       })
                     }
                   }}
-                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[10px] font-mono flex items-center space-x-1 transition-all cursor-pointer flex-shrink-0"
-                  title="Copy file path"
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 border border-slate-700 text-[10px] font-mono flex items-center space-x-1 transition-all cursor-pointer flex-shrink-0"
+                  title="Copy full canonical file path"
                 >
                   {copiedReveal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedReveal ? 'Copied' : 'Copy Path'}</span>
+                  <span>{copiedReveal ? 'Copied' : 'Copy Full Path'}</span>
                 </button>
               </div>
             </div>
