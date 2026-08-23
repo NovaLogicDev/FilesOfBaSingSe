@@ -57,7 +57,14 @@ export class SwService {
   }
 
   /**
-   * Ensures an active Service Worker controller is controlling the current page.
+   * Returns true if the page is actively controlled by an installed Service Worker.
+   */
+  public isControlled(): boolean {
+    return Boolean(this.isSupported() && navigator.serviceWorker?.controller)
+  }
+
+  /**
+   * Ensures an active Service Worker controller is actively controlling the current page.
    */
   public async ensureActiveController(): Promise<boolean> {
     if (!this.isSupported()) return false
@@ -77,16 +84,16 @@ export class SwService {
       const timer = setTimeout(() => {
         if (!settled) {
           settled = true
-          resolve(Boolean(navigator.serviceWorker.controller || this.registration?.active))
+          resolve(Boolean(navigator.serviceWorker.controller))
         }
-      }, 1000)
+      }, 1500)
 
       const onControllerChange = () => {
         if (!settled) {
           settled = true
           clearTimeout(timer)
           navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-          resolve(true)
+          resolve(Boolean(navigator.serviceWorker.controller))
         }
       }
 

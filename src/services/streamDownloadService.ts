@@ -761,16 +761,20 @@ export class StreamDownloadService {
     const totalBytes = options.fileSize || asset.sizeBytes || 0
 
     const MAX_BLOB_SIZE = 200 * 1024 * 1024 // 200MB
-    // Ensure Service Worker is registered
+    // Ensure Service Worker is registered and actively controlling the page
     const isRegistered = await swService.register()
-    if (!isRegistered) {
+    const isControlled = isRegistered && (await swService.ensureActiveController())
+    if (!isControlled) {
       if (totalBytes < MAX_BLOB_SIZE) {
-        ObservabilityService.warn('STREAM', 'Service Worker unavailable; falling back to memory blob download.')
+        ObservabilityService.warn(
+          'STREAM',
+          'Service Worker controller not yet active on this page; downloading via direct in-memory stream.',
+        )
         return this.downloadFileMemoryBlob(asset, options)
       }
       throw new StreamDownloadError(
         'SW_NOT_AVAILABLE',
-        'Service Worker stream interceptor could not be initialized.',
+        'Service Worker stream interceptor is not yet controlling this tab. Please refresh the page or use CLI Companion.',
         itemId,
       )
     }

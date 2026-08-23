@@ -81,6 +81,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
         } else if (event.source) {
           event.source.postMessage(reply)
         }
+        notifyClients(reply)
       }
       break
     }

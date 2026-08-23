@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { AppShell } from '../../src/components/layout/AppShell'
 import { usePersistentStore } from '../../src/store/persistentStore'
 import { useRuntimeStore } from '../../src/store/runtimeStore'
@@ -82,7 +82,9 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
   })
 
   afterEach(() => {
+    cleanup()
     window.location.hash = ''
+    window.history.replaceState(null, '', '/')
   })
 
   it('should push history state and update URL hash when navigating folders and clicking breadcrumbs', async () => {
