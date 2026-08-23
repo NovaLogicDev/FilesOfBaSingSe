@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "npm run build:sw && vite",
+    "build:sw": "esbuild src/sw/sw.ts --bundle --format=iife --target=es2022 --outfile=public/sw.js",
+    "build": "npm run build:sw && tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
