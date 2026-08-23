@@ -14,6 +14,7 @@ import {
   Search,
   Settings2,
   FileCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
@@ -316,29 +317,42 @@ export const DownloadManagerShell: React.FC = () => {
               {revealAction.command}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCopyRevealCommand}
-                className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40"
+            {/* Direct Clickable Hyperlink & Action Buttons */}
+            <div className="space-y-2">
+              <a
+                href={revealAction.fileUri}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer text-center"
               >
-                {copiedReveal ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedReveal ? 'Command Copied!' : `Copy ${revealAction.osMetadata.fileManagerLabel} Command`}</span>
-              </button>
+                <FolderOpen className="w-4 h-4 flex-shrink-0" />
+                <span>Open in {revealAction.osMetadata.fileManagerLabel}</span>
+                <ExternalLink className="w-3.5 h-3.5 ml-0.5 opacity-80" />
+              </a>
 
-              {activeDownload.fileHandle && (
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleInspectDiskHandle}
-                  disabled={isInspectingHandle}
-                  className="py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer"
-                  title="Inspect local file properties on disk"
+                  onClick={handleCopyRevealCommand}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold text-[11px] flex items-center justify-center space-x-1 transition-all cursor-pointer"
                 >
-                  <Search className="w-3.5 h-3.5" />
-                  <span>Inspect Disk</span>
+                  {copiedReveal ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedReveal ? 'Command Copied!' : `Copy Shell Command`}</span>
                 </button>
-              )}
+
+                {activeDownload.fileHandle && (
+                  <button
+                    type="button"
+                    onClick={handleInspectDiskHandle}
+                    disabled={isInspectingHandle}
+                    className="py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                    title="Inspect local file properties on disk"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Inspect Disk</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Handle Inspection Details Dropdown */}

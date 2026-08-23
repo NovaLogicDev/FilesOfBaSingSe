@@ -76,8 +76,13 @@ describe('OS File System Feedback & Reveal Integration Tests (Module 12 / Epic 1
       expect(screen.getByText('[✓ Flushed to Local Disk]')).toBeInTheDocument()
       expect(screen.getByText(/Reveal in/i)).toBeInTheDocument()
 
+      // Direct clickable hyperlink for Dolphin/OS File Manager (XDG Handler)
+      const directLink = screen.getByRole('link', { name: /Open in/i })
+      expect(directLink).toBeInTheDocument()
+      expect(directLink).toHaveAttribute('href', expect.stringContaining('file://'))
+
       // Copy reveal command
-      const copyBtn = screen.getByRole('button', { name: /Copy .* Command/i })
+      const copyBtn = screen.getByRole('button', { name: /Copy Shell Command/i })
       expect(copyBtn).toBeInTheDocument()
 
       await act(async () => {
