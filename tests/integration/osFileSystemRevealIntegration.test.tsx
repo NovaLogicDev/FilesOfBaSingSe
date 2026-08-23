@@ -71,29 +71,23 @@ describe('OS File System Feedback & Reveal Integration Tests (Module 12 / Epic 1
 
       render(<DownloadManagerShell />)
 
-      expect(screen.getByText('ACTIVE DOWNLOAD MANAGER')).toBeInTheDocument()
-      expect(screen.getByText('reel04_cam_A_raw.mxf')).toBeInTheDocument()
-      expect(screen.getByText('[✓ Flushed to Local Disk]')).toBeInTheDocument()
-      expect(screen.getByText(/Reveal in/i)).toBeInTheDocument()
+      expect(screen.getByText('Saved File Location')).toBeInTheDocument()
+      expect(screen.getByText('[✓ Flushed to Disk]')).toBeInTheDocument()
+      expect(screen.getByText('Local Path on Disk:')).toBeInTheDocument()
 
-      // Direct clickable hyperlink for Dolphin/OS File Manager (XDG Handler)
-      const directLink = screen.getByRole('link', { name: /Open in/i })
-      expect(directLink).toBeInTheDocument()
-      expect(directLink).toHaveAttribute('href', expect.stringContaining('file://'))
-
-      // Copy reveal command
-      const copyBtn = screen.getByRole('button', { name: /Copy Shell Command/i })
+      // Copy file path
+      const copyBtn = screen.getByRole('button', { name: /Copy Path/i })
       expect(copyBtn).toBeInTheDocument()
 
       await act(async () => {
         fireEvent.click(copyBtn)
       })
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalled()
-      expect(screen.getByText('Command Copied!')).toBeInTheDocument()
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('reel04_cam_A_raw.mxf')
+      expect(screen.getByText('Copied')).toBeInTheDocument()
 
       // Inspect disk handle
-      const inspectBtn = screen.getByRole('button', { name: /Inspect Disk/i })
+      const inspectBtn = screen.getByRole('button', { name: /Inspect On-Disk Properties/i })
       await act(async () => {
         fireEvent.click(inspectBtn)
       })

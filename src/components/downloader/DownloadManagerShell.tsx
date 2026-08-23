@@ -8,13 +8,11 @@ import {
   ShieldCheck,
   HardDrive,
   Cpu,
-  FolderOpen,
   Copy,
   Check,
   Search,
   Settings2,
   FileCheck,
-  ExternalLink,
 } from 'lucide-react'
 import { useRuntimeStore } from '../../store/runtimeStore'
 import { usePersistentStore } from '../../store/persistentStore'
@@ -47,31 +45,6 @@ export const DownloadManagerShell: React.FC = () => {
   const isComplete = activeDownload.status === 'completed'
   const isCancelled = activeDownload.status === 'cancelled'
   const isStreaming = activeDownload.status === 'streaming' || activeDownload.status === 'verifying'
-
-  const revealAction =
-    activeDownload.revealAction ||
-    OSFileSystemRevealEngine.generateRevealAction(activeDownload.itemName)
-
-  const handleCopyRevealCommand = async () => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(revealAction.command)
-        setCopiedReveal(true)
-        setTimeout(() => setCopiedReveal(false), 2500)
-        addToast({
-          type: 'success',
-          title: 'Reveal Command Copied',
-          message: `Run in terminal to reveal in ${revealAction.osMetadata.fileManagerLabel}: ${revealAction.command}`,
-        })
-      }
-    } catch {
-      addToast({
-        type: 'info',
-        title: 'Reveal Command',
-        message: revealAction.command,
-      })
-    }
-  }
 
   const handleInspectDiskHandle = async () => {
     if (!activeDownload.fileHandle) {
@@ -297,63 +270,65 @@ export const DownloadManagerShell: React.FC = () => {
           )}
         </div>
 
-        {/* Post-Download OS File Manager Reveal Section (Module 12) */}
+        {/* Post-Download Local File Location & Path Feedback (Module 12) */}
         {isComplete && (
           <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5">
-                <FolderOpen className="w-4 h-4 text-emerald-400" />
+                <HardDrive className="w-4 h-4 text-emerald-400" />
                 <span className="font-semibold text-white text-xs">
-                  Reveal in {revealAction.osMetadata.fileManagerLabel}
+                  Saved File Location
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">
-                [✓ Flushed to Local Disk]
+              <span className="text-[10px] font-mono text-emerald-400">
+                [✓ Flushed to Disk]
               </span>
             </div>
 
-            {/* Command Preview */}
-            <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 font-mono text-[11px] text-slate-300 break-all select-all">
-              {revealAction.command}
-            </div>
-
-            {/* Direct Clickable Hyperlink & Action Buttons */}
-            <div className="space-y-2">
-              <a
-                href={revealAction.fileUri}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer text-center"
-              >
-                <FolderOpen className="w-4 h-4 flex-shrink-0" />
-                <span>Open in {revealAction.osMetadata.fileManagerLabel}</span>
-                <ExternalLink className="w-3.5 h-3.5 ml-0.5 opacity-80" />
-              </a>
-
-              <div className="flex items-center gap-2">
+            {/* Path Display Box */}
+            <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+              <div className="text-[10px] text-slate-500 font-mono">Local Path on Disk:</div>
+              <div className="font-mono text-xs font-bold text-slate-200 break-all select-all flex items-center justify-between gap-2">
+                <span className="truncate">{activeDownload.fileHandleName || activeDownload.itemName}</span>
                 <button
                   type="button"
-                  onClick={handleCopyRevealCommand}
-                  className="flex-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold text-[11px] flex items-center justify-center space-x-1 transition-all cursor-pointer"
+                  onClick={async () => {
+                    const pathToCopy = activeDownload.fileHandleName || activeDownload.itemName
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      await navigator.clipboard.writeText(pathToCopy)
+                      setCopiedReveal(true)
+                      setTimeout(() => setCopiedReveal(false), 2500)
+                      addToast({
+                        type: 'success',
+                        title: 'Path Copied',
+                        message: `Copied "${pathToCopy}" to clipboard.`,
+                      })
+                    }
+                  }}
+                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[10px] font-mono flex items-center space-x-1 transition-all cursor-pointer flex-shrink-0"
+                  title="Copy file path"
                 >
-                  {copiedReveal ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedReveal ? 'Command Copied!' : `Copy Shell Command`}</span>
+                  {copiedReveal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedReveal ? 'Copied' : 'Copy Path'}</span>
                 </button>
-
-                {activeDownload.fileHandle && (
-                  <button
-                    type="button"
-                    onClick={handleInspectDiskHandle}
-                    disabled={isInspectingHandle}
-                    className="py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold flex items-center justify-center space-x-1 transition-colors cursor-pointer"
-                    title="Inspect local file properties on disk"
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>Inspect Disk</span>
-                  </button>
-                )}
               </div>
             </div>
+
+            {/* Secondary Action: Inspect Disk Handle */}
+            {activeDownload.fileHandle && (
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={handleInspectDiskHandle}
+                  disabled={isInspectingHandle}
+                  className="py-1 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                  title="Inspect local file properties on disk"
+                >
+                  <Search className="w-3 h-3" />
+                  <span>Inspect On-Disk Properties</span>
+                </button>
+              </div>
+            )}
 
             {/* Handle Inspection Details Dropdown */}
             {handleInspection && (
@@ -380,7 +355,7 @@ export const DownloadManagerShell: React.FC = () => {
             {/* Chromium direct-to-disk note & Strategy Quick Toggle */}
             <div className="pt-1 border-t border-slate-900 text-[10px] text-slate-400 space-y-1">
               <p className="leading-tight">
-                Chrome direct disk streams bypass <code className="text-slate-300 font-mono">chrome://downloads</code>. Use the command above to open your file manager.
+                Chrome direct disk streams write directly to your local storage location.
               </p>
               <button
                 type="button"
