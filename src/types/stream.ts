@@ -37,13 +37,19 @@ export type SWRegistrationState =
  * Volatile in-memory stream ticket registered with Service Worker
  */
 export interface StreamTicket {
-  bucket: string
-  object: string
+  bucket?: string
+  bucketName?: string
+  object?: string
+  objectName?: string
   userProject: string
-  token: string
+  token?: string
+  oauthToken?: string
   filename: string
   size?: number
+  totalBytes?: number
   expectedCrc32c?: string
+  url?: string
+  streamId?: string
 }
 
 /**
@@ -54,6 +60,39 @@ export interface SwProgressPayload {
   loadedBytes: number
   totalBytes: number
   percentage: number
+  speed?: number
+}
+
+/**
+ * Stream Diagnostics and Checksum Audit information
+ */
+export interface StreamDiagnostics {
+  streamId: string
+  filename: string
+  totalBytes: number
+  formattedSize: string
+  durationSeconds: number
+  averageSpeedMBs: number
+  crc32cHex: string
+  crc32cBase64: string
+  integrityMatch: boolean
+  serviceWorkerActive: boolean
+  downloadLocation: string
+}
+
+/**
+ * Completion payload emitted from Service Worker to window clients
+ */
+export interface SwCompletePayload {
+  type: 'SW_STREAM_COMPLETE'
+  streamId: string
+  loadedBytes: number
+  totalBytes: number
+  crc32cHex?: string
+  crc32cBase64?: string
+  durationSeconds?: number
+  averageSpeedMBs?: number
+  diagnostics?: StreamDiagnostics
 }
 
 /**
@@ -95,6 +134,7 @@ export interface DownloadProgressTelemetry {
 }
 
 export type StreamTelemetry = DownloadProgressTelemetry // Backward-compatible alias
+export type StreamProgress = DownloadProgressTelemetry // Backward-compatible alias
 
 /**
  * Options passed to stream download service

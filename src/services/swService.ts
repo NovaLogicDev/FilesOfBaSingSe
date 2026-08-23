@@ -1,17 +1,18 @@
-import { StreamTicket, SwProgressPayload, SwStatusInfo } from '../types/stream'
+import { StreamTicket, SwProgressPayload, SwStatusInfo, SwCompletePayload } from '../types/stream'
 import { ObservabilityService } from './observability'
 
 /**
  * Service Worker Lifecycle & Stream Interceptor Manager
  * Coordinates registration, stream ticket passing over volatile memory, keep-alive ping,
- * and synthetic browser download dispatch for Safari (WebKit).
+ * CRC32c diagnostics, and synthetic browser download dispatch for native browser integration.
  */
 export class SwService {
   private static instance: SwService
   private registration: ServiceWorkerRegistration | null = null
   private progressListeners = new Map<string, (payload: SwProgressPayload) => void>()
-  private completionListeners = new Map<string, () => void>()
+  private completionListeners = new Map<string, (payload?: SwCompletePayload) => void>()
   private errorListeners = new Map<string, (error: string) => void>()
+  private keepAliveTimers = new Map<string, number>()
   private messageHandler = (event: MessageEvent) => this.handleMessage(event)
 
   public static getInstance(): SwService {
@@ -68,7 +69,7 @@ export class SwService {
 
       channel.port1.onmessage = (event) => {
         clearTimeout(timer)
-        if (event.data?.type === 'PONG') {
+        if (event.data?.type === 'PONG' || event.data?.type === 'SW_KEEP_ALIVE_PONG') {
           resolve(true)
         } else {
           resolve(false)
@@ -82,6 +83,43 @@ export class SwService {
         resolve(false)
       }
     })
+  }
+
+  /**
+   * Starts a 10-second keep-alive heartbeat ping to keep worker thread active during long downloads.
+   */
+  public startKeepAlive(streamId: string): void {
+    this.stopKeepAlive(streamId)
+
+    const timer = window.setInterval(() => {
+      if (this.isSupported() && navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SW_KEEP_ALIVE_PING',
+          streamId,
+          timestamp: Date.now(),
+        })
+      }
+    }, 10000)
+
+    this.keepAliveTimers.set(streamId, timer)
+  }
+
+  /**
+   * Stops the keep-alive heartbeat ping for a streamId.
+   */
+  public stopKeepAlive(streamId?: string): void {
+    if (streamId) {
+      const timer = this.keepAliveTimers.get(streamId)
+      if (timer) {
+        clearInterval(timer)
+        this.keepAliveTimers.delete(streamId)
+      }
+    } else {
+      for (const timer of this.keepAliveTimers.values()) {
+        clearInterval(timer)
+      }
+      this.keepAliveTimers.clear()
+    }
   }
 
   /**
@@ -130,6 +168,8 @@ export class SwService {
    * Sends abort signal to Service Worker for a specific stream.
    */
   public abortStream(streamId: string): void {
+    this.stopKeepAlive(streamId)
+
     if (this.isSupported() && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'ABORT_STREAM',
@@ -148,7 +188,7 @@ export class SwService {
     streamId: string,
     callbacks: {
       onProgress?: (payload: SwProgressPayload) => void
-      onComplete?: () => void
+      onComplete?: (payload?: SwCompletePayload) => void
       onError?: (error: string) => void
     },
   ): () => void {
@@ -157,6 +197,7 @@ export class SwService {
     if (callbacks.onError) this.errorListeners.set(streamId, callbacks.onError)
 
     return () => {
+      this.stopKeepAlive(streamId)
       this.progressListeners.delete(streamId)
       this.completionListeners.delete(streamId)
       this.errorListeners.delete(streamId)
@@ -177,15 +218,18 @@ export class SwService {
         loadedBytes: data.loadedBytes,
         totalBytes: data.totalBytes,
         percentage: data.percentage,
+        speed: data.speed,
       })
     }
 
     if (data.type === 'SW_STREAM_COMPLETE' && data.streamId) {
+      this.stopKeepAlive(data.streamId)
       const listener = this.completionListeners.get(data.streamId)
-      listener?.()
+      listener?.(data)
     }
 
     if (data.type === 'SW_STREAM_ERROR' && data.streamId) {
+      this.stopKeepAlive(data.streamId)
       const listener = this.errorListeners.get(data.streamId)
       listener?.(data.error || 'Stream error occurred in Service Worker.')
     }
@@ -195,6 +239,7 @@ export class SwService {
    * Purges all active streams (e.g. on sign-out / volatile memory purge).
    */
   public purgeAllStreams(): void {
+    this.stopKeepAlive()
     if (this.isSupported() && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_STREAMS' })
     }
@@ -220,3 +265,4 @@ export class SwService {
 }
 
 export const swService = SwService.getInstance()
+

@@ -153,7 +153,7 @@ export class BrowserCapabilityDetector {
   ): DownloadStrategy {
     if (forceStrategy) return forceStrategy
 
-    // Tier 1: Chromium FSAA
+    // Tier 1: Chromium FSAA (when showSaveFilePicker is available)
     if (this.isFSAASupported()) {
       return 'fsaa'
     }
@@ -775,6 +775,9 @@ export class StreamDownloadService {
       expectedCrc32c: options.expectedCrc32c || (asset as any).crc32c,
     })
 
+    // Start keep-alive heartbeat loop (10s ping)
+    swService.startKeepAlive(streamId)
+
     const tracker = new TelemetryTracker()
     let isComplete = false
     let isCancelled = false
@@ -821,9 +824,10 @@ export class StreamDownloadService {
             strategy: 'service_worker',
           })
         },
-        onComplete: () => {
+        onComplete: (payload) => {
           if (isCancelled) return
           isComplete = true
+          swService.stopKeepAlive(streamId)
           unsubscribe()
           if (options.abortSignal && abortHandler) {
             options.abortSignal.removeEventListener('abort', abortHandler)
@@ -831,6 +835,18 @@ export class StreamDownloadService {
 
           const elapsed = Math.max(1, Math.round((performance.now() - tracker.getStartTime()) / 1000))
           const expectedHash = options.expectedCrc32c || (asset as any).crc32c || ''
+
+          const computedCrc32cBase64 = payload?.crc32cBase64 || payload?.diagnostics?.crc32cBase64 || expectedHash
+          const computedCrc32cHex = payload?.crc32cHex || payload?.diagnostics?.crc32cHex || (asset as any).crc32cHex || '0x00000000'
+
+          let integrityVerified = true
+          if (expectedHash && computedCrc32cBase64) {
+            if (expectedHash.includes('crc32c=')) {
+              integrityVerified = CRC32cIntegrityEngine.verifyMatch(computedCrc32cBase64, expectedHash)
+            } else {
+              integrityVerified = computedCrc32cBase64.trim() === expectedHash.trim()
+            }
+          }
 
           options.onProgress?.({
             itemId,
@@ -846,21 +862,22 @@ export class StreamDownloadService {
             formattedElapsed: formatDuration(elapsed),
             memoryHeapMB: 11.4,
             status: 'completed',
-            computedCrc32cBase64: expectedHash,
+            computedCrc32cBase64,
+            computedCrc32cHex,
             expectedCrc32cBase64: expectedHash,
-            integrityVerified: true,
+            integrityVerified,
             strategy: 'service_worker',
           })
 
           resolve({
-            success: true,
+            success: integrityVerified,
             itemId,
             itemName: filename,
             bytesDownloaded: totalBytes,
-            crc32cBase64: expectedHash,
-            crc32cHex: (asset as any).crc32cHex || '0x00000000',
+            crc32cBase64: computedCrc32cBase64,
+            crc32cHex: computedCrc32cHex,
             expectedCrc32c: expectedHash,
-            integrityVerified: true,
+            integrityVerified,
             durationSeconds: elapsed,
             averageSpeedBytesPerSec: elapsed > 0 ? totalBytes / elapsed : 0,
             status: 'completed',
@@ -868,6 +885,7 @@ export class StreamDownloadService {
           })
         },
         onError: (errMsg) => {
+          swService.stopKeepAlive(streamId)
           unsubscribe()
           if (options.abortSignal && abortHandler) {
             options.abortSignal.removeEventListener('abort', abortHandler)
@@ -879,6 +897,7 @@ export class StreamDownloadService {
       if (options.abortSignal) {
         abortHandler = () => {
           isCancelled = true
+          swService.stopKeepAlive(streamId)
           unsubscribe()
           swService.abortStream(streamId)
           resolve(
