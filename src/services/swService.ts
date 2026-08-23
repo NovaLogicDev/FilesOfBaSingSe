@@ -9,6 +9,7 @@ import { ObservabilityService } from './observability'
 export class SwService {
   private static instance: SwService
   private registration: ServiceWorkerRegistration | null = null
+  private registrationPromises = new Map<string, (streamId: string) => void>()
   private progressListeners = new Map<string, (payload: SwProgressPayload) => void>()
   private completionListeners = new Map<string, (payload?: SwCompletePayload) => void>()
   private errorListeners = new Map<string, (error: string) => void>()
@@ -56,10 +57,53 @@ export class SwService {
   }
 
   /**
+   * Ensures an active Service Worker controller is controlling the current page.
+   */
+  public async ensureActiveController(): Promise<boolean> {
+    if (!this.isSupported()) return false
+
+    if (navigator.serviceWorker.controller) {
+      return true
+    }
+
+    await this.register()
+
+    if (navigator.serviceWorker.controller) {
+      return true
+    }
+
+    return new Promise((resolve) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          resolve(Boolean(navigator.serviceWorker.controller || this.registration?.active))
+        }
+      }, 1000)
+
+      const onControllerChange = () => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timer)
+          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+          resolve(true)
+        }
+      }
+
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+    })
+  }
+
+  /**
    * Health-check ping to the active Service Worker via MessageChannel.
    */
   public async ping(): Promise<boolean> {
-    if (!this.isSupported() || !navigator.serviceWorker.controller) {
+    if (!this.isSupported()) {
+      return false
+    }
+
+    const target = navigator.serviceWorker.controller || this.registration?.active
+    if (!target) {
       return false
     }
 
@@ -77,7 +121,7 @@ export class SwService {
       }
 
       try {
-        navigator.serviceWorker.controller!.postMessage({ type: 'PING' }, [channel.port2])
+        target.postMessage({ type: 'PING' }, [channel.port2])
       } catch {
         clearTimeout(timer)
         resolve(false)
@@ -92,8 +136,9 @@ export class SwService {
     this.stopKeepAlive(streamId)
 
     const timer = window.setInterval(() => {
-      if (this.isSupported() && navigator.serviceWorker?.controller) {
-        navigator.serviceWorker.controller.postMessage({
+      const target = navigator.serviceWorker?.controller || this.registration?.active
+      if (this.isSupported() && target) {
+        target.postMessage({
           type: 'SW_KEEP_ALIVE_PING',
           streamId,
           timestamp: Date.now(),
@@ -123,21 +168,46 @@ export class SwService {
   }
 
   /**
-   * Registers a volatile in-memory stream ticket and returns a unique streamId.
+   * Registers a volatile in-memory stream ticket with handshake confirmation.
    * Access tokens are NEVER placed in URLs.
    */
   public async registerStreamTicket(ticket: StreamTicket): Promise<string> {
-    const streamId = `sw_stream_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const streamId = ticket.streamId || `sw_stream_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
-    if (this.isSupported() && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'REGISTER_STREAM',
-        streamId,
-        ticket,
-      })
+    if (!this.isSupported()) {
+      return streamId
     }
 
-    return streamId
+    await this.ensureActiveController()
+
+    const target = navigator.serviceWorker.controller || this.registration?.active
+    if (!target) {
+      return streamId
+    }
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.registrationPromises.delete(streamId)
+        resolve(streamId)
+      }, 500)
+
+      this.registrationPromises.set(streamId, (registeredId) => {
+        clearTimeout(timer)
+        resolve(registeredId)
+      })
+
+      try {
+        target.postMessage({
+          type: 'REGISTER_STREAM',
+          streamId,
+          ticket,
+        })
+      } catch (_) {
+        clearTimeout(timer)
+        this.registrationPromises.delete(streamId)
+        resolve(streamId)
+      }
+    })
   }
 
   /**
@@ -146,13 +216,18 @@ export class SwService {
   public triggerDownload(streamId: string, filename: string): void {
     if (typeof document === 'undefined') return
 
+    let safeFilename = filename
+    try {
+      safeFilename = decodeURIComponent(filename)
+    } catch (_) {}
+
     const downloadUrl = `/api/stream-download?streamId=${encodeURIComponent(
       streamId,
-    )}&filename=${encodeURIComponent(filename)}`
+    )}&filename=${encodeURIComponent(safeFilename)}`
 
     const link = document.createElement('a')
     link.href = downloadUrl
-    link.download = filename
+    link.download = safeFilename
     link.style.display = 'none'
     document.body.appendChild(link)
     link.click()
@@ -170,8 +245,9 @@ export class SwService {
   public abortStream(streamId: string): void {
     this.stopKeepAlive(streamId)
 
-    if (this.isSupported() && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
+    const target = navigator.serviceWorker?.controller || this.registration?.active
+    if (this.isSupported() && target) {
+      target.postMessage({
         type: 'ABORT_STREAM',
         streamId,
       })
@@ -210,6 +286,14 @@ export class SwService {
   private handleMessage(event: MessageEvent): void {
     const data = event.data
     if (!data || typeof data !== 'object') return
+
+    if (data.type === 'STREAM_REGISTERED' && data.streamId) {
+      const resolver = this.registrationPromises.get(data.streamId)
+      if (resolver) {
+        this.registrationPromises.delete(data.streamId)
+        resolver(data.streamId)
+      }
+    }
 
     if (data.type === 'SW_STREAM_PROGRESS' && data.streamId) {
       const listener = this.progressListeners.get(data.streamId)

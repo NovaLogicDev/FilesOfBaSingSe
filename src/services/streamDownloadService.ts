@@ -348,8 +348,13 @@ export class StreamDownloadService {
     }
 
     // Step 3: Initiate direct GCS media stream fetch
+    let decodedObject = cleanObject
+    try {
+      decodedObject = decodeURIComponent(cleanObject)
+    } catch (_) {}
+
     const mediaUrl = `${this.baseUrl}/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(
-      cleanObject,
+      decodedObject,
     )}?alt=media&userProject=${encodeURIComponent(userProject)}`
 
     ObservabilityService.info('STREAM', `Streaming direct from GCS: gs://${cleanBucket}/${cleanObject} (userProject=${userProject})`)
@@ -755,9 +760,14 @@ export class StreamDownloadService {
     const itemId = asset.id || `${cleanBucket}/${cleanObject}`
     const totalBytes = options.fileSize || asset.sizeBytes || 0
 
+    const MAX_BLOB_SIZE = 200 * 1024 * 1024 // 200MB
     // Ensure Service Worker is registered
     const isRegistered = await swService.register()
     if (!isRegistered) {
+      if (totalBytes < MAX_BLOB_SIZE) {
+        ObservabilityService.warn('STREAM', 'Service Worker unavailable; falling back to memory blob download.')
+        return this.downloadFileMemoryBlob(asset, options)
+      }
       throw new StreamDownloadError(
         'SW_NOT_AVAILABLE',
         'Service Worker stream interceptor could not be initialized.',
@@ -765,7 +775,7 @@ export class StreamDownloadService {
       )
     }
 
-    // Register volatile in-memory stream ticket
+    // Register volatile in-memory stream ticket with handshake
     const streamId = await swService.registerStreamTicket({
       bucket: cleanBucket,
       object: cleanObject,
@@ -891,6 +901,26 @@ export class StreamDownloadService {
           if (options.abortSignal && abortHandler) {
             options.abortSignal.removeEventListener('abort', abortHandler)
           }
+
+          const elapsed = Math.max(1, Math.round((performance.now() - tracker.getStartTime()) / 1000))
+          options.onProgress?.({
+            itemId,
+            itemName: filename,
+            loadedBytes: 0,
+            totalBytes,
+            percentage: 0,
+            speedBytesPerSec: 0,
+            formattedSpeed: '0.0 MB/s',
+            etaSeconds: 0,
+            formattedETA: '00s',
+            elapsedSeconds: elapsed,
+            formattedElapsed: formatDuration(elapsed),
+            memoryHeapMB: 11.4,
+            status: 'error',
+            errorMessage: errMsg || 'Stream download failed in Service Worker.',
+            strategy: 'service_worker',
+          })
+
           reject(new StreamDownloadError('SW_STREAM_FAILED', errMsg, itemId))
         },
       })
@@ -985,8 +1015,13 @@ export class StreamDownloadService {
       )
     }
 
+    let decodedObject = cleanObject
+    try {
+      decodedObject = decodeURIComponent(cleanObject)
+    } catch (_) {}
+
     const mediaUrl = `${this.baseUrl}/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(
-      cleanObject,
+      decodedObject,
     )}?alt=media&userProject=${encodeURIComponent(userProject)}`
 
     const tracker = new TelemetryTracker()

@@ -9,6 +9,7 @@
  * - Pass-Through TransformStream with Real-Time Castagnoli CRC32c (0x1EDC6F41) Calculation
  * - Bounded Memory Footprint (<15MB Heap)
  * - Zero-Backend Client Liability (Strict userProject forwarding)
+ * - Comprehensive Error Broadcasting & Safe URL Decoding
  */
 
 const SW_VERSION = 'v2.0.0'
@@ -58,7 +59,7 @@ function formatCRC32c(crc) {
     (uint32 >>> 24) & 0xff,
     (uint32 >>> 16) & 0xff,
     (uint32 >>> 8) & 0xff,
-    uint32 & 0xff
+    uint32 & 0xff,
   ])
   
   let binary = ''
@@ -80,7 +81,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
-// Broadcast helper to notify all window clients of progress/completion
+// Broadcast helper to notify all window clients of progress/completion/errors
 async function notifyClients(message) {
   try {
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
@@ -188,7 +189,7 @@ self.addEventListener('message', (event) => {
     }
 
     case 'CLEAR_STREAMS': {
-      for (const [id, entry] of activeStreams.entries()) {
+      for (const entry of activeStreams.values()) {
         try {
           entry.abortController.abort()
         } catch (_) {}
@@ -274,22 +275,34 @@ async function executeStream(event, url, streamId, defaultFilename) {
   const cleanBucket = bucket.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim()
   const cleanObject = object.replace(/^\/+/, '').trim()
 
+  if (!cleanBucket || !cleanObject || !userProject || !token) {
+    const errorMsg = 'Missing required stream parameters (bucket, object, userProject, token) or unregistered stream ticket.'
+    notifyClients({
+      type: 'SW_STREAM_ERROR',
+      streamId,
+      error: errorMsg,
+    })
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  // Safe object URL encoding (prevent double %20 -> %2520 encoding)
+  let decodedObject = cleanObject
+  try {
+    decodedObject = decodeURIComponent(cleanObject)
+  } catch (_) {}
+  const safeEncodedObject = encodeURIComponent(decodedObject)
+
   let gcsUrl = ticket?.url
   if (!gcsUrl) {
-    if (!cleanBucket || !cleanObject || !userProject || !token) {
-      return new Response(
-        JSON.stringify({
-          error: 'Missing required stream parameters (bucket, object, userProject, token)',
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      )
-    }
     gcsUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(
       cleanBucket,
-    )}/o/${encodeURIComponent(cleanObject)}?alt=media&userProject=${encodeURIComponent(userProject)}`
+    )}/o/${safeEncodedObject}?alt=media&userProject=${encodeURIComponent(userProject)}`
   }
 
   // Forward Range header if present
@@ -313,17 +326,53 @@ async function executeStream(event, url, streamId, defaultFilename) {
     if (fetchErr.name === 'AbortError') {
       return new Response('Stream aborted by client.', { status: 499 })
     }
-    return new Response(`GCS network connection failure: ${fetchErr.message}`, { status: 502 })
+    const errorMsg = `GCS network connection failure: ${fetchErr.message}`
+    notifyClients({
+      type: 'SW_STREAM_ERROR',
+      streamId,
+      error: errorMsg,
+    })
+    if (streamId) {
+      activeStreams.delete(streamId)
+    }
+    return new Response(JSON.stringify({ error: errorMsg }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   if (!gcsResponse.ok) {
-    return new Response(gcsResponse.body, {
+    let errorMsg = `GCS media fetch error (${gcsResponse.status}): ${gcsResponse.statusText}`
+    let errorBody = ''
+    try {
+      errorBody = await gcsResponse.clone().text()
+      const errJson = JSON.parse(errorBody)
+      if (errJson?.error?.message) {
+        errorMsg = errJson.error.message
+      }
+    } catch (_) {}
+
+    notifyClients({
+      type: 'SW_STREAM_ERROR',
+      streamId,
+      error: errorMsg,
       status: gcsResponse.status,
-      statusText: gcsResponse.statusText,
-      headers: {
-        'Content-Type': gcsResponse.headers.get('Content-Type') || 'application/json',
-      },
     })
+
+    if (streamId) {
+      activeStreams.delete(streamId)
+    }
+
+    return new Response(
+      errorBody || gcsResponse.body,
+      {
+        status: gcsResponse.status,
+        statusText: gcsResponse.statusText,
+        headers: {
+          'Content-Type': gcsResponse.headers.get('Content-Type') || 'application/json',
+        },
+      },
+    )
   }
 
   // Construct download response headers
@@ -350,7 +399,8 @@ async function executeStream(event, url, streamId, defaultFilename) {
 
   const contentLength = parseInt(responseHeaders.get('Content-Length') || '0', 10)
   let loadedBytes = 0
-  let lastProgressTime = Date.now()
+  let lastProgressTime = 0
+  let isFirstChunk = true
   let runningCrc32c = 0
   const startTime = Date.now()
 
@@ -367,7 +417,8 @@ async function executeStream(event, url, streamId, defaultFilename) {
         controller.enqueue(chunk)
 
         const now = Date.now()
-        if (now - lastProgressTime > 250 || loadedBytes === contentLength) {
+        if (isFirstChunk || now - lastProgressTime > 250 || loadedBytes === contentLength) {
+          isFirstChunk = false
           const deltaSec = (now - startTime) / 1000
           const speed = deltaSec > 0 ? loadedBytes / deltaSec : 0
           lastProgressTime = now
@@ -381,7 +432,7 @@ async function executeStream(event, url, streamId, defaultFilename) {
             percentage:
               contentLength > 0
                 ? Math.min(100, Math.round((loadedBytes / contentLength) * 100))
-                : 0,
+                : 100,
           })
         }
       },
@@ -436,3 +487,4 @@ async function executeStream(event, url, streamId, defaultFilename) {
     headers: responseHeaders,
   })
 }
+
