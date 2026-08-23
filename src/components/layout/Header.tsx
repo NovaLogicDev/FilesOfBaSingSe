@@ -143,13 +143,19 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={handleToggleTheme}
             className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors cursor-pointer"
-            title={`Current theme: ${theme} (Click to change)`}
+            title={
+              theme === 'dark'
+                ? 'Current theme: dark (Click for light)'
+                : theme === 'light'
+                ? 'Current theme: light (Click for system)'
+                : 'Current theme: system (Click for dark)'
+            }
             aria-label={`Toggle Theme (Current: ${theme})`}
           >
             {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-            ) : theme === 'light' ? (
               <Moon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            ) : theme === 'light' ? (
+              <Sun className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             ) : (
               <Laptop className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             )}

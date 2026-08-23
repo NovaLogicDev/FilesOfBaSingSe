@@ -93,15 +93,15 @@ describe('Header - Top Bar State & Neutrality Pre-Sign-In / Pre-Setup', () => {
     const toggleBtn = screen.getByRole('button', { name: /Toggle Theme/i })
     expect(toggleBtn).toBeInTheDocument()
     expect(toggleBtn).toHaveAttribute('aria-label', 'Toggle Theme (Current: dark)')
-    expect(toggleBtn.querySelector('.lucide-sun')).toBeInTheDocument()
+    expect(toggleBtn.querySelector('.lucide-moon')).toBeInTheDocument()
 
-    // Click 1: dark -> light (displays Moon icon)
+    // Click 1: dark -> light (displays Sun icon)
     fireEvent.click(toggleBtn)
     expect(usePersistentStore.getState().theme).toBe('light')
     expect(document.documentElement.classList.contains('light')).toBe(true)
     expect(document.documentElement.classList.contains('dark')).toBe(false)
     expect(toggleBtn).toHaveAttribute('aria-label', 'Toggle Theme (Current: light)')
-    expect(toggleBtn.querySelector('.lucide-moon')).toBeInTheDocument()
+    expect(toggleBtn.querySelector('.lucide-sun')).toBeInTheDocument()
 
     // Click 2: light -> system (displays Laptop icon)
     fireEvent.click(toggleBtn)
@@ -109,15 +109,16 @@ describe('Header - Top Bar State & Neutrality Pre-Sign-In / Pre-Setup', () => {
     expect(toggleBtn).toHaveAttribute('aria-label', 'Toggle Theme (Current: system)')
     expect(toggleBtn.querySelector('.lucide-laptop')).toBeInTheDocument()
 
-    // Click 3: system -> dark (displays Sun icon)
+    // Click 3: system -> dark (displays Moon icon)
     fireEvent.click(toggleBtn)
     expect(usePersistentStore.getState().theme).toBe('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
     expect(document.documentElement.classList.contains('light')).toBe(false)
     expect(toggleBtn).toHaveAttribute('aria-label', 'Toggle Theme (Current: dark)')
-    expect(toggleBtn.querySelector('.lucide-sun')).toBeInTheDocument()
+    expect(toggleBtn.querySelector('.lucide-moon')).toBeInTheDocument()
   })
 })
+
 
 
 
