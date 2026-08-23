@@ -13,15 +13,15 @@ This directory contains the complete product requirements, user stories, UI wire
 ---
 
 ### 2. Core System Requirements & Interface Specifications
-- **[User Stories Specification](user_stories_specification.md)**: Complete backlog spanning 12 Epics (38 User Stories) and 4 User Personas (Taylor, Alex, Devon, Sam) with Given/When/Then acceptance criteria.
+- **[User Stories Specification](user_stories_specification.md)**: Complete backlog spanning 13 Epics (44 User Stories) and 4 User Personas (Taylor, Alex, Devon, Sam) with Given/When/Then acceptance criteria.
 - **[UI Wireframes & Interface Specification](ui_wireframes_and_interface_specification.md)**: Design system tokens, color palettes, responsive layouts, 9 interface screens, and interactive wireframes with embedded mockups.
 - **[Web & Backend Architecture Requirements](web_and_backend_architecture_requirements.md)**: Formal Zero-Backend / Zero-Host-Liability contract, performance SLAs, client-side routing, and Content Security Policy (CSP).
-- **[System Engines Design Specification](system_engines_design_specification.md)**: Detailed TypeScript contracts and state machines for all 10 primary operational engines.
+- **[System Engines Design Specification](system_engines_design_specification.md)**: Detailed TypeScript contracts and state machines for all 11 primary operational engines.
 - **[Auxiliary & Supporting Components Specification](auxiliary_and_supporting_components_specification.md)**: Specification for Demo Sandbox, Observability, Toast Feedback, Keyboard a11y, Network Resiliency, and Service Worker.
 
 ---
 
-### 3. Modular Deep-Dive Specifications (Modules 1–12)
+### 3. Modular Deep-Dive Specifications (Modules 1–13)
 1. **[Module 1: Authentication & GCP Project Onboarding](module_1_auth_onboarding_design_and_requirements.md)** (`MOD-01-AUTH-ONBOARDING`)
 2. **[Module 2: GCS Explorer & Virtualized Asset Grid](module_2_gcs_explorer_design_and_requirements.md)** (`MOD-02-GCS-EXPLORER`)
 3. **[Module 3: Cost Governance & Real-Time Estimator](module_3_cost_governance_design_and_requirements.md)** (`MOD-03-COST-GOVERNANCE`)
@@ -34,6 +34,7 @@ This directory contains the complete product requirements, user stories, UI wire
 10. **[Module 10: Session Continuity, Silent Token Restoration & Onboarding Bypass](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`)
 11. **[Module 11: Browser History API, URL Synchronization & Deep Linking](module_11_browser_history_and_navigation_routing_design_and_requirements.md)** (`MOD-11-BROWSER-HISTORY-ROUTING`)
 12. **[Module 12: Native Browser Download Integration & Stream Resilience](module_12_os_filesystem_feedback_and_reveal_integration.md)** (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`)
+13. **[Module 13: Dual Bucket Billing Mode & Owner-Pays Consumption](module_13_dual_billing_mode_and_owner_pays_support_specification.md)** (`MOD-13-DUAL-BILLING-MODE`)
 
 ---
 

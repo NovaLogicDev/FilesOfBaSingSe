@@ -41,7 +41,7 @@ flowchart TD
 ### 2. Functional & Non-Functional Requirements
 
 #### Functional Requirements
-- **FR-4.1: Unified Resilient Service Worker Stream Interception**: Intercepts synthetic `/sw-pipe/:streamId/:filename` routes inside `sw.js`, attaching `Authorization: Bearer <TOKEN>` and `?userProject=<PROJECT>` headers to the upstream GCS fetch, and returning a streaming `Response` with `Content-Disposition: attachment; filename="..."` and `Content-Length`.
+- **FR-4.1: Unified Resilient Service Worker Stream Interception**: Intercepts synthetic `/sw-pipe/:streamId/:filename` routes inside `sw.js`, attaching `Authorization: Bearer <TOKEN>` and conditional `?userProject=<PROJECT>` headers (omitted for Owner-Pays buckets) to the upstream GCS fetch, and returning a streaming `Response` with `Content-Disposition: attachment; filename="..."` and `Content-Length`.
 - **FR-4.2: Service Worker Keep-Alive & Lifecycle Management**: Implements an active 10-second heartbeat ping (`SW_KEEP_ALIVE_PING`) between the main thread application and the Service Worker to prevent Chromium/WebKit from terminating the worker thread during long-running 30-minute 50GB transfers.
 - **FR-4.3: Pass-Through `TransformStream` CRC32c Calculation**: Pipes incoming GCS micro-chunks through a `TransformStream` in the Service Worker that calculates a rolling Castagnoli CRC32c hash (`0x1EDC6F41`) on the fly, emitting progress telemetry to the UI and verifying parity against `x-goog-hash` upon stream completion.
 - **FR-4.4: Real-Time Stream Telemetry Dispatch**: Dedicated `MessageChannel` / `BroadcastChannel` emitting transfer metrics every 500ms:
@@ -146,8 +146,9 @@ export interface StreamDownloadOptions {
   objectName: string;
   suggestedFilename: string;
   totalBytes: number;
-  userProject: string;
+  userProject?: string;
   oauthToken: string;
+  billingMode?: 'requester-pays' | 'owner-pays';
   expectedCrc32c?: string;
   onProgress: (progress: DownloadProgressTelemetry) => void;
   abortSignal?: AbortSignal;
@@ -167,14 +168,16 @@ export class ResilientSWStreamEngine {
     const streamId = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const cleanBucket = options.bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '');
     const cleanObject = options.objectName.replace(/^\/+/, '');
-    const gcsUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(cleanObject)}?alt=media&userProject=${encodeURIComponent(options.userProject)}`;
+    const isReqPays = options.billingMode !== 'owner-pays';
+    const projectQuery = isReqPays && options.userProject ? `&userProject=${encodeURIComponent(options.userProject)}` : '';
+    const gcsUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(cleanObject)}?alt=media${projectQuery}`;
 
     const ticket: StreamTicket = {
       streamId,
       url: gcsUrl,
       filename: options.suggestedFilename,
       totalBytes: options.totalBytes,
-      userProject: options.userProject,
+      userProject: options.userProject || '',
       oauthToken: options.oauthToken,
       expectedCrc32c: options.expectedCrc32c,
       createdAt: Date.now()

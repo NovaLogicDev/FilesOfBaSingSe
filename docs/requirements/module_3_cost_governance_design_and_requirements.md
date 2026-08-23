@@ -38,8 +38,9 @@ flowchart LR
 - **FR-3.4**: Dynamic sticky cost notice banner rendered whenever $\ge 1$ items are selected:
   $$\text{Total Cost} = \sum (\text{Bytes}_{\text{Class}} \times \text{Rate}_{\text{Class}} / 10^9) + \sum (\text{Bytes}_{\text{Total}} \times \$0.1200 / 10^9)$$
 - **FR-3.5**: \$300 Free Trial badge indicator reminding eligible users that their estimated charges are covered by Google free credits.
-- **FR-3.6**: High-Cost safety threshold gate: Automatically displays a confirmation modal requiring explicit confirmation if total estimated charge $\ge \$5.00\text{ USD}$ or total transfer volume $\ge 25\text{ GB}$.
+- **FR-3.6**: High-Cost safety threshold gate: Automatically displays a confirmation modal requiring explicit confirmation if total estimated charge $\ge \$5.00\text{ USD}$ or total transfer volume $\ge 25\text{ GB}$ (active on Requester-Pays buckets).
 - **FR-3.7**: Custom Rate Card Override support: Allows enterprise clients to configure discounted contract rates in settings (stored in `localStorage`).
+- **FR-3.8**: Owner-Pays Zero Client Cost Governance: When the active bucket is classified as `owner-pays`, the engine computes client financial liability as **`$0.00 USD`** for all selected assets. The sticky banner indicates owner sponsorship, and dollar-based high-cost safety gates are bypassed.
 
 #### Non-Functional Requirements
 - **NFR-3.1**: Calculation execution latency: **< 5 ms** for selections of up to 5,000 items.
@@ -55,12 +56,15 @@ flowchart LR
 | **`COLDLINE`** | **\$0.0200** | **\$0.1200** | **\$0.1400** | $18.40 \times \$0.1400 = \mathbf{\$2.58}$ | N/A |
 | **`NEARLINE`** | **\$0.0100** | **\$0.1200** | **\$0.1300** | $18.40 \times \$0.1300 = \mathbf{\$2.39}$ | N/A |
 | **`STANDARD`** | **\$0.0000** | **\$0.1200** | **\$0.1200** | N/A | $8.00 \times \$0.1200 = \mathbf{\$0.96}$ |
+| **`OWNER-PAYS`**| **\$0.0000** | **\$0.0000** | **\$0.0000** | $18.40 \times \$0.0000 = \mathbf{\$0.00}$ | $8.00 \times \$0.0000 = \mathbf{\$0.00}$ |
 
 ---
 
 ### 4. TypeScript Interfaces & Data Contracts
 
 ```typescript
+export type BucketBillingMode = 'requester-pays' | 'owner-pays';
+
 export interface RateCard {
   archiveRetrievalPerGB: number;
   coldlineRetrievalPerGB: number;
@@ -87,13 +91,16 @@ export interface CalculatedCostResult {
   grandTotalUSD: number;
   isHighCostThreshold: boolean;
   coveredByFreeTrial: boolean;
+  isOwnerSponsored: boolean;
+  billingMode: BucketBillingMode;
 }
 
 export class CostGovernanceEngine {
   public static calculate(
     items: Array<{ sizeBytes: number; storageClass: string }>,
     rates: RateCard = DEFAULT_GCS_RATES,
-    isFreeTrial: boolean = false
+    isFreeTrial: boolean = false,
+    billingMode: BucketBillingMode = 'requester-pays'
   ): CalculatedCostResult {
     let totalBytes = 0;
     let retrievalTotalUSD = 0;
@@ -118,19 +125,23 @@ export class CostGovernanceEngine {
     }
 
     const totalDecimalGB = totalBytes / 1_000_000_000;
-    const egressTotalUSD = totalDecimalGB * rates.internetEgressPerGB;
-    const grandTotalUSD = retrievalTotalUSD + egressTotalUSD;
+    const isOwnerPays = billingMode === 'owner-pays';
+    const finalRetrievalUSD = isOwnerPays ? 0 : retrievalTotalUSD;
+    const egressTotalUSD = isOwnerPays ? 0 : totalDecimalGB * rates.internetEgressPerGB;
+    const grandTotalUSD = isOwnerPays ? 0 : finalRetrievalUSD + egressTotalUSD;
 
     return {
       totalBytes,
       totalDecimalGB,
       formattedTotalSize: this.formatBytes(totalBytes),
       itemCount: items.length,
-      retrievalTotalUSD: Math.round(retrievalTotalUSD * 100) / 100,
+      retrievalTotalUSD: Math.round(finalRetrievalUSD * 100) / 100,
       egressTotalUSD: Math.round(egressTotalUSD * 100) / 100,
       grandTotalUSD: Math.round(grandTotalUSD * 100) / 100,
-      isHighCostThreshold: grandTotalUSD >= 5.0 || totalDecimalGB >= 25.0,
-      coveredByFreeTrial: isFreeTrial
+      isHighCostThreshold: !isOwnerPays && (grandTotalUSD >= 5.0 || totalDecimalGB >= 25.0),
+      coveredByFreeTrial: isFreeTrial,
+      isOwnerSponsored: isOwnerPays,
+      billingMode
     };
   }
 

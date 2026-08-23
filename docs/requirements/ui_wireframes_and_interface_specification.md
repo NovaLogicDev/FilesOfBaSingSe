@@ -35,9 +35,7 @@ flowchart LR
     end
 ```
 
-### Color & Badge Palette
-
-| UI Element | Dark Mode Token | Light Mode Token | Purpose |
+### Color & Badge Palette| UI Element | Dark Mode Token | Light Mode Token | Purpose |
 | :--- | :--- | :--- | :--- |
 | **App Background** | `#0a0f1d` (`slate-950`) | `#f8fafc` (`slate-50`) | Deep neutral background minimizing eye strain during long editorial sessions. |
 | **Surface & Cards** | `#131b2e` (`slate-900`) | `#ffffff` (`white`) | High-contrast elevated panels with 1px border (`slate-800` / `slate-200`). |
@@ -46,6 +44,8 @@ flowchart LR
 | **`STANDARD` Class Badge** | BG `#064e3b`, Text `#34d399` | BG `#d1fae5`, Text `#065f46` | Hot-tier storage indicator informing users of \$0.00/GB retrieval fee. |
 | **`COLDLINE` Class Badge** | BG `#451a03`, Text `#fbbf24` | BG `#fef3c7`, Text `#92400e` | Cool-tier storage indicator informing users of \$0.02/GB retrieval fee. |
 | **Integrity Verified Badge**| BG `#064e3b`, Text `#6ee7b7` | BG `#dcfce7`, Text `#15803d` | Cryptographic CRC32c hash match indicator. |
+| **`Requester-Pays Enforced`**| BG `#064e3b`, Text `#34d399` | BG `#d1fae5`, Text `#065f46` | Emerald badge with Shield icon indicating client billing attribution. |
+| **`Owner-Pays / Free Egress`**| BG `#082f49`, Text `#38bdf8` | BG `#e0f2fe`, Text `#0369a1` | Sky/Cyan badge with Gift icon indicating zero client egress/retrieval cost. |
 
 ---
 
@@ -79,17 +79,17 @@ flowchart LR
 |  | STEP 3: Target GCS Bucket   |  |  | New to Google Cloud? Google gives all new users $300  |  |  |
 |  |                             |  |  | free credits. This completely covers download fees.  |  |  |
 |  |  Bucket URI:                |  |  | [ 🚀 Open 60s Free Trial Signup ]  [ 🔄 Auto-Detect ]  |  |  |
-|  |  [ gs://partner-raw-master- |  |  +-------------------------------------------------------+  |  |
-|  |    archives-2026          ] |  |  [v] Manual Project ID Override (For IT-managed clients)    |  |
+|  |  [ gs://open-cinematic-     |  |  +-------------------------------------------------------+  |  |
+|  |    assets                 ] |  |  [v] Manual Project ID Override (For IT-managed clients)    |  |
 |  +-----------------------------+  +-------------------------------------------------------------+  |
 |                                                                                                    |
 |  +----------------------------------------------------------------------------------------------+  |
 |  | PREFLIGHT VERIFICATION CHECKLIST:                                                            |  |
 |  | [ OK ] OAuth 2.0 Token Valid (Expires in 58m)             [ OK ] IAM Viewer Role Granted     |  |
-|  | [ OK ] GCS Bucket Reachable & Requester-Pays Active       [ OK ] CORS Preflight Headers OK   |  |
+|  | [ OK ] Billing Mode: Owner-Pays (Zero Client Cost 🎁)      [ OK ] CORS Preflight Headers OK   |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |                                                                                                    |
-|  [ Cancel ]                                                            [ Finish Setup & Enter ]    |
+|  [ Cancel ]                              [ Skip Project Setup (Owner-Pays) ]  [ Finish Setup & Enter ]|
 +----------------------------------------------------------------------------------------------------+
 ```
 
@@ -97,8 +97,10 @@ flowchart LR
 1. **Google Identity Step**: Direct popup OAuth via Google Identity Services (`devstorage.read_only`). Once authenticated, displays user email and avatar.
 2. **Auto-Discovery Dropdown**: Calls Google Cloud Resource Manager API (`cloudresourcemanager.googleapis.com/v1/projects`) in the background. If projects exist, they populate automatically in the dropdown.
 3. **1-Click Auto-Create Media Project**: For users with billing accounts but no project, clicking this button triggers `POST /v1/projects` with `name: "Ba Sing Se Media Downloads"` and automatically enables `storage.googleapis.com` via `serviceusage.googleapis.com`.
-4. **$300 Free Trial Assistant Card**: For brand-new GCP users, provides an inviting card explaining that Google's \$300 credits eliminate out-of-pocket costs, with a direct 1-click link to Google's sign-up and an `[Auto-Detect My Project]` return button.
-5. **Live Preflight Checklist**: Automatically fires a lightweight metadata `GET` request to verify that the project is authorized to incur Requester Pays charges before entering the browser.
+4. **$300 Free Trial Assistant Card**: For brand-new GCP users connecting to Requester-Pays buckets, provides an inviting card explaining that Google's \$300 credits eliminate out-of-pocket costs, with a direct 1-click link to Google's sign-up and an `[Auto-Detect My Project]` return button.
+5. **Dual-Pathway Preflight Checklist & Deferred Mode Detection**: 
+   - **Standard Flow (Bucket entered at Step 3)**: In Step 2, users are provided with an explicit `[ Skip for now (Owner-Sponsored bucket) ]` option. In Step 4, preflight probes the bucket entered at Step 3 without `userProject`. If `Owner-Pays` is detected, Checkpoint 2 renders `[ OK ] Billing Mode: Owner-Pays (Zero Client Cost 🎁)` and completes setup immediately. If `Requester-Pays` is detected and Step 2 was skipped, preflight halts with an actionable notification to configure a project.
+   - **Deep-Linked Flow (Bucket known upfront)**: When launching with a pre-seeded bucket URL, preflight probes the bucket immediately upon Step 1 authentication, automatically bypassing Step 2 if `Owner-Pays` is detected.
 
 ---
 
@@ -118,8 +120,13 @@ flowchart LR
 +----------------------------------------------------------------------------------------------------+
 |                                                                                                    |
 |  +----------------------------------------------------------------------------------------------+  |
+|  | [MODE A: REQUESTER-PAYS ENFORCED]                                                            |  |
 |  | [!] COST ESTIMATE: 3 items selected (42.60 GB Total)                                         |  |
-|  | Archive Retrieval: $2.13 | Egress: $5.11 | Total Estimate: $7.24 USD  [Covered by $300 Credits]|
+|  | Archive Retrieval: $2.13 | Egress: $5.11 | Total Estimate: $7.24 USD  [Covered by $300 Credits]|  |
+|  +----------------------------------------------------------------------------------------------+  |
+|  | [MODE B: OWNER-PAYS / STANDARD SPONSORED]                                                    |  |
+|  | [🎁] OWNER-SPONSORED BUCKET: 3 items selected (42.60 GB Total)                                |  |
+|  | Retrieval: $0.00 | Egress: $0.00 | Total Client Cost: $0.00 USD (Covered by Bucket Owner)     |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |                                                                                                    |
 |  [+ Select All]  [Download Selected (3)]  [Generate CLI Script]   Filter: [Videos v]  Search: [reel] |
@@ -133,6 +140,9 @@ flowchart LR
 |  [ ] metadata_manifest.json   STANDARD          4.20 KB   2026-07-14 12:00    [CRC32c]  [v] [CLI] [i]|
 |                                                                                                    |
 |  Showing 5 of 142 items in this directory                          [Page 1 of 15]  [< Prev] [Next >]|
+|  ------------------------------------------------------------------------------------------------  |
+|  [Requester-Pays Mode]: Requester-Pays Enforced [ShieldCheck 🛡️]                                    |
+|  [Owner-Pays Mode]    : Owner-Pays (Zero Client Cost) [Gift 🎁]                                    |
 +----------------------------------------------------------------------------------------------------+
 ```
 
@@ -141,12 +151,14 @@ flowchart LR
    - Each folder segment is a clickable, focusable button with accessible label (`aria-label="Navigate up to folder..."`). Clicking `feature_films` navigates up one level; clicking `gs://` returns to root.
    - Every breadcrumb click or folder drill-down automatically invokes `history.pushState()` and synchronizes the browser address bar to `#/browse/{bucketName}/{encodedPrefix}` (*Module 11*).
    - Pressing browser **Back** / **Forward** buttons (or `Alt+Left`/`Alt+Right`, `Cmd+[`/`Cmd+]`) dispatches `popstate`, re-rendering the exact historical breadcrumb stack and directory contents in $<16\text{ ms}$ without reloading the page.
-2. **Sticky Cost Notification Banner**:
-   - Calculates in real-time as checkboxes are toggled.
-   - Multiplies `ARCHIVE` bytes by \$0.05/GB, `COLDLINE` by \$0.02/GB, and all bytes by \$0.12/GB egress.
-   - Features a soothing reminder: `[Covered by your $300 Free Credits]` if the user is on a free trial account.
-3. **Virtualized Table & Multi-Selection**: Renders thousands of files at a constant 60 FPS using DOM virtualization.
-4. **Instant Fuzzy Search & Filter Chips**: Filters file rows instantaneously (<50ms) by extension (`.mov`, `.mxf`, `.wav`, `.tar`) or keyword.
+2. **Dual-Mode Sticky Cost Notification Banner**:
+   - In **Requester-Pays Mode**: Multiplies `ARCHIVE` bytes by \$0.05/GB, `COLDLINE` by \$0.02/GB, and all bytes by \$0.12/GB egress. Displays reminder `[Covered by your $300 Free Credits]` if applicable.
+   - In **Owner-Pays Mode**: Renders zero client cost notice ($0.00 Retrieval, $0.00 Egress, Total = $0.00 USD) confirming owner sponsorship.
+3. **Dynamic Table Footer Status Badge**:
+   - In Requester-Pays mode, displays `Requester-Pays Enforced` with `ShieldCheck` icon (emerald green).
+   - In Owner-Pays mode, displays `Owner-Pays (Zero Client Cost)` with `Gift` icon (sky/cyan).
+4. **Virtualized Table & Multi-Selection**: Renders thousands of files at a constant 60 FPS using DOM virtualization.
+5. **Instant Fuzzy Search & Filter Chips**: Filters file rows instantaneously (<50ms) by extension (`.mov`, `.mxf`, `.wav`, `.tar`) or keyword.r keyword.
 
 ---
 
@@ -174,10 +186,14 @@ flowchart LR
 |                                                                |  |                                |
 |                                                                |  | +----------------------------+ |
 |                                                                |  | | ITEM COST BREAKDOWN        | |
+|                                                                |  | | [Requester-Pays Mode]:     | |
 |                                                                |  | | • Retrieval Fee:     $0.92 | |
 |                                                                |  | | • Egress Fee:        $2.21 | |
-|                                                                |  | | -------------------------- | |
 |                                                                |  | | TOTAL ESTIMATE:      $3.13 | |
+|                                                                |  | | -------------------------- | |
+|                                                                |  | | [Owner-Pays Mode]:         | |
+|                                                                |  | | • Client Charge:     $0.00 | |
+|                                                                |  | | (Owner-Sponsored Bucket)   | |
 |                                                                |  | +----------------------------+ |
 |                                                                |  |                                |
 |                                                                |  | [ Stream Download to Local ]  |
@@ -200,7 +216,7 @@ flowchart LR
 1. **Asset Inspector Drawer**:
    - Slides smoothly from the right viewport edge (380px fixed width).
    - Displays cryptographic checksums with 1-click copy buttons.
-   - Shows itemized single-file cost calculation.
+   - Shows itemized single-file cost calculation (live GCP rates in Requester-Pays mode, or $0.00 Owner-Sponsored in Owner-Pays mode).
 2. **Floating Download Manager**:
    - Fixed position at the bottom-right corner of the viewport (z-index: 50).
    - Shows continuous 4MB micro-chunk stream piping progress via Resilient Service Worker Stream Interceptor with native browser download manager logging (`chrome://downloads`).
@@ -226,12 +242,16 @@ flowchart LR
 |  +----------------------------------------------------------------------------------------------+  |
 |  | $ multi-threaded high-performance transfer command:                                          |  |
 |  |                                                                                              |  |
+|  | [MODE A: REQUESTER-PAYS BUCKET (Includes --billing-project)]                                 |  |
 |  | gcloud storage cp \                                                                          |  |
 |  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf \         |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf \         |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov \       |  |
 |  |   ./destination_folder/ \                                                                    |  |
 |  |   --billing-project=client-prod-media-2026                                                   |  |
+|  |                                                                                              |  |
+|  | [MODE B: OWNER-PAYS BUCKET (Clean Command - No Project Required)]                            |  |
+|  | gcloud storage cp \                                                                          |  |
+|  |   gs://open-cinematic-assets/feature_films/reel_04/reel04_cam_A_raw.mxf \                    |  |
+|  |   ./destination_folder/                                                                      |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |  [ Copy Command to Clipboard ]                                                                     |
 |                                                                                                    |
@@ -245,7 +265,9 @@ flowchart LR
 
 ### Behavioral Specifications
 1. **Tabs**: Switches between modern `gcloud storage cp` (recommended) and legacy `gsutil -m cp`.
-2. **Pre-Populated Parameters**: Automatically inserts all checked file URIs and appends `--billing-project={userProject}`.
+2. **Adaptive Pre-Populated Parameters**:
+   - For **Requester-Pays buckets**: Automatically inserts `--billing-project={userProject}` (or `-u {userProject}`).
+   - For **Owner-Pays buckets**: Generates clean standard commands **omitting** billing flags.
 3. **1-Click Copy**: Copies full multi-line shell script to clipboard with instantaneous visual checkmark feedback.
 4. **Firefox Graceful Degradation**: If Mozilla Firefox is detected, the UI explains why browser streaming is restricted (>200MB) and automatically surfaces this modal for instantaneous copy-pasting.
 
@@ -274,8 +296,6 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ---
 
----
-
 ## 7. Screen 5: Post-Setup Bucket Switcher & Project Switcher Popovers
 
 **Trigger**: Clicking the Header bucket badge, project badge, or Breadcrumb root segment (`gs://[bucket-name] ▾`).
@@ -285,12 +305,12 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 | [Layers] gs://partner-raw-master-archives-2026 [▾]                      |
 +-------------------------------------------------------------------------+
 | CONNECTED BUCKET                                                        |
-| ● gs://partner-raw-master-archives-2026 (Active)                        |
+| ● gs://partner-raw-master-archives-2026 [Requester-Pays 🛡️] (Active)   |
 |                                                                         |
 | RECENT BUCKETS                                                          |
-| ↳ gs://avatar-fire-nation-stems-2026                 [ Switch ]         |
-| ↳ gs://ba-sing-se-vfx-vault                          [ Switch ]         |
-| ↳ gs://dailies-reel-05-archive                       [ Switch ]         |
+| ↳ gs://open-cinematic-assets             [Owner-Pays 🎁]    [ Switch ]  |
+| ↳ gs://avatar-fire-nation-stems-2026     [Requester-Pays 🛡️] [ Switch ]  |
+| ↳ gs://ba-sing-se-vfx-vault              [Requester-Pays 🛡️] [ Switch ]  |
 |                                                                         |
 | CONNECT ANOTHER BUCKET                                                  |
 | [ gs://new-production-bucket-2026           ]        [ Connect ]        |
@@ -319,15 +339,15 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 |  [ Switch Account ]     [ Refresh Token ]            [ Switch Project ]               |
 |                                                                                       |
 |  [ 3. TARGET GCS BUCKET ]                            [ 4. COST & RATE CARD ]          |
-|  Bucket: gs://partner-raw-master-archives-2026       Archive: $0.05/GB                |
-|  Region: US Multi-Region                             Coldline: $0.02/GB | Egress: $0.12|
-|  Requester-Pays: Enforced ●                          Contract: Standard GCP Rates     |
+|  Bucket: gs://open-cinematic-assets                  Billing Mode: Owner-Pays 🎁      |
+|  Region: US Multi-Region                             Client Cost: $0.00 / GB (Free)   |
+|  Mode: Owner-Pays (Standard / Sponsored) 🎁          Contract: Owner-Sponsored        |
 |  CORS Headers: x-goog-hash, Content-Length Exposed   Free Trial Credit: Active ($300) |
 |  [ Switch Bucket ]      [ Quick Preflight ]          [ Edit Rates ]                   |
 |                                                                                       |
 |  -----------------------------------------------------------------------------------  |
 |  4-POINT PREFLIGHT HEALTH MATRIX:                                                     |
-|  [✓] 1. OAuth 2.0 Token (>60s)        [✓] 2. Requester-Pays Enforced                  |
+|  [✓] 1. OAuth 2.0 Token (>60s)        [✓] 2. Billing Mode: Owner-Pays 🎁 (Zero Cost)  |
 |  [✓] 3. IAM Object Viewer Granted     [✓] 4. CORS Preflight Headers OK                |
 |                                                                                       |
 |  STORAGE BOUNDARY AUDIT: [ Clean (0 Leaked Tokens) ]                                  |
@@ -448,7 +468,7 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 |  | [ 🔍 Inspect Stream Diagnostics ]                       [ 📂 Download Another File ]          |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |                                                                                                    |
-|  Status: Billed to client-prod-media-2026 ($3.13 USD)                                 [ Dismiss ]  |
+|  Status: [Req-Pays]: Billed to client-prod ($3.13 USD) | [Owner-Pays]: Owner-Sponsored ($0.00 USD) |
 +----------------------------------------------------------------------------------------------------+
 ```
 

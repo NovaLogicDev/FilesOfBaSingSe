@@ -30,22 +30,34 @@ flowchart LR
 #### Functional Requirements
 - **FR-7.1**: Modern Google Cloud CLI (`gcloud storage cp`) multi-line command formatting:
   ```bash
+  # Requester-Pays Bucket:
   gcloud storage cp \
     gs://BUCKET/path/to/file1.mxf \
     gs://BUCKET/path/to/file2.mxf \
     ./destination_folder/ \
     --billing-project=CLIENT_PROJECT_ID
+
+  # Owner-Pays Bucket:
+  gcloud storage cp \
+    gs://OWNER_BUCKET/path/to/file1.mxf \
+    ./destination_folder/
   ```
 - **FR-7.2**: Legacy `gsutil` multi-threaded script formatting:
   ```bash
+  # Requester-Pays Bucket:
   gsutil -u CLIENT_PROJECT_ID -m cp \
     gs://BUCKET/path/to/file1.mxf \
-    gs://BUCKET/path/to/file2.mxf \
+    ./destination_folder/
+
+  # Owner-Pays Bucket:
+  gsutil -m cp \
+    gs://OWNER_BUCKET/path/to/file1.mxf \
     ./destination_folder/
   ```
 - **FR-7.3**: Whole-Folder recursive command generation: when a folder is selected, automatically appends recursive flags (`-r`).
 - **FR-7.4**: 1-Click "Copy Command to Clipboard" button with instantaneous visual toast confirmation.
 - **FR-7.5**: Mozilla Firefox Detection & Routing: automatically presents the CLI generator modal when Firefox users attempt to download files $>200\text{ MB}$, accompanied by a clear explanatory banner.
+- **FR-7.6**: Adaptive Billing Flag Injection: The command formatter dynamically inspects `activeBucketBillingMode`. When in Owner-Pays mode, billing flags (`--billing-project`, `-u`) are omitted to produce clean terminal scripts that do not require project configuration.
 
 #### Non-Functional Requirements
 - **NFR-7.1**: Shell Escaping: All object keys containing spaces or special characters are safely escaped for macOS/Linux `zsh`/`bash` and Windows PowerShell.

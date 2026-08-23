@@ -37,12 +37,15 @@ flowchart TD
 - **FR-1.3**: 1-click automated project creation (`basingse-media-dl-XXXX`) via `POST /v1/projects` with automated `storage.googleapis.com` enablement via Service Usage API.
 - **FR-1.4**: \$300 Free Trial visual assistant card for clients with zero prior GCP experience, deep-linking to `https://console.cloud.google.com/freetrial` and providing an instant `[Auto-Detect My Project]` return trigger.
 - **FR-1.5**: Billing linkage validation via `GET https://cloudbilling.googleapis.com/v1/projects/{projectId}/billingInfo` ensuring `billingEnabled == true`.
-- **FR-1.6**: 4-point Preflight handshake executing a lightweight `GET /storage/v1/b/{bucket}?userProject={projectId}` to verify:
+- **FR-1.6**: 4-point Preflight handshake executing probe requests against `GET /storage/v1/b/{bucket}` to auto-detect billing mode:
   1. OAuth token validity & expiration timer.
-  2. Bucket reachability & Requester-Pays enforcement.
+  2. Bucket reachability & Billing Mode classification (`Requester-Pays Enforced` vs `Owner-Pays / Free Egress`).
   3. IAM `roles/storage.objectViewer` permission.
   4. CORS preflight exposure headers (`x-goog-hash`, `Content-Length`, `Range`, `ETag`).
-- **FR-1.7**: Automated Onboarding Bypass for Returning Users: When an authenticated session is established (via interactive sign-in or silent token restoration) and the system verifies that `hasCompletedOnboarding === true` with valid `savedProjectId` and `savedBucketName`, the system shall bypass the 4-step wizard entirely and route the user directly to the active media workspace (`AssetExplorer`) with background preflight verification.
+- **FR-1.7**: Automated Onboarding Bypass for Returning Users: When an authenticated session is established (via interactive sign-in or silent token restoration) and the system verifies that `hasCompletedOnboarding === true` with valid `savedBucketName` (and `savedProjectId` if in Requester-Pays mode), the system shall bypass the 4-step wizard entirely and route the user directly to the active media workspace (`AssetExplorer`) with background preflight verification.
+- **FR-1.8**: Owner-Pays Onboarding Fast-Track & Deferred Detection:
+  - **Standard Flow**: In Step 2 (Project Setup), the UI provides an option to skip project setup (`[ Skip for now (I am connecting to an Owner-Sponsored bucket) ]`). In Step 3, the user enters the bucket. In Step 4 Preflight, the bucket is probed without `userProject`. If detected as `owner-pays`, the user enters the workspace without project configuration ($0.00 cost). If detected as `requester-pays` and the user had skipped Step 2, preflight prompts them with a 1-click action: `[ Return to Step 2: Configure Project ]`.
+  - **Deep-Link / Seeded Flow**: When the target bucket is known at the outset (via deep link `#/browse/{bucket}`), preflight probes the bucket immediately upon Step 1 authentication. If `owner-pays`, Step 2 is automatically bypassed, taking the user directly into Step 4/workspace.
 
 #### Non-Functional Requirements & Security Constraints
 - **NFR-1.1**: OAuth access tokens **MUST NEVER** be written to `localStorage`, `sessionStorage`, or cookies. Tokens reside strictly in volatile closure memory (`Zustand`).
@@ -71,33 +74,40 @@ sequenceDiagram
     Client->>GIS: Grants Consent
     GIS-->>UI: Returns Access Token (Stored in volatile RAM)
 
-    UI->>PStore: Check { hasCompletedOnboarding, savedProjectId, savedBucketName }
+    UI->>PStore: Check { hasCompletedOnboarding, savedProjectId, savedBucketName, activeBucketBillingMode }
     alt Returning User (hasCompletedOnboarding == true & Config Present)
-        PStore-->>UI: Existing Project & Bucket Found
+        PStore-->>UI: Existing Bucket & Mode Found
         UI->>GCS: Background 4-Point Preflight Handshake
-        GCS-->>UI: HTTP 200 OK (Requester-Pays & IAM OK)
+        GCS-->>UI: HTTP 200 OK (Billing Mode & IAM OK)
         UI-->>Client: DIRECT WORKSPACE LANDING (Bypasses Wizard Steps 1-4)
-    else First-Time User (New Setup Required)
+    else First-Time User (Standard Unseeded Flow)
+        Note over UI,Client: Step 2: GCP Project Setup (or Skip for Owner-Pays)
         UI->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
-        alt Existing Projects Found
-            CRM-->>UI: Returns Project List
-            UI->>Client: Auto-populates Project Dropdown (Step 2)
-        else Zero Projects Found (New User)
-            CRM-->>UI: Empty Project List
-            UI->>Client: Displays "$300 Free Trial Assistant" & "1-Click Auto-Create"
-            Client->>UI: Clicks "1-Click Auto-Create"
-            UI->>CRM: POST /v1/projects { projectId: 'basingse-media-dl-9821' }
-            CRM-->>UI: Project Created OK
-            UI->>SU: POST /v1/projects/.../services/storage.googleapis.com:enable
-            SU-->>UI: Storage API Enabled OK
+        alt User Selects / Auto-Creates Project
+            CRM-->>UI: Projects Found or Auto-Created via POST /v1/projects
+            UI->>CB: Verify Billing Active
+            UI->>Client: Step 2 Complete (Project Selected)
+        else User Clicks "Skip for Owner-Sponsored Bucket"
+            UI->>Client: Step 2 Skipped (projectId = null)
         end
 
-        UI->>CB: GET /v1/projects/{projectId}/billingInfo
-        CB-->>UI: { billingEnabled: true }
+        Note over UI,Client: Step 3: Target GCS Bucket Input
+        Client->>UI: Inputs Target Bucket "gs://TARGET_BUCKET"
 
-        UI->>GCS: GET /storage/v1/b/TARGET_BUCKET?userProject={projectId}
-        GCS-->>UI: HTTP 200 OK (Requester-Pays & IAM OK)
-        UI->>Client: Displays 4 Green Checkmarks & "Enter Media Portal" Button
+        Note over UI,GCS: Step 4: 4-Point Preflight Handshake & Detection
+        UI->>GCS: Probe GET /storage/v1/b/TARGET_BUCKET (No userProject)
+        alt Bucket is Owner-Pays (HTTP 200 OK & requesterPays == false)
+            GCS-->>UI: HTTP 200 OK (Owner-Sponsored Detected)
+            UI->>Client: All 4 Checks Green ($0.00 Client Cost) -> "Enter Media Portal"
+        else Bucket is Requester-Pays (HTTP 400 UserProjectMissing)
+            alt User Configured Project in Step 2
+                UI->>GCS: GET /storage/v1/b/TARGET_BUCKET?userProject={projectId}
+                GCS-->>UI: HTTP 200 OK (Requester-Pays Validated)
+                UI->>Client: All 4 Checks Green (Billed to {projectId}) -> "Enter Media Portal"
+            else User Skipped Step 2
+                UI->>Client: Halts: "Requester-Pays Enforced — Project Required" -> [Return to Step 2]
+            end
+        end
         Client->>UI: Clicks "Enter Media Portal" -> Sets hasCompletedOnboarding = true
     end
 ```
@@ -107,6 +117,8 @@ sequenceDiagram
 ### 4. TypeScript Interfaces & Data Contracts
 
 ```typescript
+export type BucketBillingMode = 'requester-pays' | 'owner-pays';
+
 export interface GCPProject {
   projectId: string;
   name: string;
@@ -124,6 +136,7 @@ export interface PreflightCheckResult {
   oauthTokenValid: boolean;
   oauthExpiresInSeconds: number;
   bucketReachable: boolean;
+  billingMode: BucketBillingMode;
   requesterPaysActive: boolean;
   iamViewerGranted: boolean;
   corsConfigured: boolean;
@@ -138,6 +151,7 @@ export interface OnboardingState {
   userAvatar: string | null;
   discoveredProjects: GCPProject[];
   selectedProjectId: string;
+  billingMode: BucketBillingMode;
   targetBucket: string;
   preflight: PreflightCheckResult | null;
   isLoading: boolean;

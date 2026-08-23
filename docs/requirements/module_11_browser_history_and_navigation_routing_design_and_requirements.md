@@ -90,6 +90,9 @@ flowchart TD
 - **FR-11.7 (Non-Disruption of Active Streams & Floating Widgets)**:
   - Navigating through browser history or clicking breadcrumbs shall **NEVER** interrupt or abort background file downloads managed by `DownloadManagerShell`. Active stream handles remain anchored in `useRuntimeStore`.
 
+- **FR-11.8 (Mixed-Mode History State Transition & Billing Sync)**:
+  - When browser history traversal crosses bucket boundaries between Requester-Pays and Owner-Pays buckets, the router shall seamlessly synchronize `activeBucketBillingMode`, updating the Cost Banner, Footer Badge, and GCS fetch parameters in $<16\text{ ms}$.
+
 #### Non-Functional Requirements (NFR)
 
 - **NFR-11.1 (Routing Latency SLA)**:

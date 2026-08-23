@@ -48,14 +48,18 @@ flowchart LR
 
 ### 1.3 Functional Requirements
 - **FR-AUX-1.1**: Header toggle button allowing instant switching between "Live GCS Mode" and "Demo Sandbox Mode".
-- **FR-AUX-1.2**: Synthetic GCS Bucket hierarchy populated with realistic cinematic media files:
-  - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf` (18.40 GB `ARCHIVE`)
-  - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf` (16.20 GB `ARCHIVE`)
-  - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov` (8.00 GB `STANDARD`)
-  - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_sound_mix.wav` (1.20 GB `ARCHIVE`)
-  - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/metadata_manifest.json` (4.20 KB `STANDARD`)
+- **FR-AUX-1.2**: Synthetic GCS Bucket hierarchies demonstrating both billing paradigms:
+  - **Requester-Pays Demo Bucket (`gs://demo-avatar-master-archives-2026`)**:
+    - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf` (18.40 GB `ARCHIVE`)
+    - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf` (16.20 GB `ARCHIVE`)
+    - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov` (8.00 GB `STANDARD`)
+    - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/reel04_sound_mix.wav` (1.20 GB `ARCHIVE`)
+    - `gs://demo-avatar-master-archives-2026/feature_films/reel_04/metadata_manifest.json` (4.20 KB `STANDARD`)
+  - **Owner-Pays Demo Bucket (`gs://demo-open-cinematic-assets`)**:
+    - `gs://demo-open-cinematic-assets/sample_reels/open_nature_4k.mov` (12.50 GB `STANDARD`)
+    - `gs://demo-open-cinematic-assets/sample_reels/open_audio_master.wav` (2.10 GB `STANDARD`)
 - **FR-AUX-1.3**: Synthetic Streaming Pipeline: Simulates 4MB chunk emission at ~45 MB/s with authentic byte throughput, live ETA countdown, memory monitoring, and valid pre-computed CRC32c hashes (`0xAF82F6C0`).
-- **FR-AUX-1.4**: Synthetic Preflight check returning all 4 green checkmarks with a simulated `demo-billing-project-2026`.
+- **FR-AUX-1.4**: Synthetic Preflight check returning all 4 green checkmarks with a simulated `demo-billing-project-2026` for Requester-Pays or $0.00 notice for Owner-Pays.
 
 ---
 
@@ -75,6 +79,7 @@ export interface DiagnosticReport {
   fileSystemAccessApiSupported: boolean;
   serviceWorkerActive: boolean;
   activeBucket: string;
+  activeBucketBillingMode: 'requester-pays' | 'owner-pays';
   activeProjectIdMasked: string; // e.g. "clie***-2026"
   hasCompletedOnboarding: boolean;
   heapMemoryMB: number;

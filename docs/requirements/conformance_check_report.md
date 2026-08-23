@@ -156,14 +156,22 @@ During the conformance audit, the following updates and harmonizations were enac
 6. **Native Browser Download Integration & Stream Resilience Conformance**:
    - Added Module 12 (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`), Epic 12 in `user_stories_specification.md`, and Engine 10 in `system_engines_design_specification.md`.
    - Verified 10-second keep-alive heartbeat loop (`SW_KEEP_ALIVE_PING`/`PONG`), real-time CRC32c validation in `TransformStream`, and native "Show in folder" accessibility.
+7. **Dual Bucket Billing Mode & Owner-Pays Conformance**:
+   - Added Module 13 (`MOD-13-DUAL-BILLING-MODE`), Epic 13 in `user_stories_specification.md`, and Engine 11 in `system_engines_design_specification.md`.
+   - Verified automated preflight detection of `requester-pays` vs `owner-pays` buckets.
+   - Verified zero-cost financial calculation ($0.00 USD client retrieval and egress fees in Owner-Pays mode).
+   - Verified dynamic status badge rendering (`[Requester-Pays Enforced 🛡️]` vs `[Owner-Pays / Free Egress 🎁]`).
+   - Verified adaptive CLI script generation (omitting `--billing-project` on Owner-Pays buckets).
+   - Verified dual-pathway onboarding with deferred mode detection at Step 3/4 (and Step 2 skip option) for Owner-Pays buckets.
 
 ---
 
 ### Conformance Check Sign-Off
 - **Architecture Alignment**: 100% Conforming
-- **User Story Coverage**: 100% Conforming (12 Epics, 38 Stories)
+- **User Story Coverage**: 100% Conforming (13 Epics, 44 Stories)
 - **UI Wireframe & Design System Consistency**: 100% Conforming (9 Screens)
 - **Security & Billing Integrity**: 100% Conforming (Zero Token Persistence Guaranteed)
 - **Session Lifecycle & Onboarding Bypass**: 100% Conforming (Module 10)
 - **Browser History & URL Synchronization**: 100% Conforming (Module 11)
 - **Native Browser Download Integration & Stream Resilience**: 100% Conforming (Module 12)
+- **Dual Billing Mode & Owner-Pays Support**: 100% Conforming (Module 13)

@@ -41,12 +41,14 @@ flowchart TD
 
 ##### Section A: Post-Setup Bucket Switcher Control (`BucketSwitcherControl`)
 - **FR-9.1.1 (Interactive Header & Breadcrumb Trigger)**: Clicking the connected bucket badge in the Header or clicking the root `gs://[bucket-name]` element in the Breadcrumb Navigation shall open the interactive Bucket Switcher Popover.
-- **FR-9.1.2 (Recent Bucket Quick Switch)**: The popover shall display the list of recently connected buckets (`recentBuckets`, capped at 5) with 1-click instant switching.
+- **FR-9.1.2 (Recent Bucket Quick Switch with Mode Badges)**: The popover shall display the list of recently connected buckets (`recentBuckets`, capped at 5) annotated with their billing mode badges (`[Requester-Pays 🛡️]` or `[Owner-Pays 🎁]`) with 1-click instant switching.
 - **FR-9.1.3 (Inline Target Bucket Input)**: The popover shall provide an inline text input with real-time GCP bucket syntax validation (3–63 chars, lowercase, no consecutive dots, non-IP format).
 - **FR-9.1.4 (Background On-the-Fly Preflight Handshake)**: Switching to a new bucket shall automatically execute a lightweight 4-point preflight check in the background using the active OAuth token and billing project.
-  - If preflight passes $\rightarrow$ updates `savedBucketName`, prepends to `recentBuckets`, reloads root directory (`prefix=''`), and emits a success toast.
+  - Automatically detects whether the target bucket is `requester-pays` or `owner-pays`.
+  - If preflight passes $\rightarrow$ updates `savedBucketName`, `activeBucketBillingMode`, prepends to `recentBuckets`, reloads root directory (`prefix=''`), and emits a success toast.
   - If preflight fails (e.g. CORS missing or IAM denied) $\rightarrow$ surfaces actionable remediation toast with 1-click action to launch the Onboarding Preflight Wizard.
 - **FR-9.1.5 (Wizard Fallback Trigger)**: Includes a direct button: `[Launch Full Preflight Wizard for New Bucket]`.
+- **FR-9.1.6 (Mixed-Mode Multi-Bucket Switching)**: Seamlessly supports switching between Requester-Pays and Owner-Pays buckets in the same session, instantly toggling Cost Banner and Footer badges without session reset.
 
 ##### Section B: Billed Project Switcher Control (`ProjectSwitcherControl`)
 - **FR-9.2.1 (Interactive Project Badge Trigger)**: Clicking the "Billed to:" project badge in the Header shall open the Project Switcher Popover.
@@ -71,17 +73,17 @@ flowchart TD
   - Active Bucket URI (`gs://bucket-name`).
   - Storage Location & Region (e.g., `US Multi-Region`).
   - Default Storage Class (`STANDARD`, `NEARLINE`, `COLDLINE`, `ARCHIVE`).
-  - Requester-Pays Enforcement status.
+  - Billing Attribution Mode: `Requester-Pays Enforced 🛡️` OR `Owner-Pays (Standard / Sponsored) 🎁`.
   - CORS Preflight Configuration status (`x-goog-hash`, `Content-Length`, `Range`, `ETag` exposed).
   - Actions: `[Switch Bucket]`, `[View Bucket Details]`.
 - **FR-9.3.5 (Pricing & Rate Card Card)**: Displays:
-  - Current $/GB rates for Archive, Coldline, Nearline, Standard, and Internet Egress.
-  - Indicates whether standard GCP list prices or negotiated enterprise contract rates apply.
+  - Current $/GB rates for Archive, Coldline, Nearline, Standard, and Internet Egress (displays $0.00 / GB Client Cost when active bucket is Owner-Pays).
+  - Indicates whether standard GCP list prices, Owner-Sponsored rates, or negotiated enterprise contract rates apply.
   - $300 Free Trial promotional credit absorption indicator.
   - Actions: `[Configure Rate Overrides]`.
 - **FR-9.3.6 (Live Preflight Health Matrix)**: Displays 4 discrete live check indicators:
   1. OAuth 2.0 Token Valid (>60s remaining).
-  2. Bucket Reachable & Requester-Pays Enforced.
+  2. Bucket Reachable & Billing Mode Confirmed (`Requester-Pays Enforced` vs `Owner-Pays (Zero Client Cost)`).
   3. IAM `roles/storage.objectViewer` Granted.
   4. CORS Preflight & Header Exposure Configured.
   - Action: `[Re-Run Complete Preflight Diagnostic]`.

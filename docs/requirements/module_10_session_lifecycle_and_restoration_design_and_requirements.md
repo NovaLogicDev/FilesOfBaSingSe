@@ -48,16 +48,16 @@ flowchart TD
   - **Zero Credentials Clause**: Under no circumstances shall OAuth tokens, refresh tokens, client secrets, or private keys be written into this session hint.
 
 - **FR-10.2 (Boot-Time Silent Session Restoration)**:
-  - Upon web application boot (`AppShell` mount), if `hasCompletedOnboarding === true` and valid `savedProjectId` and `savedBucketName` are present, the application shall automatically execute a silent background token re-acquisition handshake via `gisAuthService.refreshTokenSilent()`.
+  - Upon web application boot (`AppShell` mount), if `hasCompletedOnboarding === true` and valid `savedBucketName` is present (with `savedProjectId` verified for Requester-Pays buckets, or optional for Owner-Pays buckets), the application shall automatically execute a silent background token re-acquisition handshake via `gisAuthService.refreshTokenSilent()`.
   - While silent restoration is in progress:
     - The UI shall render a subtle, non-blocking restoration indicator ("Restoring Google Cloud session...") or maintain the workspace skeleton without flashing the initial landing hero.
     - If silent re-acquisition succeeds ($\le 400\text{ ms}$): Ingest token into volatile RAM (`useRuntimeStore.getState().setAuth()`), update token expiration countdown, and trigger background preflight verification.
 
 - **FR-10.3 (Returning User Onboarding Bypass & Direct Workspace Landing)**:
-  - When an authenticated session is restored (either silently on reload or via interactive sign-in), the system shall evaluate whether the user has completed onboarding and possesses a valid project and bucket.
+  - When an authenticated session is restored (either silently on reload or via interactive sign-in), the system shall evaluate whether the user has completed onboarding and possesses a valid bucket (and project if in Requester-Pays mode).
   - If valid configuration exists:
     - The application shall **bypass the 4-step Onboarding Wizard entirely**.
-    - The application shall immediately mount the `AssetExplorerShell` and initiate directory metadata querying for the active `savedBucketName` using the active `savedProjectId`.
+    - The application shall immediately mount the `AssetExplorerShell` and initiate directory metadata querying for the active `savedBucketName` using the active `savedProjectId` (omitted if Owner-Pays).
     - An automated 4-point preflight check shall run asynchronously in the background. If preflight passes, a non-intrusive success indicator is emitted. If preflight fails (e.g. IAM permission revoked), an actionable warning banner is surfaced without tearing down the workspace.
 
 - **FR-10.4 (Interactive 1-Click Re-Authentication Fallback)**:

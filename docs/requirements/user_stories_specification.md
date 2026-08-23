@@ -5,11 +5,13 @@
 
 ### Executive Overview & Strategic Intent
 
-**Files of Ba Sing Se** is a client-side Single Page Application (SPA) designed to empower external clients (independent video editors, freelance audio engineers, boutique VFX studios, and data partners) to browse, inspect, and stream multi-gigabyte media assets (500MB to 50GB+) directly from a Google Cloud Storage (GCS) Archive-tier bucket to their local workstations.
+**Files of Ba Sing Se** is a client-side Single Page Application (SPA) designed to empower external clients (independent video editors, freelance audio engineers, boutique VFX studios, and data partners) to browse, inspect, and stream multi-gigabyte media assets (500MB to 50GB+) directly from Google Cloud Storage (GCS) Archive-tier and Standard-tier buckets to their local workstations.
 
-The system guarantees **zero bandwidth and retrieval cost liability for the host** by strictly enforcing GCS **Requester Pays** (`userProject`). All data retrieval fees ($0.05/GB) and egress fees ($0.12/GB) are billed directly to the client's Google Cloud project.
+The system natively supports **Dual Bucket Billing Attribution**:
+1. **Requester-Pays Enforced Buckets (`userProject`)**: Guarantees **zero bandwidth and retrieval cost liability for the host** by strictly enforcing GCS Requester Pays. All data retrieval fees ($0.05/GB) and egress fees ($0.12/GB) are billed directly to the client's Google Cloud project, confirmed via the **`[Requester-Pays Enforced 🛡️]`** status badge.
+2. **Owner-Pays / Standard Buckets**: Seamlessly consumes standard or owner-sponsored buckets where retrieval and egress costs are covered by the bucket owner (**$0.00 client cost**), confirmed via the **`[Owner-Pays / Free Egress 🎁]`** status badge, allowing instant consumption without requiring client GCP billing project setup.
 
-Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. This engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits.
+Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. When accessing Requester-Pays buckets, this engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits. When accessing Owner-Pays buckets, project configuration is made optional for frictionless instant access.
 
 Furthermore, the application achieves **zero browser crashes / zero Out-of-Memory (OOM) failures** through a constant-memory streaming engine using the **Resilient Service Worker Stream Interceptor** with native browser download shelf integration (`chrome://downloads`).
 
@@ -926,6 +928,130 @@ flowchart TD
 
 ---
 
+## Epic 13: Dual Billing Mode Support & Owner-Pays Bucket Consumption
+
+### Epic Goal
+Enable seamless consumption of both **Requester-Pays Enforced** buckets (client billed with zero host liability) and **Owner-Pays / Standard** buckets (owner-sponsored with $0.00 client cost), automatically detecting bucket billing enforcement during preflight, providing frictionless project-optional onboarding for owner-sponsored buckets, updating the object browser status badges (`[Requester-Pays Enforced 🛡️]` vs `[Owner-Pays / Free Egress 🎁]`), adjusting cost governance to zero client liability in Owner-Pays mode, and adapting CLI command outputs.
+
+```mermaid
+flowchart TD
+    subgraph BillingModeDetection ["1. Preflight Detection"]
+        TargetBucket["Target Bucket URI (gs://bucket)"] --> CheckRP{Probe GCS without userProject}
+        CheckRP -->|HTTP 200 OK (requesterPays == false)| OwnerPaysMode["Owner-Pays Mode (Standard / Sponsored)\n• Zero Client Retrieval & Egress Cost\n• No userProject required"]
+        CheckRP -->|HTTP 400 UserProjectMissing (requesterPays == true)| ReqPaysMode["Requester-Pays Mode (Enforced)\n• Mandates active client userProject\n• Direct client billing attribution"]
+    end
+
+    subgraph UXAdaptation ["2. Tailored User Experience"]
+        OwnerPaysMode --> FastTrack["Frictionless Onboarding Fast-Track\n(GCP Project Setup Optional)"]
+        OwnerPaysMode --> ZeroBanner["Sticky Cost Banner: $0.00 Total Client Cost\n(Owner-Sponsored Notice)"]
+        OwnerPaysMode --> GiftBadge["Object Browser Footer:\n[ Owner-Pays / Free Egress 🎁 ]"]
+        OwnerPaysMode --> CleanCLI["CLI Generator: Clean gcloud cp (No --billing-project)"]
+
+        ReqPaysMode --> WizardProject["Standard Onboarding Wizard\n(GCP Project & Billing Mandatory)"]
+        ReqPaysMode --> LiveCalc["Sticky Cost Banner: Live Retrieval + Egress USD\n(High-Cost Safety Gate Active)"]
+        ReqPaysMode --> ShieldBadge["Object Browser Footer:\n[ Requester-Pays Enforced 🛡️ ]"]
+        ReqPaysMode --> ProjectCLI["CLI Generator: gcloud cp --billing-project=..."]
+    end
+```
+
+---
+
+### Story 13.1: Automated Bucket Billing Mode Detection & Preflight Classification
+**As a** freelance editor or VFX lead (Taylor/Alex),  
+**I want the** application to automatically detect whether a target GCS bucket enforces Requester-Pays or is Owner-Paid during preflight,  
+**So that** I know immediately whether I need to attach a GCP billing project or if downloads will be free of charge to my account.
+
+#### Acceptance Criteria
+1. **Given** a target bucket input (e.g. `gs://open-cinematic-assets` or `gs://partner-raw-master-archives-2026`), **When** preflight executes, **Then** the application issues a probe request `GET https://storage.googleapis.com/storage/v1/b/{bucket}` with OAuth Bearer token **without** attaching `userProject`.
+2. **Given** the probe response:
+   - If `HTTP 200 OK` and `metadata.billing?.requesterPays !== true` $\rightarrow$ classified as **`owner-pays`**.
+   - If `HTTP 400 Bad Request` with `UserProjectMissing` (or `metadata.billing?.requesterPays === true`) $\rightarrow$ classified as **`requester-pays`**.
+3. **Given** the detected mode, **When** initialized, **Then** `activeBucketBillingMode` is committed to runtime store and persisted in `recentBucketModes`.
+4. **Given** an Owner-Pays bucket, **When** preflight displays the checklist, **Then** Checkpoint 2 renders: `[✓] Billing Mode: Owner-Pays (Standard / Sponsored) ●`.
+
+---
+
+### Story 13.2: Zero-Cost Client Governance & Owner-Sponsored Cost Banner in Owner-Pays Mode
+**As a** production manager or freelance editor (Sam/Taylor),  
+**I want to** see $0.00 client charges and a clear "Owner-Sponsored" banner when browsing an Owner-Pays bucket,  
+**So that** I have total peace of mind that downloading files will not charge my Google account.
+
+#### Acceptance Criteria
+1. **Given** an active bucket classified as `owner-pays`, **When** the user selects one or more items via checkboxes, **Then** the sticky Cost Banner displays:
+   - `[🎁 Owner-Sponsored Bucket] Selected 3 items (42.60 GB Total) | Retrieval: $0.00 | Egress: $0.00 | Total Client Cost: $0.00 USD (All fees covered by bucket owner)`.
+2. **Given** an Owner-Pays bucket, **When** viewing the single-file Asset Inspector Drawer (*Module 6*), **Then** the billing section displays:
+   - `Estimated Client Charge: $0.00 USD (Sponsored by Bucket Owner)`.
+3. **Given** total selected size $>25\text{ GB}$, **When** clicking download on an Owner-Pays bucket, **Then** the High-Cost Safety Modal does **not** trigger on dollar thresholds (since cost = $0.00), allowing seamless 1-click streaming.
+
+---
+
+### Story 13.3: Frictionless Owner-Pays Onboarding Fast-Track & Deferred Mode Detection
+**As a** first-time client user (Taylor) connecting to an owner-sponsored bucket,  
+**I want to** skip GCP Project creation and billing account linkage (or have it validated as optional when entering an owner-pays bucket at Step 3),  
+**So that** I can start streaming media files in under 15 seconds without setting up Google Cloud billing.
+
+#### Acceptance Criteria
+1. **Given** a standard unseeded onboarding flow (where target bucket is entered in Step 3), **When** reaching Step 2 (Project Setup), **Then**:
+   - Step 2 provides an explicit option: `[ Skip for now (I am connecting to an Owner-Sponsored bucket) ]`.
+   - When the user enters the bucket in Step 3 and reaches Step 4 Preflight:
+     - If detected as `owner-pays`: Preflight passes with `billingMode: 'owner-pays'`, confirming $0.00 client cost and entering workspace directly.
+     - If detected as `requester-pays`: Preflight notifies the user that the bucket requires billing attribution with a 1-click button: `[ Return to Step 2: Configure Billing Project ]`.
+2. **Given** a deep-linked invite flow (`#/browse/{bucket}` or `?bucket={bucket}`), **When** target bucket is known upfront and preflight detects `owner-pays`, **Then**:
+   - The UI presents a fast-track notice: *"This bucket (`gs://bucket`) is Owner-Sponsored. You can browse and download immediately without setting up a Google Cloud billing project."*
+   - Step 2 is automatically bypassed or marked optional, taking the user directly into the preflight check/workspace.
+3. **Given** the user skips project setup on an Owner-Pays bucket, **When** entering the workspace, **Then**:
+   - `savedProjectId` remains empty or marked as `(none / owner-pays)`.
+   - All directory listing, metadata inspection, and streaming calls execute cleanly without `userProject`.
+4. **Given** the user later switches to a `requester-pays` bucket in the workspace, **When** detected, **Then** the system prompts the user to select or create a GCP billing project.
+
+---
+
+### Story 13.4: Dynamic Object Browser Status Badge & Security Shield Indicators
+**As a** client user browsing media files,  
+**I want to** see an accurate status badge in the table footer indicating whether Requester-Pays is enforced or Owner-Paid,  
+**So that** I always know the exact billing model governing the active bucket.
+
+#### Acceptance Criteria
+1. **Given** the active bucket is `requester-pays`, **When** viewing the `VirtualizedAssetGrid` footer, **Then** the badge displays:
+   - `[ Requester-Pays Enforced ]` with `ShieldCheck` icon (emerald green styling).
+   - Tooltip: *"Requester-Pays is active. All GCS retrieval and egress fees are billed directly to your GCP project."*
+2. **Given** the active bucket is `owner-pays`, **When** viewing the `VirtualizedAssetGrid` footer, **Then** the badge displays:
+   - `[ Owner-Pays / Free Egress ]` with `Gift` icon (sky/cyan styling).
+   - Tooltip: *"This bucket is sponsored by the owner. Retrieval and egress fees are $0.00 to you."*
+3. **Given** a user clicks either badge, **When** clicked, **Then** the GCP Configuration Center opens directly to the Target Bucket card (*Module 9*).
+
+---
+
+### Story 13.5: Adaptive CLI Script Generation for Owner-Pays vs Requester-Pays Buckets
+**As a** VFX/Data pipeline engineer (Devon),  
+**I want the** CLI Command Generator to omit `--billing-project` when targeting an Owner-Pays bucket,  
+**So that** my generated shell commands run cleanly without requiring terminal users to supply billing project parameters.
+
+#### Acceptance Criteria
+1. **Given** selected files in a `requester-pays` bucket, **When** generating CLI scripts, **Then**:
+   - `gcloud` command includes `--billing-project={userProject}`.
+   - `gsutil` command includes `-u {userProject}`.
+2. **Given** selected files in an `owner-pays` bucket, **When** generating CLI scripts, **Then**:
+   - `gcloud` command **omits** `--billing-project` (e.g. `gcloud storage cp gs://bucket/file.mxf ./destination_folder/`).
+   - `gsutil` command **omits** `-u` (e.g. `gsutil -m cp gs://bucket/file.mxf ./`).
+   - An informative badge states: `[✓ Clean Command — No Billing Project Required for Owner-Pays Bucket]`.
+
+---
+
+### Story 13.6: Mixed-Mode Multi-Bucket Session Traversal & Billing State Synchronization
+**As a** freelance editor working across both studio archives (Requester-Pays) and open asset libraries (Owner-Pays),  
+**I want to** switch between different buckets and use browser Back/Forward navigation without billing attribution errors,  
+**So that** my session stays consistent and costs are accurately tracked per bucket.
+
+#### Acceptance Criteria
+1. **Given** a user switches between `gs://partner-req-pays-archive` and `gs://open-owner-pays-vault` via `BucketSwitcherPopover` (*Module 9*) or Browser History Back/Forward (*Module 11*), **When** switched, **Then**:
+   - The application re-synchronizes `activeBucketBillingMode` in $<16\text{ ms}$.
+   - The Cost Banner updates immediately (live calculated USD for Requester-Pays vs $0.00 for Owner-Pays).
+   - The Footer badge flips between `[Requester-Pays Enforced 🛡️]` and `[Owner-Pays / Free Egress 🎁]`.
+   - Streaming requests dynamically attach or omit `userProject` based on the active bucket's billing mode.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -942,6 +1068,8 @@ flowchart TD
 | **EPIC-10**| Seamless Session Persistence, Silent Restoration & Onboarding Bypass | 4 Stories | Medium | P0 (Blocker) |
 | **EPIC-11**| Browser History Navigation, URL Synchronization & Deep Linking | 4 Stories | Medium | P0 (Blocker) |
 | **EPIC-12**| Native Browser Download Shelf Integration, Stream Resilience & Diagnostics | 4 Stories | Medium | P1 (Core) |
+| **EPIC-13**| Dual Billing Mode Support & Owner-Pays Bucket Consumption | 6 Stories | Medium | P0 (Blocker) |
+
 
 
 

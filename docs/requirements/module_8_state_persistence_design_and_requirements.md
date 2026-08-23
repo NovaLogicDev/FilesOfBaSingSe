@@ -41,7 +41,10 @@ flowchart TD
 - **FR-8.1**: Volatile Credential Storage: OAuth access tokens, expiration countdowns, and active download `AbortController` instances reside exclusively in volatile Zustand state.
 - **FR-8.2**: LocalStorage Persistence: Automatically synchronizes non-sensitive client preferences:
   - `savedProjectId`: string (e.g. `"client-prod-media-2026"`).
+  - `savedBucketName`: string (e.g. `"partner-raw-master-archives-2026"`).
+  - `activeBucketBillingMode`: `'requester-pays' | 'owner-pays'`.
   - `recentBuckets`: array of strings (capped at 5 items).
+  - `recentBucketModes`: mapping of bucket name to billing mode.
   - `theme`: `"dark" | "light"`.
   - `customPricing`: optional object.
 - **FR-8.3**: IndexedDB Range Cache: Persists download progress checkpoints and ETags via `idb` for resuming interrupted transfers.
@@ -60,11 +63,15 @@ flowchart TD
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type BucketBillingMode = 'requester-pays' | 'owner-pays';
+
 // 1. Persistent Store (Non-Sensitive Disk Storage)
 export interface PersistentPreferences {
   savedProjectId: string;
   savedBucketName: string;
+  activeBucketBillingMode: BucketBillingMode;
   recentBuckets: string[];
+  recentBucketModes: Record<string, BucketBillingMode>;
   theme: 'dark' | 'light';
   customPricing: {
     archiveRetrieval?: number;
@@ -78,7 +85,8 @@ export interface PersistentPreferences {
   lastAuthTimestamp: number | null;
   setSavedProjectId: (id: string) => void;
   setSavedBucketName: (bucket: string) => void;
-  addRecentBucket: (bucket: string) => void;
+  setActiveBucketBillingMode: (mode: BucketBillingMode) => void;
+  addRecentBucket: (bucket: string, mode?: BucketBillingMode) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setCustomPricing: (pricing: Partial<PersistentPreferences['customPricing']>) => void;
   setFreeTrialAccount: (isFreeTrial: boolean) => void;

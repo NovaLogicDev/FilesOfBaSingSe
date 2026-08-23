@@ -5,7 +5,7 @@
 
 ## Executive Architectural Overview
 
-**Files of Ba Sing Se** is powered by ten modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
+**Files of Ba Sing Se** is powered by eleven modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, dynamic dual-billing attribution (Requester-Pays vs Owner-Pays), and rigorous cryptographic integrity standards.
 
 ```mermaid
 flowchart TD
@@ -15,23 +15,27 @@ flowchart TD
         E3["3. Cost Governance & Estimation Engine\n(Decimal GB Math, Archive Retrieval, Egress)"]
         E4["4. Resilient SW Stream Download Engine\n(Keep-Alive Heartbeat, Pass-Through CRC32c, <15MB Heap)"]
         E5["5. CRC32c Cryptographic Integrity Engine\n(Castagnoli 0x1EDC6F41, Big-Endian Base64)"]
-        E6["6. Automated Batch & CLI Generator Engine\n(gcloud storage, gsutil, Firefox Routing)"]
+        E6["6. Automated Batch & CLI Generator Engine\n(gcloud storage, gsutil, Adaptive Billing Flags)"]
         E7["7. State Isolation & Persistence Engine\n(Zustand Volatile RAM, LocalStorage, IndexedDB)"]
         E8["8. Session Lifecycle & Restoration Engine\n(Silent Reload, Onboarding Bypass, 1-Click Reconnect)"]
         E9["9. Browser History & Navigation Router Engine\n(pushState, popstate, URL Hash Sync, Deep-Link)"]
         E10["10. Browser Download Bridge Engine\n(chrome://downloads, Native 'Show in Folder', Watchdog)"]
+        E11["11. Dual Billing Mode & Owner-Pays Engine\n(Auto-Detection, Free Egress, Status Badges)"]
     end
 
     E8 --> E1
     E8 --> E7
-    E1 --> E2
+    E1 --> E11
+    E11 --> E2
     E9 --> E2
     E2 --> E3
     E2 --> E4
     E4 --> E5
     E4 --> E10
     E2 --> E6
-    E7 -.->|"Supplies Ephemeral Token & Project ID"| E1
+    E11 --> E3
+    E11 --> E6
+    E7 -.->|"Supplies Ephemeral Token & Billing Mode"| E1
     E7 -.->|"Supplies Active State"| E2
     E7 -.->|"Maintains Active Stream Tickets"| E4
     E8 -.->|"Rehydrates Active Workspace"| E2
@@ -93,10 +97,13 @@ export interface BillingInfo {
   projectId: string;
 }
 
+export type BucketBillingMode = 'requester-pays' | 'owner-pays';
+
 export interface PreflightStatus {
   oauthValid: boolean;
   oauthExpiresInSeconds: number;
   bucketReachable: boolean;
+  billingMode: BucketBillingMode;
   requesterPaysActive: boolean;
   iamViewerGranted: boolean;
   corsConfigured: boolean;
@@ -171,7 +178,7 @@ export class GCPOnboardingEngine {
   }
 
   /**
-   * Executes 4-Point Preflight Handshake against target bucket with userProject
+   * Executes 4-Point Preflight Handshake against target bucket with automatic Billing Mode detection.
    */
   public static async runPreflightHandshake(
     bucketName: string,
@@ -179,49 +186,88 @@ export class GCPOnboardingEngine {
     oauthToken: string
   ): Promise<PreflightStatus> {
     const cleanBucket = bucketName.replace(/^gs:\/\//, '').replace(/\/+$/, '');
-    const url = `https://storage.googleapis.com/storage/v1/b/${cleanBucket}?userProject=${encodeURIComponent(userProject)}`;
-
+    
+    // Probe 1: Check bucket reachability without userProject to determine if Owner-Pays
+    const probeUrl = `https://storage.googleapis.com/storage/v1/b/${cleanBucket}`;
     try {
-      const res = await fetch(url, {
+      const probeRes = await fetch(probeUrl, {
         method: 'GET',
         headers: { Authorization: `Bearer ${oauthToken}` }
       });
 
-      if (res.ok) {
-        const metadata = await res.json();
+      if (probeRes.ok) {
+        const metadata = await probeRes.json();
+        const isReqPays = metadata.billing?.requesterPays === true;
         return {
           oauthValid: true,
           oauthExpiresInSeconds: 3600,
           bucketReachable: true,
-          requesterPaysActive: metadata.billing?.requesterPays === true,
+          billingMode: isReqPays ? 'requester-pays' : 'owner-pays',
+          requesterPaysActive: isReqPays,
           iamViewerGranted: true,
           corsConfigured: true
         };
       }
 
-      const errorText = await res.text();
-      let errorRemediation = 'Check your GCP project and bucket settings.';
-      if (res.status === 400 && errorText.includes('UserProjectMissing')) {
-        errorRemediation = 'Requester Pays is enabled on this bucket. Enter a valid GCP Project ID.';
-      } else if (res.status === 403) {
-        errorRemediation = 'Your Google account lacks Storage Object Viewer access (roles/storage.objectViewer) on this bucket.';
+      // If probe without userProject returned 400 UserProjectMissing -> It is Requester-Pays
+      const probeErrorText = await probeRes.text();
+      const isUserProjectMissing = probeRes.status === 400 && probeErrorText.includes('UserProjectMissing');
+
+      if (isUserProjectMissing && userProject) {
+        // Probe 2: Re-attempt with client's active userProject
+        const reqPaysUrl = `https://storage.googleapis.com/storage/v1/b/${cleanBucket}?userProject=${encodeURIComponent(userProject)}`;
+        const rpRes = await fetch(reqPaysUrl, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${oauthToken}` }
+        });
+
+        if (rpRes.ok) {
+          return {
+            oauthValid: true,
+            oauthExpiresInSeconds: 3600,
+            bucketReachable: true,
+            billingMode: 'requester-pays',
+            requesterPaysActive: true,
+            iamViewerGranted: true,
+            corsConfigured: true
+          };
+        }
+
+        const rpErrText = await rpRes.text();
+        return {
+          oauthValid: true,
+          oauthExpiresInSeconds: 3600,
+          bucketReachable: rpRes.status !== 404,
+          billingMode: 'requester-pays',
+          requesterPaysActive: true,
+          iamViewerGranted: false,
+          corsConfigured: false,
+          rawError: `HTTP ${rpRes.status}: ${rpErrText}`,
+          errorRemediation: rpRes.status === 403
+            ? 'Your Google account lacks Storage Object Viewer access (roles/storage.objectViewer) on this bucket.'
+            : 'Check your GCP project and bucket permissions.'
+        };
       }
 
       return {
         oauthValid: true,
         oauthExpiresInSeconds: 3600,
-        bucketReachable: res.status !== 404,
-        requesterPaysActive: true,
+        bucketReachable: probeRes.status !== 404,
+        billingMode: isUserProjectMissing ? 'requester-pays' : 'owner-pays',
+        requesterPaysActive: isUserProjectMissing,
         iamViewerGranted: false,
         corsConfigured: false,
-        rawError: `HTTP ${res.status}: ${errorText}`,
-        errorRemediation
+        rawError: `HTTP ${probeRes.status}: ${probeErrorText}`,
+        errorRemediation: isUserProjectMissing
+          ? 'Requester-Pays is enabled on this bucket. Please configure and select an active GCP Billing Project.'
+          : 'Check bucket reachability, IAM permissions, and CORS settings.'
       };
     } catch (err: any) {
       return {
         oauthValid: false,
         oauthExpiresInSeconds: 0,
         bucketReachable: false,
+        billingMode: 'requester-pays',
         requesterPaysActive: false,
         iamViewerGranted: false,
         corsConfigured: false,
@@ -358,7 +404,9 @@ export interface CostBreakdown {
   egressChargeUSD: number;
   totalEstimatedChargeUSD: number;
   formattedTotalSize: string;
-  isHighCostAlert: boolean; // Triggers safety modal if > $5.00 or > 25 GB
+  isHighCostAlert: boolean; // Triggers safety modal if > $5.00 or > 25 GB (Requester-Pays only)
+  isOwnerSponsored: boolean; // True when bucket is Owner-Pays ($0.00 client cost)
+  billingMode: BucketBillingMode;
 }
 
 export class CostGovernanceEngine {
@@ -368,7 +416,10 @@ export class CostGovernanceEngine {
   public static STANDARD_RETRIEVAL_RATE = 0.00;
   public static EGRESS_RATE = 0.12;
 
-  public static calculateCost(items: Array<{ size: string | number; storageClass: string }>): CostBreakdown {
+  public static calculateCost(
+    items: Array<{ size: string | number; storageClass: string }>,
+    billingMode: BucketBillingMode = 'requester-pays'
+  ): CostBreakdown {
     let totalBytes = 0;
     let archiveBytes = 0;
     let coldlineBytes = 0;
@@ -401,8 +452,10 @@ export class CostGovernanceEngine {
     }
 
     const totalDecimalGB = totalBytes / 1_000_000_000;
-    const egressChargeUSD = totalDecimalGB * this.EGRESS_RATE;
-    const totalEstimatedChargeUSD = retrievalChargeUSD + egressChargeUSD;
+    const isOwnerPays = billingMode === 'owner-pays';
+    const egressChargeUSD = isOwnerPays ? 0 : totalDecimalGB * this.EGRESS_RATE;
+    const finalRetrievalChargeUSD = isOwnerPays ? 0 : retrievalChargeUSD;
+    const totalEstimatedChargeUSD = isOwnerPays ? 0 : finalRetrievalChargeUSD + egressChargeUSD;
 
     return {
       totalBytes,
@@ -410,11 +463,13 @@ export class CostGovernanceEngine {
       archiveBytes,
       coldlineBytes,
       standardBytes,
-      retrievalChargeUSD: Math.round(retrievalChargeUSD * 100) / 100,
+      retrievalChargeUSD: Math.round(finalRetrievalChargeUSD * 100) / 100,
       egressChargeUSD: Math.round(egressChargeUSD * 100) / 100,
       totalEstimatedChargeUSD: Math.round(totalEstimatedChargeUSD * 100) / 100,
       formattedTotalSize: this.formatBytes(totalBytes),
-      isHighCostAlert: totalEstimatedChargeUSD >= 5.0 || totalDecimalGB >= 25.0
+      isHighCostAlert: !isOwnerPays && (totalEstimatedChargeUSD >= 5.0 || totalDecimalGB >= 25.0),
+      isOwnerSponsored: isOwnerPays,
+      billingMode
     };
   }
 
@@ -706,8 +761,9 @@ Constructs syntactically valid shell commands for modern Google Cloud CLI (`gclo
 export interface CLIOptions {
   bucketName: string;
   selectedPaths: string[];
-  userProject: string;
+  userProject?: string;
   destinationDir?: string;
+  billingMode?: BucketBillingMode;
 }
 
 export class CliGeneratorEngine {
@@ -715,30 +771,46 @@ export class CliGeneratorEngine {
    * Generates modern multi-threaded gcloud storage cp command
    */
   public static generateGcloudCommand(options: CLIOptions): string {
-    const { bucketName, selectedPaths, userProject, destinationDir = './destination_folder/' } = options;
+    const {
+      bucketName,
+      selectedPaths,
+      userProject,
+      destinationDir = './destination_folder/',
+      billingMode = 'requester-pays'
+    } = options;
     const cleanBucket = bucketName.replace(/^gs:\/\//, '').replace(/\/+$/, '');
+    const projectFlag = billingMode === 'requester-pays' && userProject ? ` --billing-project=${userProject}` : '';
 
     if (selectedPaths.length === 1) {
-      return `gcloud storage cp gs://${cleanBucket}/${selectedPaths[0]} ${destinationDir} --billing-project=${userProject}`;
+      return `gcloud storage cp gs://${cleanBucket}/${selectedPaths[0]} ${destinationDir}${projectFlag}`;
     }
 
     const pathList = selectedPaths.map((p) => `  gs://${cleanBucket}/${p}`).join(' \\\n');
-    return `gcloud storage cp \\\n${pathList} \\\n  ${destinationDir} \\\n  --billing-project=${userProject}`;
+    return projectFlag
+      ? `gcloud storage cp \\\n${pathList} \\\n  ${destinationDir} \\\n ${projectFlag}`
+      : `gcloud storage cp \\\n${pathList} \\\n  ${destinationDir}`;
   }
 
   /**
    * Generates legacy multi-threaded gsutil cp command
    */
   public static generateGsutilCommand(options: CLIOptions): string {
-    const { bucketName, selectedPaths, userProject, destinationDir = './' } = options;
+    const {
+      bucketName,
+      selectedPaths,
+      userProject,
+      destinationDir = './',
+      billingMode = 'requester-pays'
+    } = options;
     const cleanBucket = bucketName.replace(/^gs:\/\//, '').replace(/\/+$/, '');
+    const userFlag = billingMode === 'requester-pays' && userProject ? `-u ${userProject} ` : '';
 
     if (selectedPaths.length === 1) {
-      return `gsutil -u ${userProject} -m cp gs://${cleanBucket}/${selectedPaths[0]} ${destinationDir}`;
+      return `gsutil ${userFlag}-m cp gs://${cleanBucket}/${selectedPaths[0]} ${destinationDir}`;
     }
 
     const pathList = selectedPaths.map((p) => `  gs://${cleanBucket}/${p}`).join(' \\\n');
-    return `gsutil -u ${userProject} -m cp \\\n${pathList} \\\n  ${destinationDir}`;
+    return `gsutil ${userFlag}-m cp \\\n${pathList} \\\n  ${destinationDir}`;
   }
 }
 ```
@@ -783,25 +855,40 @@ import { persist } from 'zustand/middleware';
 
 interface PersistentSettings {
   savedProjectId: string;
+  savedBucketName: string;
+  activeBucketBillingMode: BucketBillingMode;
   recentBuckets: string[];
+  recentBucketModes: Record<string, BucketBillingMode>;
   theme: 'dark' | 'light';
+  hasCompletedOnboarding: boolean;
   setSavedProjectId: (id: string) => void;
-  addRecentBucket: (bucket: string) => void;
+  setSavedBucketName: (bucket: string) => void;
+  setActiveBucketBillingMode: (mode: BucketBillingMode) => void;
+  addRecentBucket: (bucket: string, mode?: BucketBillingMode) => void;
   setTheme: (theme: 'dark' | 'light') => void;
+  setHasCompletedOnboarding: (completed: boolean) => void;
 }
 
 export const usePersistentStore = create<PersistentSettings>()(
   persist(
     (set) => ({
       savedProjectId: '',
+      savedBucketName: '',
+      activeBucketBillingMode: 'requester-pays',
       recentBuckets: [],
+      recentBucketModes: {},
       theme: 'dark',
+      hasCompletedOnboarding: false,
       setSavedProjectId: (id) => set({ savedProjectId: id }),
-      addRecentBucket: (bucket) =>
+      setSavedBucketName: (bucket) => set({ savedBucketName: bucket }),
+      setActiveBucketBillingMode: (mode) => set({ activeBucketBillingMode: mode }),
+      addRecentBucket: (bucket, mode = 'requester-pays') =>
         set((state) => ({
-          recentBuckets: Array.from(new Set([bucket, ...state.recentBuckets])).slice(0, 5)
+          recentBuckets: Array.from(new Set([bucket, ...state.recentBuckets])).slice(0, 5),
+          recentBucketModes: { ...state.recentBucketModes, [bucket]: mode }
         })),
-      setTheme: (theme) => set({ theme })
+      setTheme: (theme) => set({ theme }),
+      setHasCompletedOnboarding: (completed) => set({ hasCompletedOnboarding: completed })
     }),
     { name: 'basingse-media-settings' }
   )
@@ -893,19 +980,17 @@ export interface SessionRestorationResult {
 export class SessionLifecycleEngine {
   /**
    * Evaluates whether current client state qualifies for onboarding bypass.
+   * For Owner-Pays buckets, savedProjectId is optional.
    */
   public static shouldBypassOnboarding(
     hasCompletedOnboarding: boolean,
     savedProjectId: string,
-    savedBucketName: string
+    savedBucketName: string,
+    billingMode: BucketBillingMode = 'requester-pays'
   ): boolean {
-    return Boolean(
-      hasCompletedOnboarding &&
-      savedProjectId &&
-      savedProjectId.trim().length >= 6 &&
-      savedBucketName &&
-      savedBucketName.trim().length >= 3
-    );
+    const hasValidBucket = Boolean(savedBucketName && savedBucketName.trim().length >= 3);
+    const hasValidProject = billingMode === 'owner-pays' || Boolean(savedProjectId && savedProjectId.trim().length >= 6);
+    return Boolean(hasCompletedOnboarding && hasValidBucket && hasValidProject);
   }
 
   /**
@@ -914,11 +999,16 @@ export class SessionLifecycleEngine {
   public static async restoreSessionOnBoot(
     gisService: { refreshTokenSilent: () => Promise<{ accessToken: string; userEmail: string; userName: string; expiresIn: number }> },
     runtimeStore: { setAuth: (t: string, e: string, n?: string, a?: string, exp?: number) => void },
-    persistentConfig: { hasCompletedOnboarding: boolean; savedProjectId: string; savedBucketName: string }
+    persistentConfig: {
+      hasCompletedOnboarding: boolean;
+      savedProjectId: string;
+      savedBucketName: string;
+      activeBucketBillingMode?: BucketBillingMode;
+    }
   ): Promise<SessionRestorationResult> {
-    const { hasCompletedOnboarding, savedProjectId, savedBucketName } = persistentConfig;
+    const { hasCompletedOnboarding, savedProjectId, savedBucketName, activeBucketBillingMode = 'requester-pays' } = persistentConfig;
 
-    if (!this.shouldBypassOnboarding(hasCompletedOnboarding, savedProjectId, savedBucketName)) {
+    if (!this.shouldBypassOnboarding(hasCompletedOnboarding, savedProjectId, savedBucketName, activeBucketBillingMode)) {
       return { restored: false, requiresInteraction: false };
     }
 
@@ -1219,25 +1309,131 @@ export class BrowserDownloadBridgeEngine {
 
 ---
 
-## 11. Cross-Engine Integration Matrix (Engines 1 through 10)
+## 11. Engine 11: Dual Bucket Billing Mode & Owner-Pays Governance Engine
 
-The primary engines operate as a cohesive, zero-liability mesh:
+### 11.1 Purpose & Domain Scope
+Governs the detection, classification, financial calculation, and UI badge synchronization between **Requester-Pays Enforced** buckets and **Owner-Pays (Standard / Sponsored)** buckets. It ensures that clients consuming Owner-Pays buckets incur **$0.00 USD** in retrieval and egress fees, provides clean CLI commands without billing flags, and enables frictionless onboarding without mandatory GCP project creation.
+
+### 11.2 Subsystem Architecture & Classification Protocol
+
+```mermaid
+flowchart TD
+    subgraph ModeDetectionPipeline ["Billing Mode Auto-Detection Pipeline"]
+        TargetBucket["Target Bucket URI (gs://bucket)"] --> NoProjectProbe["Initial Probe: GET /storage/v1/b/{bucket} (NO userProject)"]
+        
+        NoProjectProbe -->|HTTP 200 OK & requesterPays == false| ClassifyOwner["Classify as OWNER-PAYS\n• Zero Client Egress / Retrieval Cost\n• No userProject required"]
+        NoProjectProbe -->|HTTP 400 UserProjectMissing| ClassifyReq["Classify as REQUESTER-PAYS\n• userProject MANDATORY\n• Client Billed Retrieval + Egress"]
+        NoProjectProbe -->|HTTP 200 OK & requesterPays == true| ClassifyReq
+    end
+
+    subgraph StatePropagation ["State & Contract Propagation"]
+        ClassifyOwner --> CostZero["Cost Engine: Set Rates to $0.00 / GB\nSticky Banner: 'Owner-Sponsored ($0.00 Cost)'\nHigh-Cost Gate: Inactive"]
+        ClassifyOwner --> BadgeCyan["Grid Footer: [ Owner-Pays / Free Egress 🎁 ]"]
+        ClassifyOwner --> CleanCliGen["CLI Generator: Clean gcloud cp (No --billing-project)"]
+        ClassifyOwner --> SwPipeNoProj["SW Stream: Omit ?userProject from fetch"]
+
+        ClassifyReq --> CostLive["Cost Engine: Standard GCP Rates ($0.05/$0.02/$0.12)\nSticky Banner: Live Archive + Egress USD\nHigh-Cost Gate: Active (>$5.00 / >25GB)"]
+        ClassifyReq --> BadgeEmerald["Grid Footer: [ Requester-Pays Enforced 🛡️ ]"]
+        ClassifyReq --> ProjectCliGen["CLI Generator: gcloud cp --billing-project=..."]
+        ClassifyReq --> SwPipeProj["SW Stream: Attach ?userProject=CLIENT_ID"]
+    end
+```
+
+### 11.3 TypeScript Implementation & Reference Contract
+
+```typescript
+export interface DualModeBadgeConfig {
+  label: string;
+  variant: 'emerald' | 'cyan';
+  icon: 'shield-check' | 'gift';
+  tooltip: string;
+  isOwnerSponsored: boolean;
+}
+
+export class DualModeBillingEngine {
+  /**
+   * Evaluates bucket billing mode from HTTP responses.
+   */
+  public static classifyBucketMode(
+    metadata: { billing?: { requesterPays?: boolean } } | null,
+    statusCode: number,
+    errorBody: string = ''
+  ): BucketBillingMode {
+    if (statusCode === 400 && errorBody.includes('UserProjectMissing')) {
+      return 'requester-pays';
+    }
+    if (metadata?.billing?.requesterPays === true) {
+      return 'requester-pays';
+    }
+    return 'owner-pays';
+  }
+
+  /**
+   * Returns UI badge configuration for active billing mode.
+   */
+  public static getBadgeConfig(mode: BucketBillingMode): DualModeBadgeConfig {
+    if (mode === 'requester-pays') {
+      return {
+        label: 'Requester-Pays Enforced',
+        variant: 'emerald',
+        icon: 'shield-check',
+        tooltip: 'Requester-Pays is active. All GCS retrieval and internet egress fees are billed directly to your GCP project.',
+        isOwnerSponsored: false
+      };
+    }
+    return {
+      label: 'Owner-Pays / Free Egress',
+      variant: 'cyan',
+      icon: 'gift',
+      tooltip: 'This bucket is sponsored by the owner. Retrieval and internet egress fees are $0.00 to you.',
+      isOwnerSponsored: true
+    };
+  }
+
+  /**
+   * Adapts target GCS request URL based on billing mode.
+   */
+  public static buildGcsUrl(
+    bucketName: string,
+    objectName: string,
+    userProject: string,
+    mode: BucketBillingMode = 'requester-pays'
+  ): string {
+    const cleanBucket = bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '');
+    const cleanObject = objectName.replace(/^\/+/, '');
+    const base = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(cleanObject)}`;
+
+    if (mode === 'requester-pays' && userProject) {
+      return `${base}?alt=media&userProject=${encodeURIComponent(userProject)}`;
+    }
+    return `${base}?alt=media`;
+  }
+}
+```
+
+---
+
+## 12. Cross-Engine Integration Matrix (Engines 1 through 11)
+
+The primary engines operate as a cohesive, dual-mode, zero-liability mesh:
+- **Engine 11 (`DualModeBillingEngine`)**: Classifies bucket billing mode (`requester-pays` vs `owner-pays`), informs Engine 3 (`CostGovernanceEngine`) for zero-cost client governance, adjusts Engine 6 (`CliGeneratorEngine`) to omit project flags, and synchronizes status badges.
 - **Engine 10 (`BrowserDownloadBridgeEngine`)**: Manages the keep-alive heartbeat loop with Engine 4 (`ResilientSWStreamEngine`), ensures native download shelf tracking (`chrome://downloads`), and bridges real-time stream diagnostics.
 - **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
-- **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`.
-- **Engine 1 (`GCPOnboardingEngine`)**: Provides reusable preflight validation called when navigating to new buckets via history or switchers.
+- **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`, supporting project-optional bypass for Owner-Pays buckets.
+- **Engine 1 (`GCPOnboardingEngine`)**: Provides reusable preflight validation called when navigating to new buckets via history or switchers, auto-detecting billing mode.
 - **Engine 2 (`BucketExplorerEngine`)**: Directly consumes prefixes dispatched from Engine 9, parsing common prefixes and leaf objects for the virtualized grid.
-- **Engine 3 (`CostGovernanceEngine`)**: Ingests selected items from the active directory to render real-time retrieval/egress cost estimates.
+- **Engine 3 (`CostGovernanceEngine`)**: Ingests selected items from the active directory to render real-time retrieval/egress cost estimates ($0.00 USD in Owner-Pays mode).
 - **Engine 4 (`ResilientSWStreamEngine`)**: Streams multi-gigabyte media assets via Service Worker pass-through micro-chunks with constant <15MB heap and native browser download integration.
 - **Engine 5 (`CRC32cIntegrityEngine`)**: Validates bit-exact Castagnoli CRC32c checksum parity against GCS `x-goog-hash` headers.
-- **Engine 6 (`CliGeneratorEngine`)**: Formats copyable `gcloud storage` and `gsutil` shell scripts with client `--billing-project`.
-- **Engine 7 (`StatePersistenceEngine`)**: Maintains strict isolation between volatile RAM tokens and persisted preferences, ensuring zero token leakage in `window.history.state` or `localStorage`.
+- **Engine 6 (`CliGeneratorEngine`)**: Formats copyable `gcloud storage` and `gsutil` shell scripts with adaptive project flags based on billing mode.
+- **Engine 7 (`StatePersistenceEngine`)**: Maintains strict isolation between volatile RAM tokens and persisted preferences, persisting `activeBucketBillingMode` and `recentBucketModes`.
 
 ---
 
 ### Architectural Sign-Off for System Engines
 
-All 10 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
+All 11 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support dual billing modes (Requester-Pays vs Owner-Pays), persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
+
 
 
 

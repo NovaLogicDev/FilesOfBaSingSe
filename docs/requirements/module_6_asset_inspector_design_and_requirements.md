@@ -44,7 +44,7 @@ flowchart LR
   - CRC32c Hexadecimal string (e.g. `0xAF82F6C0`).
   - MD5 hash string with composite notice if applicable.
 - **FR-6.4**: 1-Click Clipboard Copy buttons beside each property with instantaneous visual toast feedback.
-- **FR-6.5**: Itemized single-asset cost calculator box displaying retrieval charge, egress charge, and total estimate.
+- **FR-6.5**: Itemized single-asset cost calculator box displaying retrieval charge, egress charge, and total estimate when in Requester-Pays mode, or displaying `$0.00 USD (Sponsored by Bucket Owner)` when in Owner-Pays mode.
 - **FR-6.6**: Action triggers: `[Stream Download to Local Disk]`, `[Copy gcloud CLI Command]`, `[Copy Raw JSON Metadata]`.
 
 #### Non-Functional Requirements
@@ -63,24 +63,28 @@ flowchart LR
 |               18,400,000,000 bytes (18.40 GB / 17.13 GiB)   |
 |                                                             |
 |  Storage Class:       ARCHIVE (Cold Tier)                   |
-|  Content-Type:        application/mxf                       |
-|  CRC32c (Hex):        0xAF82F6C0                    [Copy]  |
-|  CRC32c (Base64):     r4L2wA==                      [Copy]  |
-|  MD5 Checksum:        3a4f8d9b1c2e4a5f6e7d8c9b...   [Copy]  |
-|  Generation ID:       1721038935129482              [Copy]  |
-|  Created (UTC):       2026-07-14 10:22:15 UTC               |
+|  Content-Type:        video/mxf                             |
+|  CRC32c (Hex):        0xAF82F6C0                            |
+|  CRC32c (Base64):     r4L2wA==                              |
+|  MD5 Checksum:        3a4f8d9b1c2e4f6a7b8c9d0e1f2a3b4c      |
+|  Created:             2026-07-14 10:22:15 UTC               |
+|  Generation ID:       1689330135892104                      |
 |                                                             |
 |  +-------------------------------------------------------+  |
-|  | ESTIMATED DIRECT CHARGES (YOUR GCP PROJECT):          |  |
-|  | • Archive Retrieval Fee ($0.05 / GB):          $0.92  |  |
-|  | • Google Internet Egress Fee ($0.12 / GB):     $2.21  |  |
+|  | [REQUESTER-PAYS MODE]:                                |  |
+|  | • Archive Retrieval ($0.05/GB):                $0.92  |  |
+|  | • Internet Egress ($0.12/GB):                   $2.21  |  |
 |  | ----------------------------------------------------- |  |
-|  | ESTIMATED TOTAL CHARGE:                        $3.13  |  |
+|  | TOTAL ESTIMATED CHARGE:                        $3.13  |  |
+|  |                                                       |  |
+|  | [OWNER-PAYS MODE]:                                    |  |
+|  | • Estimated Client Charge:                     $0.00  |  |
+|  | (100% Covered by Bucket Owner)                        |  |
 |  +-------------------------------------------------------+  |
 |                                                             |
 |  [ Stream Download to Local Disk ]                          |
-|  [ Copy gcloud CLI Command ]                                |
-|  [ Copy Raw JSON Metadata ]                                 |
+|  [ Copy gcloud CLI Command       ]                          |
+|  [ Copy Raw JSON Metadata        ]                          |
 +-------------------------------------------------------------+
 ```
 

@@ -184,8 +184,9 @@ export interface StreamTicket {
   url: string;
   filename: string;
   totalBytes: number;
-  userProject: string;
+  userProject?: string;
   oauthToken: string;
+  billingMode?: 'requester-pays' | 'owner-pays';
   expectedCrc32c?: string;
   createdAt: number;
 }
@@ -202,6 +203,7 @@ export interface StreamDiagnostics {
   integrityMatch: boolean;
   serviceWorkerActive: boolean;
   downloadLocation: string; // e.g. "~/Downloads (Browser Default)"
+  billingMode: 'requester-pays' | 'owner-pays';
 }
 
 export class BrowserDownloadBridgeEngine {

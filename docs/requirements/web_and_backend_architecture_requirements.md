@@ -31,8 +31,8 @@ flowchart TD
         CRM["Cloud Resource Manager API (Project Discovery & Creation)"]
         ServiceUsage["Service Usage API (Storage API Activation)"]
         BillingAPI["Cloud Billing API (Billing Linkage Check)"]
-        GCS["GCS Archive Bucket (gs://...)\n• Requester-Pays: STRICTLY ENFORCED\n• Storage Object Viewer IAM\n• CORS Policy Applied"]
-        BillingEngine["GCP Billing Engine\n(Direct Client Billing Attribution)"]
+        GCS["GCS Storage Buckets (gs://...)\n• Mode A: Requester-Pays ENFORCED (Client Billed)\n• Mode B: Owner-Pays Standard (Zero Client Cost)\n• Storage Object Viewer IAM & CORS Applied"]
+        BillingEngine["GCP Billing Engine\n(Direct Client Billing Attribution on Req-Pays)"]
     end
 
     CDN -->|"Serves Static SPA Bundle (<150KB)"| ClientBrowser
@@ -40,8 +40,8 @@ flowchart TD
     ClientBrowser -->|"Project Auto-Discovery & Setup"| CRM
     ClientBrowser -->|"Enable Storage API"| ServiceUsage
     ClientBrowser -->|"Verify Billing Account"| BillingAPI
-    ClientBrowser -->|"Stream Media GET ?userProject=Client_ID"| GCS
-    GCS -->|"Attributes 100% Costs to Client"| BillingEngine
+    ClientBrowser -->|"Stream Media (userProject attached on Req-Pays, omitted on Owner-Pays)"| GCS
+    GCS -->|"Attributes Costs to Client on Req-Pays"| BillingEngine
     GCS -->|"Direct Binary Pipe (4MB Chunks)"| StreamEngine
 
     style GoogleManagedBackend fill:#e8f4f8,stroke:#0284c7,stroke-width:2px;

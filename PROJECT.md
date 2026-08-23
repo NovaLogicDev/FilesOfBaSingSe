@@ -73,6 +73,8 @@ Zero-backend, client-side media portal communicating directly from browser runti
 | 30 | Returning User Onboarding Bypass & Direct Workspace Landing | Automatic bypass of 4-step wizard for returning configured users directly to AssetExplorer | M1 | R1, Module 10 |
 | 31 | Browser History API Breadcrumbs Sync | `popstate` and `pushState` integration for native Back/Forward traversal in <16ms | M6 | R6, Module 11 |
 | 32 | Deep-Link Hash Routing & Cancel Guard | Bookmarkable `#/browse/{bucket}/{prefix}` URLs with in-flight fetch cancellation via AbortController | M6 | R6, Module 11 |
+| 33 | Dual Billing Mode & Owner-Pays Consumption | Automated preflight classification of `requester-pays` vs `owner-pays`, $0.00 client cost engine, and project-optional fast track | M3 | Module 13, Engine 11 |
+| 34 | Mixed-Mode Multi-Bucket Traversal & Badges | Dynamic status badge rendering (`[Requester-Pays Enforced 🛡️]` vs `[Owner-Pays / Free Egress 🎁]`) and adaptive CLI generation | M6 | Module 13, Engine 11 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
