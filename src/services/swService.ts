@@ -218,7 +218,9 @@ export class SwService {
   }
 
   /**
-   * Triggers browser download by appending a synthetic <a> link and clicking it.
+   * Triggers native browser streaming download via a hidden iframe pointing to /sw-pipe/:streamId/:filename.
+   * In Chromium and WebKit browsers, navigating an iframe guarantees that the browser routes the request
+   * directly through the Service Worker fetch interceptor, whereas `<a download>` bypasses the SW fetch event.
    */
   public triggerDownload(streamId: string, filename: string): void {
     if (typeof document === 'undefined') return
@@ -228,22 +230,19 @@ export class SwService {
       safeFilename = decodeURIComponent(filename)
     } catch (_) {}
 
-    const downloadUrl = `/api/stream-download?streamId=${encodeURIComponent(
-      streamId,
-    )}&filename=${encodeURIComponent(safeFilename)}`
+    const downloadUrl = `/sw-pipe/${encodeURIComponent(streamId)}/${encodeURIComponent(safeFilename)}`
 
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = safeFilename
-    link.style.display = 'none'
-    document.body.appendChild(link)
-    link.click()
+    const iframe = document.createElement('iframe')
+    iframe.hidden = true
+    iframe.style.display = 'none'
+    iframe.src = downloadUrl
+    document.body.appendChild(iframe)
 
     setTimeout(() => {
-      if (document.body.contains(link)) {
-        document.body.removeChild(link)
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
       }
-    }, 2000)
+    }, 60000)
   }
 
   /**

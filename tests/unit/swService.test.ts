@@ -131,16 +131,15 @@ describe('SwService (Safari Service Worker Lifecycle & Stream Interceptor Manage
     })
   })
 
-  it('creates hidden <a> tag and dispatches synthetic download click in DOM', () => {
+  it('creates hidden <iframe> tag and navigates to /sw-pipe/:streamId/:filename', () => {
     const appendChildSpy = vi.spyOn(document.body, 'appendChild')
 
     swService.triggerDownload('sw_stream_123', 'my_video.mxf')
 
     expect(appendChildSpy).toHaveBeenCalled()
-    const addedElement = appendChildSpy.mock.calls[0][0] as HTMLAnchorElement
-    expect(addedElement.tagName).toBe('A')
-    expect(addedElement.download).toBe('my_video.mxf')
-    expect(addedElement.href).toContain('/api/stream-download?streamId=sw_stream_123&filename=my_video.mxf')
+    const addedElement = appendChildSpy.mock.calls[0][0] as HTMLIFrameElement
+    expect(addedElement.tagName).toBe('IFRAME')
+    expect(addedElement.src).toContain('/sw-pipe/sw_stream_123/my_video.mxf')
     expect(addedElement.style.display).toBe('none')
   })
 

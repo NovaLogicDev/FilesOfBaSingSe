@@ -182,8 +182,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   // Intercept /sw-pipe/:streamId/:filename OR legacy /api/stream-download
   if (url.pathname.startsWith(STREAM_PREFIX)) {
+    console.log('[SW FETCH MATCH] /sw-pipe:', url.pathname)
     event.respondWith(handleSwPipeStreamDownload(event, url))
   } else if (url.pathname === LEGACY_STREAM_ENDPOINT || url.pathname.endsWith(LEGACY_STREAM_ENDPOINT)) {
+    console.log('[SW FETCH MATCH] /api/stream-download:', url.pathname)
     event.respondWith(handleLegacyStreamDownload(event, url))
   }
 })

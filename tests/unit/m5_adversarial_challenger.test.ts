@@ -522,10 +522,10 @@ describe('M5 Challenger - Empirical Adversarial Stress Test Suite', () => {
       swService.triggerDownload(streamId, filename)
 
       expect(appendedElements.length).toBe(1)
-      const link = appendedElements[0] as HTMLAnchorElement
-      expect(link.tagName).toBe('A')
+      const iframe = appendedElements[0] as HTMLIFrameElement
+      expect(iframe.tagName).toBe('IFRAME')
 
-      const parsedUrl = new URL(link.href, 'https://app.basingse.org')
+      const parsedUrl = new URL(iframe.src, 'https://app.basingse.org')
 
       // Assert NO sensitive keys in search params
       expect(parsedUrl.searchParams.has('token')).toBe(false)
@@ -536,13 +536,12 @@ describe('M5 Challenger - Empirical Adversarial Stress Test Suite', () => {
       expect(parsedUrl.searchParams.has('key')).toBe(false)
       expect(parsedUrl.searchParams.has('apiKey')).toBe(false)
 
-      // Assert link.href does NOT contain token string anywhere
-      expect(link.href).not.toContain(sensitiveToken)
-      expect(link.href).not.toMatch(/ya29\.[a-zA-Z0-9_\-]+/)
+      // Assert iframe.src does NOT contain token string anywhere
+      expect(iframe.src).not.toContain(sensitiveToken)
+      expect(iframe.src).not.toMatch(/ya29\.[a-zA-Z0-9_\-]+/)
 
-      // Assert download URL only contains streamId and filename
-      expect(parsedUrl.searchParams.get('streamId')).toBe(streamId)
-      expect(parsedUrl.searchParams.get('filename')).toBe(filename)
+      // Assert download URL routes to /sw-pipe/:streamId/:filename
+      expect(parsedUrl.pathname).toContain(`/sw-pipe/${streamId}/${filename}`)
     })
 
     it('ensures postMessage communication between SW and client contains zero token payload', async () => {
