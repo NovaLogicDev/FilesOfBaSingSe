@@ -153,13 +153,14 @@ export class BrowserCapabilityDetector {
   ): DownloadStrategy {
     if (forceStrategy) return forceStrategy
 
-    // Tier 1: Chromium FSAA (when showSaveFilePicker is available)
-    if (this.isFSAASupported()) {
-      return 'fsaa'
-    }
-
     const size = fileSize ?? 0
     const isSmallFile = size > 0 && size < 200 * 1024 * 1024 // < 200MB
+
+    // Tier 4: Firefox
+    if (this.isFirefox()) {
+      if (isSmallFile) return 'memory_blob'
+      return 'cli_companion'
+    }
 
     // Tier 2 & 3: Safari
     if (this.isSafari()) {
@@ -168,15 +169,15 @@ export class BrowserCapabilityDetector {
       return 'cli_companion'
     }
 
-    // Tier 4: Firefox
-    if (this.isFirefox()) {
-      if (isSmallFile) return 'memory_blob'
-      return 'cli_companion'
+    // Tier 1 Primary: Resilient Service Worker Streaming (Chrome, Edge, Brave, Arc, Opera)
+    // Streams directly to native browser download shelf (chrome://downloads) with zero file picker modal
+    if (this.isServiceWorkerStreamSupported()) {
+      return 'service_worker'
     }
 
-    // Generic fallback
+    // Fallback for small files
     if (isSmallFile) return 'memory_blob'
-    if (this.isServiceWorkerStreamSupported()) return 'service_worker'
+
     return 'cli_companion'
   }
 }

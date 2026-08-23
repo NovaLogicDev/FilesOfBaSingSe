@@ -533,33 +533,6 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
               <button
                 type="button"
                 onClick={() => {
-                  setPreferredDownloadStrategy('fsaa')
-                  addToast({
-                    type: 'success',
-                    title: 'Strategy Updated',
-                    message: 'Selected: Direct to Disk (FSAA) with OS File Reveal feedback.',
-                  })
-                }}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  preferredDownloadStrategy === 'fsaa' || !preferredDownloadStrategy
-                    ? 'border-emerald-500/60 bg-emerald-950/20 text-white'
-                    : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs text-emerald-300">Direct to Disk (FSAA)</span>
-                  {(preferredDownloadStrategy === 'fsaa' || !preferredDownloadStrategy) && (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">[Active]</span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  Prompts OS folder picker, streams direct to disk with constant &lt;15MB RAM, and provides 1-click OS reveal commands (Finder/Explorer/Dolphin).
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
                   setPreferredDownloadStrategy('service_worker')
                   addToast({
                     type: 'success',
@@ -568,19 +541,46 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                   })
                 }}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                  preferredDownloadStrategy === 'service_worker'
+                  preferredDownloadStrategy === 'service_worker' || !preferredDownloadStrategy
                     ? 'border-purple-500/60 bg-purple-950/20 text-white'
                     : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-xs text-purple-300">Chrome Download Manager</span>
-                  {preferredDownloadStrategy === 'service_worker' && (
-                    <span className="text-[10px] font-mono text-purple-400 font-bold">[Active]</span>
+                  {(preferredDownloadStrategy === 'service_worker' || !preferredDownloadStrategy) && (
+                    <span className="text-[10px] font-mono text-purple-400 font-bold">[Active Default]</span>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400 leading-normal">
-                  Streams via Service Worker interceptor, appearing directly in Chrome&apos;s download tray and <code className="font-mono text-slate-300">chrome://downloads</code> with native &quot;Show in folder&quot;.
+                  Streams direct to your browser&apos;s download manager (<code className="font-mono text-slate-300">chrome://downloads</code>) with native &quot;Show in folder&quot; without annoying file picker dialogs.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferredDownloadStrategy('fsaa')
+                  addToast({
+                    type: 'success',
+                    title: 'Strategy Updated',
+                    message: 'Selected: Direct to Disk (FSAA) with OS File Reveal feedback.',
+                  })
+                }}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  preferredDownloadStrategy === 'fsaa'
+                    ? 'border-emerald-500/60 bg-emerald-950/20 text-white'
+                    : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-xs text-emerald-300">Direct to Disk (FSAA)</span>
+                  {preferredDownloadStrategy === 'fsaa' && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">[Active]</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  Prompts OS folder picker dialog on every download. Useful only if you wish to bypass browser downloads and manually pick a target directory.
                 </p>
               </button>
             </div>

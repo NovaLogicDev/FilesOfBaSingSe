@@ -525,13 +525,14 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
   // =========================================================================
   describe('Vector 7: Cross-Browser Strategy Permutations & Fallbacks', () => {
     it('accurately resolves browser download strategy matrix across environments', () => {
-      // 1. When FSAA is supported (Chromium)
-      vi.spyOn(BrowserCapabilityDetector, 'isFSAASupported').mockReturnValue(true)
-      expect(BrowserCapabilityDetector.resolveStrategy(50 * 1024 * 1024 * 1024)).toBe('fsaa')
-      expect(BrowserCapabilityDetector.resolveStrategy(10 * 1024 * 1024)).toBe('fsaa')
+      // 1. When Service Worker is supported (Chromium / Chrome / Edge)
+      vi.spyOn(BrowserCapabilityDetector, 'isSafari').mockReturnValue(false)
+      vi.spyOn(BrowserCapabilityDetector, 'isFirefox').mockReturnValue(false)
+      vi.spyOn(BrowserCapabilityDetector, 'isServiceWorkerStreamSupported').mockReturnValue(true)
+      expect(BrowserCapabilityDetector.resolveStrategy(50 * 1024 * 1024 * 1024)).toBe('service_worker')
+      expect(BrowserCapabilityDetector.resolveStrategy(10 * 1024 * 1024)).toBe('service_worker')
 
-      // 2. When FSAA is NOT supported, but Safari WebKit is detected
-      vi.spyOn(BrowserCapabilityDetector, 'isFSAASupported').mockReturnValue(false)
+      // 2. When Safari WebKit is detected
       vi.spyOn(BrowserCapabilityDetector, 'isSafari').mockReturnValue(true)
       vi.spyOn(BrowserCapabilityDetector, 'isServiceWorkerStreamSupported').mockReturnValue(true)
 

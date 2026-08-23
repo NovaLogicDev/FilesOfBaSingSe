@@ -29,12 +29,14 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         userAgent:
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         vendor: 'Google Inc.',
+        serviceWorker: {},
       })
 
       expect(BrowserCapabilityDetector.isFSAASupported()).toBe(true)
       expect(BrowserCapabilityDetector.isSafari()).toBe(false)
       expect(BrowserCapabilityDetector.isFirefox()).toBe(false)
-      expect(BrowserCapabilityDetector.resolveStrategy(500 * 1024 * 1024)).toBe('fsaa')
+      expect(BrowserCapabilityDetector.resolveStrategy(500 * 1024 * 1024)).toBe('service_worker')
+      expect(BrowserCapabilityDetector.resolveStrategy(500 * 1024 * 1024, 'fsaa')).toBe('fsaa')
     })
 
     it('detects Apple Safari (WebKit) without Chromium tokens', () => {

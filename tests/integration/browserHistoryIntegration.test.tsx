@@ -13,6 +13,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
     localStorage.clear()
     sessionStorage.clear()
     window.location.hash = ''
+    window.history.replaceState(null, '', '/')
 
     usePersistentStore.setState({
       savedBucketName: 'partner-raw-master-archives-2026',

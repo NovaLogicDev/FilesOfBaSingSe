@@ -388,7 +388,7 @@ export const AppShell: React.FC = () => {
 
     const strategyDescriptions: Record<string, string> = {
       fsaa: 'File System Access API direct-to-disk',
-      service_worker: 'Safari Service Worker Stream Interceptor',
+      service_worker: 'Native Browser Download Manager (Service Worker Stream)',
       memory_blob: 'Universal in-memory blob handling',
     }
 

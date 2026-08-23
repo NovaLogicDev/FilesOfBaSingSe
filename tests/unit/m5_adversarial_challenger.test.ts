@@ -901,14 +901,15 @@ describe('M5 Challenger - Empirical Adversarial Stress Test Suite', () => {
   // =========================================================================
   describe('6. Cross-Browser Capability Matrix & CLI Generator Integrity', () => {
     it('correctly maps capability matrix across all major browser UAs and file sizes', () => {
-      // Chromium Browser (Chrome 120)
+      // Chromium Browser (Chrome 120) defaults to Service Worker streaming
       vi.stubGlobal('window', { showSaveFilePicker: vi.fn() })
       vi.stubGlobal('navigator', {
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         vendor: 'Google Inc.',
+        serviceWorker: {},
       })
-      expect(BrowserCapabilityDetector.resolveStrategy(50 * 1024 * 1024)).toBe('fsaa')
-      expect(BrowserCapabilityDetector.resolveStrategy(500 * 1024 * 1024)).toBe('fsaa')
+      expect(BrowserCapabilityDetector.resolveStrategy(50 * 1024 * 1024)).toBe('service_worker')
+      expect(BrowserCapabilityDetector.resolveStrategy(500 * 1024 * 1024)).toBe('service_worker')
 
       // Apple Safari (WebKit) on macOS
       vi.stubGlobal('window', {})
