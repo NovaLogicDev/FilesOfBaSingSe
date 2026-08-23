@@ -17,15 +17,15 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = memo(
     return (
       <nav
         aria-label="Breadcrumb"
-        className="flex items-center space-x-1.5 text-xs bg-slate-900/60 p-3 rounded-xl border border-slate-800 overflow-x-auto"
+        className="flex items-center space-x-1.5 text-xs bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none overflow-x-auto transition-colors"
       >
         <button
           type="button"
           onClick={() => onNavigatePrefix('')}
           className={`font-mono flex items-center space-x-1 transition-colors cursor-pointer rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             isAtRoot
-              ? 'font-bold text-white cursor-default'
-              : 'text-slate-400 hover:text-emerald-400'
+              ? 'font-bold text-slate-900 dark:text-white cursor-default'
+              : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
           }`}
           aria-current={isAtRoot ? 'location' : undefined}
           aria-label={`Root directory gs://${cleanBucket}`}
@@ -39,14 +39,14 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = memo(
           const isLast = idx === segments.length - 1
           return (
             <React.Fragment key={idx}>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" aria-hidden="true" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600 flex-shrink-0" aria-hidden="true" />
               <button
                 type="button"
                 onClick={() => onNavigatePrefix(pathUpToSegment)}
                 className={`font-mono transition-colors cursor-pointer rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                   isLast
-                    ? 'font-bold text-white cursor-default'
-                    : 'text-slate-400 hover:text-emerald-400'
+                    ? 'font-bold text-slate-900 dark:text-white cursor-default'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
                 }`}
                 aria-current={isLast ? 'location' : undefined}
                 aria-label={isLast ? `Current folder ${segment}` : `Navigate up to folder ${segment}`}

@@ -28,12 +28,14 @@ import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
 import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
 import { BrowserHistoryRouterEngine } from '../../engines/browserHistoryRouter'
+import { ThemeEngine } from '../../engines/theme'
 import { CalculatedCostResult, GCSMediaItem } from '../../types'
 
 export const AppShell: React.FC = () => {
   const {
     savedBucketName,
     savedProjectId,
+    theme,
     isFreeTrialAccount,
     customPricing,
     hasCompletedOnboarding,
@@ -203,6 +205,16 @@ export const AppShell: React.FC = () => {
       })
     }
   }, [])
+
+  // Listen to OS system color scheme changes if theme === 'system'
+  useEffect(() => {
+    if (theme === 'system') {
+      const unsubscribe = ThemeEngine.listenToSystemThemeChanges(() => {
+        ThemeEngine.applyTheme('system')
+      })
+      return unsubscribe
+    }
+  }, [theme])
 
   useEffect(() => {
     loadDirectory(currentPrefix)
@@ -445,7 +457,7 @@ export const AppShell: React.FC = () => {
   const isUnconfiguredLive = !oauthToken || !savedBucketName || !savedProjectId
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 transition-colors">
       {/* Accessible Skip Link (AUX-04) */}
       <a
         href="#main-content"
@@ -474,10 +486,10 @@ export const AppShell: React.FC = () => {
             data-testid="session-restoring-indicator"
             className="py-24 flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-200"
           >
-            <div className="w-10 h-10 rounded-full border-3 border-emerald-400 border-t-transparent animate-spin" />
+            <div className="w-10 h-10 rounded-full border-3 border-emerald-500 dark:border-emerald-400 border-t-transparent animate-spin" />
             <div className="text-center space-y-1">
-              <h3 className="text-base font-bold text-white">Restoring Google Cloud Session...</h3>
-              <p className="text-xs text-slate-400 font-mono">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Restoring Google Cloud Session...</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                 Silently reconnecting to {savedBucketName || 'GCS'} (Zero-Token Security)
               </p>
             </div>
@@ -515,15 +527,15 @@ export const AppShell: React.FC = () => {
           ) : (
             /* Clean Live Mode Welcome / Connect Hero */
             <div className="py-16 px-4 max-w-2xl mx-auto text-center space-y-6 animate-in fade-in duration-300">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-950/40">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400 shadow-xl shadow-emerald-500/10 dark:shadow-emerald-950/40">
                 <FolderLock className="w-8 h-8" />
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-white tracking-tight">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   Connect to Google Cloud Storage
                 </h2>
-                <p className="text-sm text-slate-400 leading-relaxed max-w-lg mx-auto">
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
                   Authenticate directly from your browser to access Requester-Pays production buckets. No server middleware, 100% zero host liability.
                 </p>
               </div>
@@ -541,22 +553,22 @@ export const AppShell: React.FC = () => {
               </div>
 
               {/* Feature Highlights */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 border-t border-slate-800/80 text-left">
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <div className="font-semibold text-white text-xs">Direct-to-Disk Streaming</div>
-                  <p className="text-[11px] text-slate-400 mt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 border-t border-slate-200 dark:border-slate-800/80 text-left">
+                <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+                  <div className="font-semibold text-slate-900 dark:text-white text-xs">Direct-to-Disk Streaming</div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
                     4MB micro-chunks streamed via Native Chromium File System Access API with bounded memory (&lt;15MB).
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <div className="font-semibold text-white text-xs">Castagnoli CRC32c</div>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+                  <div className="font-semibold text-slate-900 dark:text-white text-xs">Castagnoli CRC32c</div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
                     Live bit-exact parity validation against Google Cloud Storage hash digests.
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <div className="font-semibold text-white text-xs">Zero Host Liability</div>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+                  <div className="font-semibold text-slate-900 dark:text-white text-xs">Zero Host Liability</div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
                     Client-side execution with volatile in-memory OAuth tokens. Keys never touch server disk.
                   </p>
                 </div>
@@ -565,8 +577,8 @@ export const AppShell: React.FC = () => {
           )
         ) : isLoadingDirectory ? (
           <div className="py-20 flex flex-col items-center justify-center space-y-3">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-            <p className="text-xs font-mono text-slate-400">Querying GCS directory metadata...</p>
+            <div className="w-8 h-8 rounded-full border-2 border-emerald-500 dark:border-emerald-400 border-t-transparent animate-spin" />
+            <p className="text-xs font-mono text-slate-500 dark:text-slate-400">Querying GCS directory metadata...</p>
           </div>
         ) : (
           <AssetExplorerShell
@@ -653,13 +665,13 @@ export const AppShell: React.FC = () => {
       <ToastContainer />
 
       {/* Persistent Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-5 mt-auto text-xs text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 py-5 mt-auto text-xs text-slate-500 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-400">Files of Ba Sing Se</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-400">Files of Ba Sing Se</span>
             <span>&bull;</span>
-            <span className="text-white">&copy;</span>
-            <span className="font-mono text-white">
+            <span className="text-slate-900 dark:text-white">&copy;</span>
+            <span className="font-mono text-slate-900 dark:text-white">
               2026 Max Paulson
             </span>
           </div>
@@ -668,3 +680,4 @@ export const AppShell: React.FC = () => {
     </div>
   )
 }
+

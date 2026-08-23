@@ -2,12 +2,13 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { RateCard } from '../types/cost'
 import { DownloadStrategy } from '../types/stream'
+import { ThemeEngine, ThemeMode } from '../engines/theme'
 
 export interface PersistentPreferences {
   savedProjectId: string
   savedBucketName: string
   recentBuckets: string[]
-  theme: 'dark' | 'light'
+  theme: ThemeMode
   customPricing: Partial<RateCard>
   isFreeTrialAccount: boolean
   hasCompletedOnboarding: boolean
@@ -20,7 +21,7 @@ export interface PersistentPreferences {
   setSavedProjectId: (projectId: string) => void
   setSavedBucketName: (bucketName: string) => void
   addRecentBucket: (bucketName: string) => void
-  setTheme: (theme: 'dark' | 'light') => void
+  setTheme: (theme: ThemeMode) => void
   setCustomPricing: (pricing: Partial<RateCard>) => void
   setFreeTrialAccount: (isFreeTrial: boolean) => void
   setHasCompletedOnboarding: (completed: boolean) => void
@@ -63,7 +64,10 @@ export const usePersistentStore = create<PersistentPreferences>()(
           return { recentBuckets: [clean, ...filtered].slice(0, 5) }
         }),
 
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        ThemeEngine.applyTheme(theme)
+        set({ theme })
+      },
 
       setCustomPricing: (pricing) =>
         set((state) => ({ customPricing: { ...state.customPricing, ...pricing } })),
@@ -87,7 +91,8 @@ export const usePersistentStore = create<PersistentPreferences>()(
       setLocalDestinationPath: (path) =>
         set({ localDestinationPath: path.trim() || '~/Downloads' }),
 
-      resetPreferences: () =>
+      resetPreferences: () => {
+        ThemeEngine.applyTheme('dark')
         set({
           savedProjectId: '',
           savedBucketName: '',
@@ -101,11 +106,18 @@ export const usePersistentStore = create<PersistentPreferences>()(
           lastAuthTimestamp: null,
           preferredDownloadStrategy: null,
           localDestinationPath: '~/Downloads',
-        }),
+        })
+      },
     }),
     {
       name: 'basingse-media-client-prefs',
+      onRehydrateStorage: () => (state) => {
+        if (state?.theme) {
+          ThemeEngine.applyTheme(state.theme)
+        }
+      },
     },
   ),
 )
+
 

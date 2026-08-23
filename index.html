@@ -14,8 +14,34 @@
     />
     <!-- Google Identity Services (GIS) Client SDK Preload -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Zero-FOUT Theme Initializer (AUX-06) -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('basingse-media-client-prefs')
+          var theme = 'dark'
+          if (raw) {
+            var parsed = JSON.parse(raw)
+            if (parsed && parsed.state && parsed.state.theme) {
+              theme = parsed.state.theme
+            }
+          }
+          var isDark =
+            theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (isDark) {
+            document.documentElement.classList.add('dark')
+            document.documentElement.classList.remove('light')
+          } else {
+            document.documentElement.classList.remove('dark')
+            document.documentElement.classList.add('light')
+          }
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+        } catch (e) {}
+      })()
+    </script>
   </head>
-  <body class="bg-slate-950 text-slate-100 antialiased min-h-screen font-sans selection:bg-emerald-500 selection:text-slate-950">
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased min-h-screen font-sans selection:bg-emerald-500 selection:text-slate-950">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

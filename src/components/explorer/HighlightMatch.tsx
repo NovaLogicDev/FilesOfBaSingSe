@@ -15,7 +15,7 @@ export const HighlightMatch: React.FC<HighlightMatchProps> = memo(
     text,
     query,
     className = '',
-    matchClassName = 'bg-cyan-500/30 text-cyan-200 font-semibold px-0.5 rounded',
+    matchClassName = 'bg-amber-200 text-amber-950 dark:bg-cyan-500/30 dark:text-cyan-200 font-semibold px-0.5 rounded',
   }) => {
     if (!query || !query.trim()) {
       return <span className={className}>{text}</span>

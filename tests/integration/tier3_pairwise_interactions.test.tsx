@@ -261,10 +261,17 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
     )
 
     const themeToggleBtn = screen.getByLabelText(/toggle theme/i)
+    // 1st click: dark -> light
     fireEvent.click(themeToggleBtn)
     expect(usePersistentStore.getState().theme).toBe('light')
 
+    // 2nd click: light -> system
+    fireEvent.click(themeToggleBtn)
+    expect(usePersistentStore.getState().theme).toBe('system')
+
+    // 3rd click: system -> dark
     fireEvent.click(themeToggleBtn)
     expect(usePersistentStore.getState().theme).toBe('dark')
   })
 })
+

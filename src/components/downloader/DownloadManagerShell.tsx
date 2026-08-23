@@ -105,19 +105,19 @@ export const DownloadManagerShell: React.FC = () => {
     return (
       <aside
         aria-label="Active Download"
-        className="fixed bottom-4 right-4 z-50 flex items-center space-x-3 px-4 py-2.5 rounded-full bg-slate-900/95 border border-emerald-500/40 text-xs text-white shadow-2xl backdrop-blur-md cursor-pointer hover:border-emerald-400 transition-all"
+        className="fixed bottom-4 right-4 z-50 flex items-center space-x-3 px-4 py-2.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-emerald-500/40 text-xs text-slate-900 dark:text-white shadow-2xl backdrop-blur-md cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-400 transition-all"
         onClick={() => setDownloadMinimized(false)}
       >
-        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
         <span className="font-semibold truncate max-w-[140px]">{activeDownload.itemName}</span>
-        <span className="font-mono text-emerald-400 font-bold">{activeDownload.percentage}%</span>
-        <span className="font-mono text-slate-400">({activeDownload.formattedSpeed})</span>
+        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{activeDownload.percentage}%</span>
+        <span className="font-mono text-slate-500 dark:text-slate-400">({activeDownload.formattedSpeed})</span>
         <button
           onClick={(e) => {
             e.stopPropagation()
             setDownloadMinimized(false)
           }}
-          className="p-1 hover:text-emerald-400 cursor-pointer"
+          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-emerald-400 cursor-pointer"
           aria-label="Expand Download Manager"
         >
           <Maximize2 className="w-3.5 h-3.5" />
@@ -130,26 +130,26 @@ export const DownloadManagerShell: React.FC = () => {
   return (
     <aside
       aria-label="Active Download Manager"
-      className="fixed bottom-4 right-4 z-50 w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl backdrop-blur-md overflow-hidden text-xs flex flex-col animate-in slide-in-from-bottom-4 duration-200"
+      className="fixed bottom-4 right-4 z-50 w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-md overflow-hidden text-xs flex flex-col animate-in slide-in-from-bottom-4 duration-200 transition-colors"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/60">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
         <div className="flex items-center space-x-2">
           <div
             className={`w-2 h-2 rounded-full ${
               isComplete
-                ? 'bg-emerald-400'
+                ? 'bg-emerald-500 dark:bg-emerald-400'
                 : isCancelled
-                ? 'bg-rose-400'
-                : 'bg-emerald-400 animate-pulse'
+                ? 'bg-rose-500 dark:bg-rose-400'
+                : 'bg-emerald-500 dark:bg-emerald-400 animate-pulse'
             }`}
           />
-          <span className="font-bold text-white tracking-tight">ACTIVE DOWNLOAD MANAGER</span>
+          <span className="font-bold text-slate-900 dark:text-white tracking-tight">ACTIVE DOWNLOAD MANAGER</span>
         </div>
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setDownloadMinimized(true)}
-            className="p-1 text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded transition-colors cursor-pointer"
             title="Minimize"
             aria-label="Minimize"
           >
@@ -157,7 +157,7 @@ export const DownloadManagerShell: React.FC = () => {
           </button>
           <button
             onClick={() => setDownloadProgress(null)}
-            className="p-1 text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded transition-colors cursor-pointer"
             title="Close"
             aria-label="Close"
           >
@@ -171,35 +171,35 @@ export const DownloadManagerShell: React.FC = () => {
         {/* Item Title & Billed Project */}
         <div>
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white truncate max-w-[260px]">
+            <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[260px]">
               {activeDownload.itemName}
             </span>
-            <span className="font-mono font-bold text-emerald-400 text-sm">
+            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
               {activeDownload.percentage}%
             </span>
           </div>
           <div className="flex items-center justify-between mt-1">
-            <p className="text-[10px] text-slate-400 font-mono">
-              Billed to: <strong className="text-slate-300">{savedProjectId}</strong>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+              Billed to: <strong className="text-slate-700 dark:text-slate-300">{savedProjectId}</strong>
             </p>
             {/* Strategy Badge */}
             {(!activeDownload.strategy || activeDownload.strategy === 'fsaa') && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                 [FSAA Direct-to-Disk]
               </span>
             )}
             {activeDownload.strategy === 'service_worker' && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
                 [Service Worker Stream]
               </span>
             )}
             {activeDownload.strategy === 'memory_blob' && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-500/20">
                 [Memory Blob (&lt;200MB)]
               </span>
             )}
             {activeDownload.strategy === 'cli_companion' && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20">
                 [CLI Companion]
               </span>
             )}
@@ -207,7 +207,7 @@ export const DownloadManagerShell: React.FC = () => {
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+        <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-200 dark:border-slate-800">
           <div
             className={`h-full transition-all duration-200 rounded-full ${
               isComplete
@@ -222,49 +222,49 @@ export const DownloadManagerShell: React.FC = () => {
 
         {/* Live Transfer Telemetry Metrics */}
         <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
-          <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] flex items-center space-x-1">
-              <Zap className="w-3 h-3 text-amber-400" />
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
+            <div className="text-slate-500 dark:text-slate-400 text-[10px] flex items-center space-x-1">
+              <Zap className="w-3 h-3 text-amber-500 dark:text-amber-400" />
               <span>Speed:</span>
             </div>
-            <div className="text-white font-bold mt-0.5">{activeDownload.formattedSpeed}</div>
+            <div className="text-slate-900 dark:text-white font-bold mt-0.5">{activeDownload.formattedSpeed}</div>
           </div>
 
-          <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] flex items-center space-x-1">
-              <Clock className="w-3 h-3 text-cyan-400" />
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
+            <div className="text-slate-500 dark:text-slate-400 text-[10px] flex items-center space-x-1">
+              <Clock className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
               <span>ETA:</span>
             </div>
-            <div className="text-white font-bold mt-0.5">{activeDownload.formattedETA}</div>
+            <div className="text-slate-900 dark:text-white font-bold mt-0.5">{activeDownload.formattedETA}</div>
           </div>
 
-          <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] flex items-center space-x-1">
-              <HardDrive className="w-3 h-3 text-emerald-400" />
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
+            <div className="text-slate-500 dark:text-slate-400 text-[10px] flex items-center space-x-1">
+              <HardDrive className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
               <span>Transferred:</span>
             </div>
-            <div className="text-slate-200 mt-0.5">
+            <div className="text-slate-700 dark:text-slate-200 mt-0.5">
               {CostGovernanceEngine.formatBytes(activeDownload.loadedBytes)} /{' '}
               {CostGovernanceEngine.formatBytes(activeDownload.totalBytes)}
             </div>
           </div>
 
-          <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-            <div className="text-slate-400 text-[10px] flex items-center space-x-1">
-              <Cpu className="w-3 h-3 text-indigo-400" />
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
+            <div className="text-slate-500 dark:text-slate-400 text-[10px] flex items-center space-x-1">
+              <Cpu className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
               <span>{activeDownload.strategy === 'memory_blob' ? 'Allocated Heap:' : 'Fixed Heap:'}</span>
             </div>
-            <div className="text-emerald-300 font-bold mt-0.5">
-              ~{activeDownload.memoryHeapMB.toFixed(1)} MB {activeDownload.strategy === 'memory_blob' ? '(In-Memory)' : '(Stable)'}
+            <div className="text-emerald-700 dark:text-emerald-300 font-bold mt-0.5">
+              ~{(activeDownload.memoryHeapMB ?? 0).toFixed(1)} MB {activeDownload.strategy === 'memory_blob' ? '(In-Memory)' : '(Stable)'}
             </div>
           </div>
         </div>
 
         {/* Cryptographic Verification Status */}
-        <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+        <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="text-slate-300 text-[11px]">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-slate-700 dark:text-slate-300 text-[11px]">
               {isComplete
                 ? 'CRC32c Checksum Verified Match'
                 : activeDownload.status === 'verifying'
@@ -273,7 +273,7 @@ export const DownloadManagerShell: React.FC = () => {
             </span>
           </div>
           {isComplete && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
               100% OK
             </span>
           )}
@@ -281,27 +281,27 @@ export const DownloadManagerShell: React.FC = () => {
 
         {/* Post-Download Local File Location & Path Feedback (Module 12) */}
         {isComplete && (
-          <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 space-y-2.5">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-emerald-500/30 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5">
-                <HardDrive className="w-4 h-4 text-emerald-400" />
-                <span className="font-semibold text-white text-xs">
+                <HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="font-semibold text-slate-900 dark:text-white text-xs">
                   Saved File Location
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-emerald-400">
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
                 [✓ Flushed to Disk]
               </span>
             </div>
 
             {/* Canonical Path Display Box */}
-            <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
               <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
                 <span>Canonical Local Path:</span>
                 <button
                   type="button"
                   onClick={() => setIsEditingFolder((prev) => !prev)}
-                  className="text-cyan-400 hover:text-cyan-300 flex items-center space-x-1 underline cursor-pointer"
+                  className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 flex items-center space-x-1 underline cursor-pointer"
                   title="Configure base destination folder path"
                 >
                   <Edit2 className="w-2.5 h-2.5" />
@@ -318,7 +318,7 @@ export const DownloadManagerShell: React.FC = () => {
                       value={folderInput}
                       onChange={(e) => setFolderInput(e.target.value)}
                       placeholder="e.g. ~/Downloads or /home/user/Footage"
-                      className="w-full px-2 py-1 rounded bg-slate-950 border border-cyan-500/40 text-cyan-200 text-xs font-mono focus:outline-none"
+                      className="w-full px-2 py-1 rounded bg-slate-50 dark:bg-slate-950 border border-cyan-500/40 text-cyan-900 dark:text-cyan-200 text-xs font-mono focus:outline-none"
                     />
                   </div>
                   <button
@@ -332,14 +332,14 @@ export const DownloadManagerShell: React.FC = () => {
                         message: `Local folder set to "${folderInput}".`,
                       })
                     }}
-                    className="px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs cursor-pointer"
+                    className="px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white dark:text-slate-950 font-bold text-xs cursor-pointer"
                   >
                     Save
                   </button>
                 </div>
               )}
 
-              <div className="font-mono text-xs font-bold text-slate-200 break-all select-all flex items-center justify-between gap-2 bg-slate-950/60 p-2 rounded border border-slate-800/80">
+              <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 break-all select-all flex items-center justify-between gap-2 bg-slate-100 dark:bg-slate-950/60 p-2 rounded border border-slate-200 dark:border-slate-800/80">
                 <span className="truncate">{canonicalLocation}</span>
                 <button
                   type="button"
@@ -355,10 +355,10 @@ export const DownloadManagerShell: React.FC = () => {
                       })
                     }
                   }}
-                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-emerald-200 border border-slate-700 text-[10px] font-mono flex items-center space-x-1 transition-all cursor-pointer flex-shrink-0"
+                  className="px-2.5 py-1 rounded bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-emerald-800 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-200 border border-slate-300 dark:border-slate-700 text-[10px] font-mono flex items-center space-x-1 transition-all cursor-pointer flex-shrink-0"
                   title="Copy full canonical file path"
                 >
-                  {copiedReveal ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copiedReveal ? <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedReveal ? 'Copied' : 'Copy Full Path'}</span>
                 </button>
               </div>
@@ -366,14 +366,14 @@ export const DownloadManagerShell: React.FC = () => {
 
             {/* Secondary Action: Inspect Disk Handle / Diagnostics */}
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] text-slate-400 font-mono">
-                Browser Shelf: <strong className="text-emerald-400">chrome://downloads</strong>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                Browser Shelf: <strong className="text-emerald-600 dark:text-emerald-400">chrome://downloads</strong>
               </span>
               <button
                 type="button"
                 onClick={handleInspectDiskHandle}
                 disabled={isInspectingHandle}
-                className="py-1 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                className="py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-cyan-700 dark:text-cyan-300 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
                 title="Inspect local file properties on disk and stream checksums"
               >
                 <Search className="w-3 h-3" />
@@ -383,43 +383,43 @@ export const DownloadManagerShell: React.FC = () => {
 
             {/* Handle Inspection Details Dropdown */}
             {handleInspection && (
-              <div className="mt-2 p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 font-mono text-[10px] text-slate-300 animate-in fade-in duration-150">
-                <div className="flex items-center space-x-1 text-emerald-400 font-semibold mb-1">
+              <div className="mt-2 p-2.5 rounded-lg bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-1 font-mono text-[10px] text-slate-700 dark:text-slate-300 animate-in fade-in duration-150">
+                <div className="flex items-center space-x-1 text-emerald-700 dark:text-emerald-400 font-semibold mb-1">
                   <FileCheck className="w-3.5 h-3.5" />
                   <span>Verified On-Disk Properties:</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">File Name:</span>
-                  <span className="text-white truncate max-w-[200px]">{handleInspection.filename}</span>
+                  <span className="text-slate-900 dark:text-white truncate max-w-[200px]">{handleInspection.filename}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">On-Disk Size:</span>
-                  <span className="text-emerald-300">{handleInspection.formattedSize} ({handleInspection.sizeBytes.toLocaleString()} bytes)</span>
+                  <span className="text-emerald-700 dark:text-emerald-300">{handleInspection.formattedSize} ({handleInspection.sizeBytes.toLocaleString()} bytes)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Last Modified:</span>
-                  <span className="text-slate-300">{handleInspection.lastModifiedDate}</span>
+                  <span className="text-slate-700 dark:text-slate-300">{handleInspection.lastModifiedDate}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">CRC32c Checksum:</span>
-                  <span className="text-emerald-300">{activeDownload.computedCrc32cHex || '0xAF82F6C0'} ({activeDownload.computedCrc32cBase64 || 'r4L2wA=='})</span>
+                  <span className="text-emerald-700 dark:text-emerald-300">{activeDownload.computedCrc32cHex || '0xAF82F6C0'} ({activeDownload.computedCrc32cBase64 || 'r4L2wA=='})</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Keep-Alive Watchdog:</span>
-                  <span className="text-emerald-400 font-bold">Active (10s Ping Interval)</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active (10s Ping Interval)</span>
                 </div>
               </div>
             )}
 
             {/* Chromium direct-to-disk note & Strategy Quick Toggle */}
-            <div className="pt-1 border-t border-slate-900 text-[10px] text-slate-400 space-y-1">
+            <div className="pt-1 border-t border-slate-200 dark:border-slate-900 text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
               <p className="leading-tight">
                 Chrome direct disk streams write directly to your local storage location.
               </p>
               <button
                 type="button"
                 onClick={handleToggleStrategy}
-                className="text-cyan-400 hover:text-cyan-300 text-[10px] flex items-center space-x-1 underline cursor-pointer"
+                className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 text-[10px] flex items-center space-x-1 underline cursor-pointer"
               >
                 <Settings2 className="w-3 h-3" />
                 <span>
@@ -431,12 +431,12 @@ export const DownloadManagerShell: React.FC = () => {
             </div>
 
             {/* Native Browser Download manager guidance */}
-            <div className="pt-1 border-t border-slate-900 text-[10px] text-slate-400 space-y-1">
+            <div className="pt-1 border-t border-slate-200 dark:border-slate-900 text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
               <p className="leading-tight">
-                This transfer is tracked directly in <strong className="text-slate-300">chrome://downloads</strong> and your browser toolbar tray.
+                This transfer is tracked directly in <strong className="text-slate-700 dark:text-slate-300">chrome://downloads</strong> and your browser toolbar tray.
               </p>
               <p className="text-[9px] text-slate-500">
-                Click the native <strong className="text-slate-400">'Show in folder'</strong> magnifying glass in your browser to highlight your asset in Finder / Explorer / Dolphin.
+                Click the native <strong className="text-slate-600 dark:text-slate-400">'Show in folder'</strong> magnifying glass in your browser to highlight your asset in Finder / Explorer / Dolphin.
               </p>
             </div>
           </div>
@@ -444,14 +444,14 @@ export const DownloadManagerShell: React.FC = () => {
       </div>
 
       {/* Footer Controls */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+      <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between transition-colors">
         <span className="text-[10px] text-slate-500 font-mono">
           Elapsed: {activeDownload.formattedElapsed}
         </span>
         {isStreaming && (
           <button
             onClick={abortActiveDownload}
-            className="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-200 font-semibold text-xs transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-950/60 dark:hover:bg-rose-900 border border-rose-300 dark:border-rose-800 dark:text-rose-200 font-semibold text-xs transition-colors cursor-pointer"
           >
             Cancel Download
           </button>
@@ -467,4 +467,5 @@ export const DownloadManagerShell: React.FC = () => {
       </div>
     </aside>
   )
+
 }

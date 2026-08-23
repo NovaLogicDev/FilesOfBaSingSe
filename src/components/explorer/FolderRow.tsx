@@ -36,8 +36,10 @@ export const FolderRow: React.FC<FolderRowProps> = memo(
           right: 0,
           height: `${height}px`,
         }}
-        className={`grid grid-cols-[40px_minmax(0,1fr)_112px_96px_144px_112px_128px] items-center px-4 border-b border-slate-800/60 transition-colors cursor-pointer group text-xs ${
-          isFocused ? 'bg-slate-800/60 ring-1 ring-cyan-400/50' : 'hover:bg-slate-800/40'
+        className={`grid grid-cols-[40px_minmax(0,1fr)_112px_96px_144px_112px_128px] items-center px-4 border-b border-slate-200 dark:border-slate-800/60 transition-colors cursor-pointer group text-xs ${
+          isFocused
+            ? 'bg-slate-100 dark:bg-slate-800/60 ring-1 ring-cyan-400/50'
+            : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
         }`}
       >
         <div role="gridcell" aria-colindex={1} className="w-10 flex items-center justify-center">
@@ -47,10 +49,10 @@ export const FolderRow: React.FC<FolderRowProps> = memo(
         <div
           role="gridcell"
           aria-colindex={2}
-          className="flex items-center space-x-2 text-white font-medium overflow-hidden"
+          className="flex items-center space-x-2 text-slate-900 dark:text-white font-medium overflow-hidden"
         >
-          <Folder className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform flex-shrink-0" />
-          <span className="font-mono text-cyan-300 group-hover:underline truncate">
+          <Folder className="w-4 h-4 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform flex-shrink-0" />
+          <span className="font-mono text-cyan-700 dark:text-cyan-300 group-hover:underline truncate font-semibold">
             {folderDisplayName}
           </span>
         </div>
@@ -61,12 +63,13 @@ export const FolderRow: React.FC<FolderRowProps> = memo(
         <div role="gridcell" aria-colindex={6} className="px-1 hidden lg:block" />
 
         <div role="gridcell" aria-colindex={7} className="text-right">
-          <span className="text-[11px] text-slate-400 group-hover:text-emerald-400 font-mono">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 font-mono">
             Open &rarr;
           </span>
         </div>
       </div>
     )
+
   },
 )
 
