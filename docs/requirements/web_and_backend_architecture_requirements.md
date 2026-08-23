@@ -17,7 +17,7 @@ Instead, the **web browser itself acts as the client runtime environment**, comm
 flowchart TD
     subgraph ClientBrowser ["1. Client Web Application (Browser Runtime)"]
         UI["React 19 + TypeScript SPA"]
-        StreamEngine["Memory-Bounded Stream Engine\n(File System Access API & SW)"]
+        StreamEngine["Resilient SW Stream Engine\n(Pass-Through TransformStream & Keep-Alive)"]
         VolatileStore["Volatile Token Store (Zustand)"]
         LocalPrefs["Persistent Preferences (LocalStorage)"]
     end
@@ -72,10 +72,10 @@ flowchart TD
 
 | Browser Engine | Operating Systems | Primary Capabilities & API Utilization | Memory SLA | Max File Size | Support Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Chromium 86+** (Chrome, Edge, Brave, Arc) | macOS, Windows, Linux, ChromeOS | **Tier 1 File System Access API**: `window.showSaveFilePicker()` $\rightarrow$ `FileSystemWritableFileStream` $\rightarrow$ 4MB micro-chunk direct pipe. | **Constant < 15 MB RAM** | **Unlimited (100GB+)** | **Tier 1 (Primary)** |
-| **WebKit (Safari 15.4+)** | macOS, iPadOS | **Tier 2 Service Worker Stream Interceptor**: Service worker intercepts synthetic download fetch, pipes `ReadableStream` into `Content-Disposition: attachment`. | **Constant < 20 MB RAM** | **Unlimited (Disk Cap)** | **Tier 2 (Hybrid)** |
-| **Gecko (Mozilla Firefox)** | macOS, Windows, Linux | **Tier 4 Companion CLI**: Detects Gecko stream limitations, renders informative notice, and routes user to pre-populated 1-click `gcloud storage cp --billing-project` modal. | **Zero Browser RAM** | **Unlimited** | **Graceful Degradation** |
-| **Universal (<200MB files)**| All HTML5 Browsers | **Tier 3 Memory Blob**: `response.blob()` $\rightarrow$ `URL.createObjectURL(blob)` $\rightarrow$ `<a download>`. | Equal to file size | < 200 MB | **Lightweight Utility** |
+| **Chromium 86+** (Chrome, Edge, Brave, Arc) | macOS, Windows, Linux, ChromeOS | **Tier 1 Resilient Service Worker Stream**: Service Worker intercepts synthetic `/sw-pipe/...` fetch, runs rolling CRC32c `TransformStream`, pipes into native browser download manager (`chrome://downloads`), maintains 10s keep-alive heartbeat. | **Constant < 15 MB RAM** | **Unlimited (100GB+)** | **Tier 1 (Primary Standard)** |
+| **WebKit (Safari 15.4+)** | macOS, iPadOS | **Tier 1 Resilient Service Worker Stream**: Identical Service Worker stream interceptor with keep-alive heartbeat and native Safari Downloads manager tracking. | **Constant < 20 MB RAM** | **Unlimited (Disk Cap)** | **Tier 1 (Unified Standard)** |
+| **Gecko (Mozilla Firefox)** | macOS, Windows, Linux | **Tier 3 Companion CLI**: Detects Gecko stream limitations, renders informative notice, and routes user to pre-populated 1-click `gcloud storage cp --billing-project` modal. | **Zero Browser RAM** | **Unlimited** | **Graceful Degradation** |
+| **Universal (<200MB files)**| All HTML5 Browsers | **Tier 2 Memory Blob**: `response.blob()` $\rightarrow$ `URL.createObjectURL(blob)` $\rightarrow$ `<a download>`. | Equal to file size | < 200 MB | **Lightweight Utility** |
 
 ---
 
@@ -182,19 +182,22 @@ Because the portal operates under a zero-backend model without dynamic applicati
 
 ---
 
-### 1.7 Client-Side OS File Manager Integration & Browser Sandbox Security Boundary
+### 1.7 Client-Side Service Worker Streaming & Native Browser Download Integration
 
-Under the **Zero-Backend** model, direct-to-disk streaming utilizes the W3C **File System Access API (FSAA)** in Chromium browsers (*Module 4* and *Module 12*, `MOD-12-OS-FILESYSTEM-FEEDBACK`).
+Under the **Zero-Backend** model, high-throughput multi-gigabyte media streaming utilizes the **Resilient Service Worker Stream Interceptor** across Chrome, Edge, Safari, Brave, and Arc (*Module 4* and *Module 12*, `MOD-12-BROWSER-DOWNLOAD-INTEGRATION`).
 
-#### Browser Architecture & Security Isolation:
-1. **Separation from Chromium Download Manager**:
-   - Chromium internally isolates File System Access API operations from its built-in Download Manager (`chrome://downloads`). Direct disk writes bypass the browser's download shelf by design because FSAA represents direct disk I/O to a user-granted file handle rather than an untrusted incoming network attachment.
-2. **Browser Sandbox Security Guarantee**:
-   - In adherence to standard web security models, client-side web applications cannot programmatically execute arbitrary desktop processes (e.g. silently launching `open`, `explorer.exe`, or `xdg-open` in the background) without user action or installed native host bridges.
-3. **The Multi-Tier OS Feedback Resolution**:
-   - **Tier 1 (1-Click Platform Shell Snippets)**: Synthesizes exact, shell-escaped reveal commands for the detected OS (macOS Finder `open -R`, Windows Explorer `explorer.exe /select,`, Linux KDE Dolphin `dolphin --select` / GNOME Nautilus `nautilus --select`), enabling 1-click clipboard copy.
-   - **Tier 2 (In-Browser Handle Re-Verification)**: Leverages active `FileSystemFileHandle.getFile()` to inspect verified on-disk bytes, last modified timestamps, and MIME types directly from browser runtime memory.
-   - **Tier 3 (Dual Strategy Configuration)**: Empowers users who prefer Chrome's native download shelf to route transfers through the **Service Worker Stream Interceptor**, enabling native browser download manager logging and the browser's built-in "Show in folder" action.
+#### Browser Architecture & Unified Download Experience:
+1. **Convergence on Native Browser Download Managers**:
+   - The system intentionally converges on Service Worker stream interception (`/sw-pipe/:streamId/:filename`) to provide full integration with native browser download managers (`chrome://downloads`, Safari Downloads, Edge Downloads).
+   - This ensures transfers appear directly in the browser's download shelf and toolbar tray, granting users immediate access to the native OS "Show in folder" magnifying glass button.
+2. **Lifecycle Resilience & Memory Guarantees**:
+   - **Keep-Alive Heartbeat**: A 10-second client-to-worker ping loop prevents browser worker thread suspension during multi-hour transfers.
+   - **Constant <15MB RAM Footprint**: Chunks are piped directly from the upstream GCS `ReadableStream` into a pass-through `TransformStream` without memory buffering.
+   - **Pass-Through CRC32c Integrity**: Real-time Castagnoli CRC32c checksum is computed on the fly and verified against GCS `x-goog-hash`.
+3. **Graceful Browser Fallbacks**:
+   - **Tier 1 (Service Worker Streaming)**: Default for all files > 200MB on Chromium and WebKit browsers.
+   - **Tier 2 (In-Memory Blob)**: Lightweight instant download for small assets (<200MB).
+   - **Tier 3 (Companion CLI Generator)**: 1-click terminal scripts for Firefox or automated headless batch workflows.
 
 ---
 

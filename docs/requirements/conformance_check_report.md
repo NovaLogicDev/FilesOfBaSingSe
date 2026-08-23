@@ -8,7 +8,7 @@
 A comprehensive **Visual and Technical Conformance Audit** was conducted across the Architecture Decision Record, User Stories Specification, and UI Wireframes. The audit verified:
 1. **Mathematical Accuracy & Billing Equations**: GCS pricing models, decimal gigabyte conversions ($10^9$ bytes), and itemized retrieval/egress calculations.
 2. **GCS API & OAuth 2.0 Security Contracts**: Volatile token isolation, OAuth scopes, GCS JSON API endpoints, and CORS headers.
-3. **Browser Engine Matrix & Memory Boundedness**: File System Access API vs Service Worker interceptor vs Firefox graceful degradation.
+3. **Browser Engine Matrix & Memory Boundedness**: Unified Resilient Service Worker streaming vs Firefox graceful degradation.
 4. **Visual Hierarchy & Accessibility (WCAG 2.1 AA)**: Contrast ratios, keyboard navigation, ARIA grid roles, and design system tokens.
 
 ```mermaid
@@ -93,8 +93,8 @@ sequenceDiagram
 
 | Browser Engine | Operating Systems | Primary Download Pipeline | Memory Footprint | Max Supported Size | Conformance Level |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Chromium 86+** (Chrome, Edge, Brave, Arc) | macOS, Windows, Linux | **File System Access API** (`showSaveFilePicker` + `createWritable` + 4MB micro-chunks) | **Constant < 15 MB RAM** | **Unlimited (100GB+)** | **Tier 1 Primary (Full Support)** |
-| **WebKit (Safari 15.4+)** | macOS, iPadOS | **Service Worker Stream Interceptor** (pipes `ReadableStream` into synthetic download) | **Constant < 20 MB RAM** | **Unlimited (To disk space)** | **Tier 2 Hybrid (Full Support)** |
+| **Chromium 86+** (Chrome, Edge, Brave, Arc) | macOS, Windows, Linux | **Resilient Service Worker Stream** (pass-through `TransformStream` + 10s keep-alive + `chrome://downloads` shelf tracking) | **Constant < 15 MB RAM** | **Unlimited (100GB+)** | **Tier 1 Primary (Full Support)** |
+| **WebKit (Safari 15.4+)** | macOS, iPadOS | **Resilient Service Worker Stream** (pipes `ReadableStream` into synthetic download + keep-alive) | **Constant < 20 MB RAM** | **Unlimited (To disk space)** | **Tier 1 Unified (Full Support)** |
 | **Gecko (Firefox)** | macOS, Windows, Linux | **Inline Notice + 1-Click CLI Generator** (`gcloud storage cp --billing-project`) | **Zero Browser RAM** | **Unlimited** | **Graceful Degradation (Full Support)** |
 | **Any Browser** (<200MB files) | All | **Memory Blob / `createObjectURL`** | Equal to file size | < 200 MB | **Lightweight Utility (Full Support)** |
 
@@ -142,24 +142,28 @@ During the conformance audit, the following updates and harmonizations were enac
    - Added explicit per-storage-class calculation formulas in `user_stories_specification.md` and `ui_wireframes_and_interface_specification.md` so that mixed-tier selections (e.g. 2 Archive files + 1 Standard file) accurately apply \$0.05/GB retrieval only to the cold-tier objects.
 2. **GCP Project Discovery & Free Trial Guidance**:
    - Harmonized the Onboarding Wizard wireframe with the newly added **Taylor (Solo Freelance Client)** persona, adding the direct Free Trial Assistant deep-link and automatic API discovery via `cloudresourcemanager.googleapis.com`.
-3. **Download Manager Telemetry**:
-   - Added fixed-memory indicator telemetry (`Fixed RAM: ~11.4 MB - Stable`) into the active Download Manager specifications to give users real-time visual proof that streaming large files does not leak browser memory.
-5. **Session Continuity & Onboarding Bypass Conformance**:
+3. **Download Manager Telemetry & Native Browser Integration**:
+   - Added fixed-memory indicator telemetry (`Fixed RAM: ~11.4 MB - Stable`) and native browser download shelf tracking (`chrome://downloads`) into the active Download Manager specifications.
+4. **Session Continuity & Onboarding Bypass Conformance**:
    - Added Module 10 (`MOD-10-SESSION-LIFECYCLE`), Epic 10 in `user_stories_specification.md`, and Engine 8 in `system_engines_design_specification.md`.
    - Verified that session continuity on reload uses non-sensitive session hints and silent GIS token requests (`gisAuthService.refreshTokenSilent()`) with zero token storage on disk.
    - Verified that returning users with valid `savedProjectId` and `savedBucketName` bypass the 4-step wizard directly into the active workspace.
-6. **Browser History & URL Deep Linking Conformance**:
+5. **Browser History & URL Deep Linking Conformance**:
    - Added Module 11 (`MOD-11-BROWSER-HISTORY-ROUTING`), Epic 11 in `user_stories_specification.md`, and Engine 9 in `system_engines_design_specification.md`.
    - Verified that breadcrumb clicks and folder navigation push history entries via `history.pushState()`.
    - Verified that `popstate` events handle Back/Forward button clicks with in-flight fetch cancellation via `AbortController`.
    - Verified that deep links (`#/browse/{bucket}/{prefix}`) hydrate directory views upon boot without credential leaks.
+6. **Native Browser Download Integration & Stream Resilience Conformance**:
+   - Added Module 12 (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`), Epic 12 in `user_stories_specification.md`, and Engine 10 in `system_engines_design_specification.md`.
+   - Verified 10-second keep-alive heartbeat loop (`SW_KEEP_ALIVE_PING`/`PONG`), real-time CRC32c validation in `TransformStream`, and native "Show in folder" accessibility.
 
 ---
 
 ### Conformance Check Sign-Off
 - **Architecture Alignment**: 100% Conforming
-- **User Story Coverage**: 100% Conforming (11 Epics, 34 Stories)
-- **UI Wireframe & Design System Consistency**: 100% Conforming (8 Screens)
+- **User Story Coverage**: 100% Conforming (12 Epics, 38 Stories)
+- **UI Wireframe & Design System Consistency**: 100% Conforming (9 Screens)
 - **Security & Billing Integrity**: 100% Conforming (Zero Token Persistence Guaranteed)
-- **Session Lifecycle & Onboarding Bypass**: 100% Conforming
+- **Session Lifecycle & Onboarding Bypass**: 100% Conforming (Module 10)
 - **Browser History & URL Synchronization**: 100% Conforming (Module 11)
+- **Native Browser Download Integration & Stream Resilience**: 100% Conforming (Module 12)

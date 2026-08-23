@@ -3,9 +3,9 @@
 
 ---
 
-### Executive Architectural Overview
+## Executive Architectural Overview
 
-**Files of Ba Sing Se** is powered by nine modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
+**Files of Ba Sing Se** is powered by ten modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, and rigorous cryptographic integrity standards.
 
 ```mermaid
 flowchart TD
@@ -13,13 +13,13 @@ flowchart TD
         E1["1. GCP Onboarding & Provisioning Engine\n(GIS OAuth 2.0, CRM, Billing, Free Trial)"]
         E2["2. GCS REST & Hierarchical Metadata Engine\n(Directory Virtualization, Delimiters, Pagination)"]
         E3["3. Cost Governance & Estimation Engine\n(Decimal GB Math, Archive Retrieval, Egress)"]
-        E4["4. Memory-Bounded Stream Download Engine\n(FSAA 4MB Chunks, Safari SW Pipe, <15MB Heap)"]
+        E4["4. Resilient SW Stream Download Engine\n(Keep-Alive Heartbeat, Pass-Through CRC32c, <15MB Heap)"]
         E5["5. CRC32c Cryptographic Integrity Engine\n(Castagnoli 0x1EDC6F41, Big-Endian Base64)"]
         E6["6. Automated Batch & CLI Generator Engine\n(gcloud storage, gsutil, Firefox Routing)"]
         E7["7. State Isolation & Persistence Engine\n(Zustand Volatile RAM, LocalStorage, IndexedDB)"]
         E8["8. Session Lifecycle & Restoration Engine\n(Silent Reload, Onboarding Bypass, 1-Click Reconnect)"]
         E9["9. Browser History & Navigation Router Engine\n(pushState, popstate, URL Hash Sync, Deep-Link)"]
-        E10["10. OS File System Feedback & Reveal Engine\n(macOS Finder, Windows Explorer, Linux Dolphin/Nautilus)"]
+        E10["10. Browser Download Bridge Engine\n(chrome://downloads, Native 'Show in Folder', Watchdog)"]
     end
 
     E8 --> E1
@@ -33,7 +33,7 @@ flowchart TD
     E2 --> E6
     E7 -.->|"Supplies Ephemeral Token & Project ID"| E1
     E7 -.->|"Supplies Active State"| E2
-    E7 -.->|"Maintains Active Stream Handles"| E4
+    E7 -.->|"Maintains Active Stream Tickets"| E4
     E8 -.->|"Rehydrates Active Workspace"| E2
     E9 -.->|"Synchronizes URL & History Stack"| E2
 ```
@@ -430,10 +430,10 @@ export class CostGovernanceEngine {
 
 ---
 
-## 4. Engine 4: Memory-Bounded Multi-Tier Streaming Download Engine
+## 4. Engine 4: Resilient Service Worker Streaming Download Engine
 
 ### 4.1 Purpose & Memory Isolation Principles
-Eliminates browser crashes and Out-of-Memory (OOM) errors during 25GB–50GB+ media downloads. Implements the **File System Access API** in 4MB micro-chunks directly into local storage, maintaining a constant **<15MB JavaScript heap footprint**.
+Eliminates browser crashes and Out-of-Memory (OOM) errors during 25GB–50GB+ media downloads. Implements the **Resilient Service Worker Stream Interceptor** with an active keep-alive heartbeat watchdog, pass-through Castagnoli CRC32c `TransformStream`, and native browser download shelf integration, maintaining a constant **<15MB JavaScript heap footprint**.
 
 ### 4.2 Stream Pipeline Architecture & Backpressure Flow
 
@@ -441,39 +441,57 @@ Eliminates browser crashes and Out-of-Memory (OOM) errors during 25GB–50GB+ me
 sequenceDiagram
     autonumber
     actor User as Client User
-    participant Engine as GCSStreamEngine
-    participant FSAA as window.showSaveFilePicker()
-    participant Sink as FileSystemWritableFileStream
+    participant Bridge as ResilientSWStreamEngine
+    participant SW as Service Worker (sw.js)
     participant GCS as GCS JSON API (storage.googleapis.com)
     participant HashEngine as CRC32cIntegrityEngine
+    participant BrowserDL as Native Browser Download Shelf
 
-    User->>Engine: Initiate Stream (25.4 GB MXF Master)
-    Engine->>FSAA: Prompt Native Finder / Explorer Save Dialog
-    FSAA-->>User: User selects target path & clicks Save
-    FSAA-->>Engine: Returns FileSystemFileHandle
-    Engine->>Sink: fileHandle.createWritable()
-    Sink-->>Engine: Open Writable Disk Stream
+    User->>Bridge: Initiate Stream (25.4 GB MXF Master)
+    Bridge->>SW: Register Stream Ticket (URL, Token, Project, CRC32c)
+    SW-->>Bridge: Ticket Confirmed (60s Claim TTL)
 
-    Engine->>GCS: GET /o/OBJECT?alt=media&userProject=PROJECT (Auth: Bearer)
-    GCS-->>Engine: HTTP 200 OK (ReadableStream, 4MB Chunk Slices)
+    Bridge->>Bridge: Start Keep-Alive Watchdog (10s Ping)
+    Bridge->>BrowserDL: Trigger Hidden Anchor <a href="/sw-pipe/:id/file.mxf" download>
+
+    BrowserDL->>SW: GET /sw-pipe/:id/reel04_master.mxf
+    SW->>GCS: GET /o/OBJECT?alt=media&userProject=PROJECT (Auth: Bearer)
+    GCS-->>SW: HTTP 200 OK (ReadableStream, 4MB Chunk Slices)
+
+    SW-->>BrowserDL: HTTP 200 Response(transformStream.readable, { Content-Disposition: attachment })
 
     loop While Stream Active (Constant <15MB Heap)
-        GCS->>Engine: Binary Chunk (4MB Uint8Array)
-        Engine->>Sink: writableStream.write(chunk)
-        Engine->>HashEngine: update(chunk)
-        Engine->>Engine: Calculate MB/s Throughput & ETA
-        Engine->>User: Emit Telemetry (48.5 MB/s, ETA 02:41, RAM: 11.4MB)
+        GCS->>SW: Binary Chunk (4MB Uint8Array)
+        SW->>HashEngine: update(chunk)
+        SW->>Bridge: postMessage({ type: 'SW_STREAM_PROGRESS', loadedBytes, speed })
+        Bridge->>User: Emit Telemetry (48.5 MB/s, ETA 02:41, RAM: 11.4MB)
+        SW->>BrowserDL: Pipe Chunk to Local ~/Downloads File
+        Bridge->>SW: SW_KEEP_ALIVE_PING (PONG OK)
     end
 
-    Engine->>Sink: writableStream.close() (Flush to Disk)
-    Engine->>HashEngine: digest() -> Compare with x-goog-hash header
-    Engine-->>User: Emit 'completed' Event (CRC32c Match Verified)
+    SW->>SW: Stream Closed -> Finalize CRC32c Digest
+    SW->>Bridge: postMessage({ type: 'SW_STREAM_COMPLETE', finalCrc32c: '0xAF82F6C0' })
+    Bridge->>Bridge: Stop Keep-Alive Watchdog
+    Bridge-->>User: Emit 'completed' Event (CRC32c Match Verified)
+    BrowserDL-->>User: Logged in chrome://downloads ("Show in folder" Available)
 ```
 
 ### 4.3 Production TypeScript Implementation
 
 ```typescript
+export interface StreamTicket {
+  streamId: string;
+  url: string;
+  filename: string;
+  totalBytes: number;
+  userProject: string;
+  oauthToken: string;
+  expectedCrc32c?: string;
+  createdAt: number;
+}
+
 export interface StreamProgress {
+  streamId: string;
   loadedBytes: number;
   totalBytes: number;
   percentage: number;
@@ -481,124 +499,66 @@ export interface StreamProgress {
   etaSeconds: number;
   elapsedSeconds: number;
   fixedMemoryHeapMB: number;
+  crc32cCurrentHex?: string;
   status: 'initializing' | 'streaming' | 'verifying' | 'completed' | 'cancelled' | 'error';
   errorMessage?: string;
 }
 
-export class GCSStreamEngine {
-  public static async streamToDisk(options: {
+export class ResilientSWStreamEngine {
+  private static keepAliveTimer: number | null = null;
+  private static activeStreamId: string | null = null;
+
+  /**
+   * Registers stream ticket with Service Worker and launches native browser download.
+   */
+  public static async streamToBrowser(options: {
     bucketName: string;
     objectName: string;
     suggestedFilename: string;
+    totalBytes: number;
     userProject: string;
     oauthToken: string;
     expectedCrc32c?: string;
     onProgress: (p: StreamProgress) => void;
     abortSignal?: AbortSignal;
   }): Promise<void> {
-    const { bucketName, objectName, suggestedFilename, userProject, oauthToken, onProgress, abortSignal } = options;
+    const { bucketName, objectName, suggestedFilename, totalBytes, userProject, oauthToken, expectedCrc32c, onProgress, abortSignal } = options;
 
-    if (!('showSaveFilePicker' in window)) {
-      throw new Error('File System Access API is not supported in this browser. Please use Chrome, Edge, or the CLI generator.');
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+      throw new Error('Service Worker is not active. Please reload the page.');
     }
 
-    const cleanBucket = bucketName.replace(/^gs:\/\//, '').replace(/\/+$/, '');
-    const encodedObject = encodeURIComponent(objectName);
-    const mediaUrl = `https://storage.googleapis.com/storage/v1/b/${cleanBucket}/o/${encodedObject}?alt=media&userProject=${encodeURIComponent(userProject)}`;
+    const streamId = `sw-stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.activeStreamId = streamId;
 
-    // 1. Show Native File Picker
-    const fileHandle = await (window as any).showSaveFilePicker({
-      suggestedName: suggestedFilename
-    });
+    const cleanBucket = bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '');
+    const cleanObject = objectName.replace(/^\/+/, '');
+    const mediaUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(cleanBucket)}/o/${encodeURIComponent(cleanObject)}?alt=media&userProject=${encodeURIComponent(userProject)}`;
 
-    const writable = await fileHandle.createWritable();
-    const startTime = performance.now();
-    let lastTime = startTime;
-    let lastBytes = 0;
-    let loadedBytes = 0;
-    let currentSpeed = 0;
+    const ticket: StreamTicket = {
+      streamId,
+      url: mediaUrl,
+      filename: suggestedFilename,
+      totalBytes,
+      userProject,
+      oauthToken,
+      expectedCrc32c,
+      createdAt: Date.now()
+    };
 
-    try {
-      const response = await fetch(mediaUrl, {
-        headers: { Authorization: `Bearer ${oauthToken}` },
-        signal: abortSignal
-      });
+    // 1. Register ticket with SW
+    await this.registerTicket(ticket);
 
-      if (!response.ok) {
-        throw new Error(`GCS Media Fetch Failed (${response.status}): ${await response.text()}`);
-      }
+    // 2. Start Keep-Alive Heartbeat
+    this.startKeepAlive(streamId);
 
-      if (!response.body) throw new Error('Response stream body is null.');
-
-      const contentLength = response.headers.get('Content-Length');
-      const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
-      const gcsHashHeader = response.headers.get('x-goog-hash') || '';
-
-      const reader = response.body.getReader();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        if (value) {
-          await writable.write(value);
-          loadedBytes += value.byteLength;
-
-          const now = performance.now();
-          const delta = (now - lastTime) / 1000;
-          if (delta >= 0.5) {
-            currentSpeed = (loadedBytes - lastBytes) / delta;
-            lastBytes = loadedBytes;
-            lastTime = now;
-          }
-
-          const remainingBytes = totalBytes > loadedBytes ? totalBytes - loadedBytes : 0;
-          const etaSeconds = currentSpeed > 0 ? Math.round(remainingBytes / currentSpeed) : 0;
-          const elapsedSeconds = Math.round((now - startTime) / 1000);
-
-          onProgress({
-            loadedBytes,
-            totalBytes,
-            percentage: totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0,
-            speedBytesPerSec: currentSpeed,
-            etaSeconds,
-            elapsedSeconds,
-            fixedMemoryHeapMB: 11.4, // Constant bounded micro-chunk buffer
-            status: 'streaming'
-          });
-        }
-      }
-
-      onProgress({
-        loadedBytes,
-        totalBytes,
-        percentage: 100,
-        speedBytesPerSec: 0,
-        etaSeconds: 0,
-        elapsedSeconds: Math.round((performance.now() - startTime) / 1000),
-        fixedMemoryHeapMB: 11.4,
-        status: 'verifying'
-      });
-
-      await writable.close();
-
-      onProgress({
-        loadedBytes,
-        totalBytes,
-        percentage: 100,
-        speedBytesPerSec: 0,
-        etaSeconds: 0,
-        elapsedSeconds: Math.round((performance.now() - startTime) / 1000),
-        fixedMemoryHeapMB: 11.4,
-        status: 'completed'
-      });
-    } catch (err: any) {
-      try {
-        await writable.abort();
-      } catch (_) {}
-      if (err.name === 'AbortError') {
+    // 3. Handle Abort Signal
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', () => {
+        this.abortStream(streamId);
         onProgress({
-          loadedBytes,
+          streamId,
+          loadedBytes: 0,
           totalBytes: 0,
           percentage: 0,
           speedBytesPerSec: 0,
@@ -607,12 +567,59 @@ export class GCSStreamEngine {
           fixedMemoryHeapMB: 0,
           status: 'cancelled'
         });
-        return;
-      }
-      throw err;
+      });
+    }
+
+    // 4. Trigger native browser download shelf
+    const link = document.createElement('a');
+    link.href = `/sw-pipe/${streamId}/${encodeURIComponent(suggestedFilename)}`;
+    link.download = suggestedFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  private static registerTicket(ticket: StreamTicket): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        if (event.data?.success) resolve();
+        else reject(new Error(event.data?.error || 'Failed to register stream ticket with Service Worker'));
+      };
+      navigator.serviceWorker.controller?.postMessage(
+        { type: 'REGISTER_STREAM_TICKET', ticket },
+        [channel.port2]
+      );
+    });
+  }
+
+  private static startKeepAlive(streamId: string): void {
+    this.stopKeepAlive();
+    this.keepAliveTimer = window.setInterval(() => {
+      navigator.serviceWorker.controller?.postMessage({
+        type: 'SW_KEEP_ALIVE_PING',
+        streamId,
+        timestamp: Date.now()
+      });
+    }, 10000);
+  }
+
+  public static stopKeepAlive(): void {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
     }
   }
+
+  public static abortStream(streamId: string): void {
+    this.stopKeepAlive();
+    navigator.serviceWorker.controller?.postMessage({
+      type: 'SW_ABORT_STREAM',
+      streamId
+    });
+  }
 }
+```
 ```
 
 ---
@@ -1076,231 +1083,131 @@ export class BrowserHistoryRouterEngine {
 
 ---
 
-## 10. Engine 10: OS File System Feedback & Local Path Reveal Engine
+## 10. Engine 10: Native Browser Download Bridge & Stream Watchdog Engine
 
 ### 10.1 Purpose & Domain Scope
-Bridges the architectural gap when direct-to-disk streaming via the File System Access API bypasses Chromium's built-in download shelf (`chrome://downloads`). Inspects client platform and desktop environment heuristics, synthesizes platform-native shell reveal commands (macOS Finder `open -R`, Windows Explorer `explorer.exe /select,`, Linux KDE Dolphin `dolphin --select` / GNOME Nautilus `nautilus --select`), queries local `FileSystemFileHandle` instances on disk, and formats `file://` URI previews.
+Guarantees full integration with native browser download managers (`chrome://downloads`, Microsoft Edge Downloads, Apple Safari Downloads). Manages active Service Worker stream telemetry bridging, coordinates the 10-second keep-alive heartbeat ping loop preventing background worker suspension during 50GB+ transfers, surfaces real-time transfer diagnostics, and validates native browser "Show in folder" accessibility.
 
-### 10.2 Subsystem Architecture & Reveal Workflow
+### 10.2 Subsystem Architecture & Handshake Workflow
 
 ```mermaid
 flowchart TD
-    subgraph StreamCompletion ["Stream Event"]
-        Done["writable.close() Resolves Successfully"] --> ExtractHandle["Extract FileSystemFileHandle & Filename"]
+    subgraph StreamStart ["1. Stream Dispatch"]
+        Initiate["ResilientSWStreamEngine.streamToBrowser()"] --> RegisterTicket["Register Ticket in SW Memory"]
+        RegisterTicket --> LaunchWatchdog["Start 10s Keep-Alive Watchdog"]
     end
 
-    subgraph Engine10Execution ["Engine 10: OSFileSystemRevealEngine"]
-        DetectPlatform["detectOS(): Inspect userAgent & platformData\n(macOS | Windows | Linux KDE/GNOME)"]
-        SynthesizeSnippet["generateRevealAction(): Format shell command & file:// URI\n• POSIX & PowerShell Escaping"]
-        HandleInspector["inspectLocalHandle(): Query handle.getFile()\n• Verify on-disk byte size & lastModified"]
+    subgraph SWExecution ["2. Service Worker Stream & Watchdog"]
+        WatchdogPing["SW_KEEP_ALIVE_PING (Every 10s)"] --> ResetIdle["Worker Resets Idle Timeout"]
+        TransformPipe["Pass-Through TransformStream"] --> EmitProgress["SW_STREAM_PROGRESS (Speed, ETA, CRC32c)"]
     end
 
-    subgraph UIOutputs ["UI & Feedback Presentation"]
-        SuccessCard["DownloadManager Post-Completion Success Card"]
-        ToastAction["Completion Toast Notification with [⚡ Reveal]"]
-        ClipboardWrite["navigator.clipboard.writeText(command)"]
+    subgraph NativeBrowserShelf ["3. Native Browser Download Shelf"]
+        TransformPipe --> ChromeDownloads["Logged in chrome://downloads & Download Bubble"]
+        ChromeDownloads --> ShowInFolder["Native OS 'Show in Folder' Magnifying Glass Operable"]
     end
 
-    ExtractHandle --> DetectPlatform
-    ExtractHandle --> HandleInspector
-    DetectPlatform --> SynthesizeSnippet
-    SynthesizeSnippet --> SuccessCard
-    SynthesizeSnippet --> ToastAction
-    SuccessCard --> ClipboardWrite
-    ToastAction --> ClipboardWrite
+    subgraph UIBridge ["4. UI Telemetry & Diagnostics Bridge"]
+        EmitProgress --> DownloadManagerUI["DownloadManager Widget Updates Telemetry"]
+        StreamComplete["SW_STREAM_COMPLETE (CRC32c Match Verified)"] --> StopWatchdog["Clear Keep-Alive Watchdog Timer"]
+        StopWatchdog --> SuccessCard["Post-Download Success Card in UI"]
+        SuccessCard --> DiagnosticsDrawer["Stream Diagnostics & Checksum Drawer"]
+    end
+
+    Initiate --> WatchdogPing
+    RegisterTicket --> TransformPipe
+    TransformPipe --> StreamComplete
 ```
 
 ### 10.3 TypeScript Implementation & Reference Contract
 
 ```typescript
-export type SupportedOS = 'macos' | 'windows' | 'linux' | 'unknown';
-export type FileManagerTarget = 'finder' | 'explorer' | 'dolphin' | 'nautilus' | 'xdg' | 'generic';
-
-export interface OSFileSystemMetadata {
-  os: SupportedOS;
-  desktopEnvironment: 'kde' | 'gnome' | 'xfce' | 'generic' | 'windows' | 'macos';
-  fileManager: FileManagerTarget;
-  fileManagerLabel: string;
-  iconName: string;
-}
-
-export interface LocalFileRevealAction {
+export interface StreamDiagnostics {
+  streamId: string;
   filename: string;
-  suggestedDirectory?: string;
-  osMetadata: OSFileSystemMetadata;
-  command: string;
-  powershellCommand?: string;
-  fileUri: string;
-  copyFeedbackText: string;
-}
-
-export interface LocalHandleInspectionResult {
-  filename: string;
-  sizeBytes: number;
+  totalBytes: number;
   formattedSize: string;
-  lastModified: number;
-  lastModifiedDate: string;
-  mimeType: string;
-  isHandleValid: boolean;
+  durationSeconds: number;
+  averageSpeedMBs: number;
+  crc32cHex: string;
+  crc32cBase64: string;
+  integrityMatch: boolean;
+  serviceWorkerActive: boolean;
+  downloadLocation: string; // e.g. "~/Downloads (Browser Default)"
 }
 
-export class OSFileSystemRevealEngine {
+export class BrowserDownloadBridgeEngine {
+  private static keepAliveTimer: number | null = null;
+  private static activeStreamId: string | null = null;
+
   /**
-   * Detects client operating system and desktop environment.
+   * Initializes message listener for Service Worker progress and lifecycle events.
    */
-  public static detectOS(): OSFileSystemMetadata {
-    if (typeof navigator === 'undefined') {
-      return {
-        os: 'unknown',
-        desktopEnvironment: 'generic',
-        fileManager: 'generic',
-        fileManagerLabel: 'File Manager',
-        iconName: 'folder',
-      };
+  public static initStreamListener(
+    onProgress: (progress: any) => void,
+    onComplete: (diag: StreamDiagnostics) => void,
+    onError: (err: string) => void
+  ): () => void {
+    if (!('serviceWorker' in navigator)) {
+      return () => {};
     }
 
-    const ua = navigator.userAgent || '';
-    const platform = (navigator as any).userAgentData?.platform || navigator.platform || '';
+    const handler = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || !data.type) return;
 
-    // macOS (Apple Finder)
-    if (/Macintosh|MacIntel|MacPPC|Mac68K|Darwin/i.test(platform) || /Mac OS X/i.test(ua)) {
-      return {
-        os: 'macos',
-        desktopEnvironment: 'macos',
-        fileManager: 'finder',
-        fileManagerLabel: 'Finder',
-        iconName: 'apple',
-      };
-    }
-
-    // Windows (File Explorer)
-    if (/Win32|Win64|Windows|WinCE/i.test(platform) || /Windows NT/i.test(ua)) {
-      return {
-        os: 'windows',
-        desktopEnvironment: 'windows',
-        fileManager: 'explorer',
-        fileManagerLabel: 'File Explorer',
-        iconName: 'monitor',
-      };
-    }
-
-    // Linux (Dolphin / Nautilus / XDG)
-    if (/Linux/i.test(platform) || /Linux|X11/i.test(ua)) {
-      const isKDE = /KDE/i.test(ua);
-      const isGNOME = /GNOME/i.test(ua);
-
-      if (isKDE) {
-        return {
-          os: 'linux',
-          desktopEnvironment: 'kde',
-          fileManager: 'dolphin',
-          fileManagerLabel: 'Dolphin',
-          iconName: 'folder-open',
-        };
+      switch (data.type) {
+        case 'SW_STREAM_PROGRESS':
+          onProgress(data);
+          break;
+        case 'SW_STREAM_COMPLETE':
+          this.stopKeepAlive();
+          onComplete(data.diagnostics);
+          break;
+        case 'SW_STREAM_ERROR':
+          this.stopKeepAlive();
+          onError(data.errorMessage || 'Streaming error in Service Worker');
+          break;
       }
+    };
 
-      if (isGNOME) {
-        return {
-          os: 'linux',
-          desktopEnvironment: 'gnome',
-          fileManager: 'nautilus',
-          fileManagerLabel: 'Files (Nautilus)',
-          iconName: 'folder-open',
-        };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
+  }
+
+  /**
+   * Starts the 10-second keep-alive watchdog ping.
+   */
+  public static startKeepAlive(streamId: string): void {
+    this.stopKeepAlive();
+    this.activeStreamId = streamId;
+
+    this.keepAliveTimer = window.setInterval(() => {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SW_KEEP_ALIVE_PING',
+          streamId,
+          timestamp: Date.now()
+        });
       }
+    }, 10000);
+  }
 
-      return {
-        os: 'linux',
-        desktopEnvironment: 'generic',
-        fileManager: 'dolphin',
-        fileManagerLabel: 'File Manager (Dolphin / Files)',
-        iconName: 'folder-open',
-      };
+  /**
+   * Stops the keep-alive watchdog ping.
+   */
+  public static stopKeepAlive(): void {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
     }
-
-    return {
-      os: 'unknown',
-      desktopEnvironment: 'generic',
-      fileManager: 'generic',
-      fileManagerLabel: 'File Manager',
-      iconName: 'folder',
-    };
+    this.activeStreamId = null;
   }
 
-  public static escapePosix(filename: string): string {
-    return filename.replace(/'/g, "'\\''");
-  }
-
-  public static escapeWindows(filename: string): string {
-    return filename.replace(/"/g, '`"');
-  }
-
-  public static generateRevealAction(
-    filename: string,
-    suggestedDirectory: string = './',
-  ): LocalFileRevealAction {
-    const osMeta = this.detectOS();
-    const cleanFilename = filename.trim();
-    let command = '';
-    let powershellCommand: string | undefined = undefined;
-
-    switch (osMeta.fileManager) {
-      case 'finder':
-        command = `open -R "./${this.escapePosix(cleanFilename)}"`;
-        break;
-      case 'explorer':
-        command = `explorer.exe /select,"${this.escapeWindows(cleanFilename)}"`;
-        powershellCommand = `Invoke-Item (Get-Item "${this.escapeWindows(cleanFilename)}")`;
-        break;
-      case 'dolphin':
-        command = `dolphin --select "./${this.escapePosix(cleanFilename)}"`;
-        break;
-      case 'nautilus':
-        command = `nautilus --select "./${this.escapePosix(cleanFilename)}"`;
-        break;
-      case 'xdg':
-      default:
-        command = `xdg-open .`;
-        break;
-    }
-
-    const fileUri = `file://${suggestedDirectory.replace(/\/+$/, '')}/${encodeURIComponent(cleanFilename)}`;
-
-    return {
-      filename: cleanFilename,
-      suggestedDirectory,
-      osMetadata: osMeta,
-      command,
-      powershellCommand,
-      fileUri,
-      copyFeedbackText: `Copied reveal command for ${osMeta.fileManagerLabel}: ${command}`,
-    };
-  }
-
-  public static async inspectLocalHandle(
-    handle: any,
-  ): Promise<LocalHandleInspectionResult | null> {
-    if (!handle || typeof handle.getFile !== 'function') {
-      return null;
-    }
-
-    try {
-      const file: File = await handle.getFile();
-      return {
-        filename: file.name,
-        sizeBytes: file.size,
-        formattedSize: this.formatBytes(file.size),
-        lastModified: file.lastModified,
-        lastModifiedDate: new Date(file.lastModified).toISOString(),
-        mimeType: file.type || 'application/octet-stream',
-        isHandleValid: true,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  private static formatBytes(bytes: number): string {
+  /**
+   * Formats human-readable byte sizes.
+   */
+  public static formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1000;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -1315,13 +1222,13 @@ export class OSFileSystemRevealEngine {
 ## 11. Cross-Engine Integration Matrix (Engines 1 through 10)
 
 The primary engines operate as a cohesive, zero-liability mesh:
-- **Engine 10 (`OSFileSystemRevealEngine`)**: Listens for stream completion events from Engine 4 (`GCSStreamEngine`), detects client OS/desktop environment, and synthesizes 1-click reveal actions and `file://` metadata for the UI.
+- **Engine 10 (`BrowserDownloadBridgeEngine`)**: Manages the keep-alive heartbeat loop with Engine 4 (`ResilientSWStreamEngine`), ensures native download shelf tracking (`chrome://downloads`), and bridges real-time stream diagnostics.
 - **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
 - **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`.
 - **Engine 1 (`GCPOnboardingEngine`)**: Provides reusable preflight validation called when navigating to new buckets via history or switchers.
 - **Engine 2 (`BucketExplorerEngine`)**: Directly consumes prefixes dispatched from Engine 9, parsing common prefixes and leaf objects for the virtualized grid.
 - **Engine 3 (`CostGovernanceEngine`)**: Ingests selected items from the active directory to render real-time retrieval/egress cost estimates.
-- **Engine 4 (`GCSStreamEngine`)**: Streams multi-gigabyte media assets direct to disk via 4MB micro-chunks with constant <15MB heap.
+- **Engine 4 (`ResilientSWStreamEngine`)**: Streams multi-gigabyte media assets via Service Worker pass-through micro-chunks with constant <15MB heap and native browser download integration.
 - **Engine 5 (`CRC32cIntegrityEngine`)**: Validates bit-exact Castagnoli CRC32c checksum parity against GCS `x-goog-hash` headers.
 - **Engine 6 (`CliGeneratorEngine`)**: Formats copyable `gcloud storage` and `gsutil` shell scripts with client `--billing-project`.
 - **Engine 7 (`StatePersistenceEngine`)**: Maintains strict isolation between volatile RAM tokens and persisted preferences, ensuring zero token leakage in `window.history.state` or `localStorage`.
@@ -1330,7 +1237,7 @@ The primary engines operate as a cohesive, zero-liability mesh:
 
 ### Architectural Sign-Off for System Engines
 
-All 10 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, platform-aware OS file system feedback, and frictionless onboarding bypass.
+All 10 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
 
 
 

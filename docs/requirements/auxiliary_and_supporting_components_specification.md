@@ -232,18 +232,18 @@ feature_films/reel_04/reel04_prores_proxy.mov,reel04_prores_proxy.mov,STANDARD,8
 
 ---
 
-## 8. AUX-08: Service Worker Lifecycle & Edge Cache Controller
+## 8. AUX-08: Service Worker Stream Controller & Edge Cache Lifecycle Manager
 
 ### 8.1 Purpose & Scope
-Manages the registration, updates, and stream-intercept routing of the client-side Service Worker (`public/sw.js`). Enables Safari WebKit direct streaming and enforces strict caching policies so users always receive the latest application bundle.
+Manages the registration, updates, stream interception, and keep-alive lifecycle of the client-side Service Worker (`public/sw.js`). Powers the primary Tier 1 streaming engine across Chrome, Edge, Safari, Brave, and Arc, computing on-the-fly Castagnoli CRC32c hashes, maintaining worker thread liveness, and routing streams into native browser download shelves (`chrome://downloads`).
 
 ### 8.2 Service Worker Routing Protocol
 
 ```mermaid
 flowchart TD
-    Request["Incoming Browser Fetch Request"] --> RouteCheck{"Is Route a GCS Stream Request?\n(e.g. /stream-download/...)"}
+    Request["Incoming Browser Fetch Request"] --> RouteCheck{"Is Route a GCS Stream Request?\n(e.g. /sw-pipe/:streamId/:filename)"}
     
-    RouteCheck -->|Yes| StreamPipe["Service Worker Stream Pipe\n1. Attach Authorization: Bearer <TOKEN>\n2. Attach ?userProject=<PROJECT>\n3. Return ReadableStream with Content-Disposition: attachment"]
+    RouteCheck -->|Yes| StreamPipe["Service Worker Stream Pipe\n1. Look up Ephemeral Ticket in SW State\n2. Attach Authorization: Bearer <TOKEN> & ?userProject=<PROJECT>\n3. Pipe upstream ReadableStream through TransformStream (CRC32c & Progress)\n4. Return Response with Content-Disposition: attachment"]
     
     RouteCheck -->|No| CacheCheck{"Is Static Asset (JS/CSS/Font)?"}
     
@@ -252,9 +252,11 @@ flowchart TD
 ```
 
 ### 8.3 Functional Requirements
-- **FR-AUX-8.1**: Automatic registration of `sw.js` on boot with `scope: '/'`.
-- **FR-AUX-8.2**: Stream Interception: For Safari browsers, intercepts synthetic `/sw-pipe/...` download endpoints and pipes incoming GCS chunks into synthetic download attachments.
-- **FR-AUX-8.3**: New Version Prompt: Detects Service Worker updates and displays a gentle toast: *"A new version of Files of Ba Sing Se is available. [Refresh to Update]"*.
+- **FR-AUX-8.1**: Automatic registration of `sw.js` on boot with `scope: '/'` and active claim on navigation.
+- **FR-AUX-8.2**: High-Throughput Stream Interception: Intercepts synthetic `/sw-pipe/:streamId/:filename` endpoints, consumes registered ephemeral tickets (60s claim TTL), attaches client credentials to upstream GCS fetches, and returns standard attachment responses to the browser's download manager.
+- **FR-AUX-8.3**: Keep-Alive Heartbeat Responder: Listens for `SW_KEEP_ALIVE_PING` every 10 seconds from the main thread, responds with `SW_KEEP_ALIVE_PONG`, and resets internal idle termination timers.
+- **FR-AUX-8.4**: Pass-Through `TransformStream`: Computes running Castagnoli CRC32c hashes (`0x1EDC6F41`) in real time, dispatches `SW_STREAM_PROGRESS` messages to the main thread, and finalizes cryptographic digests upon stream closure (`SW_STREAM_COMPLETE`).
+- **FR-AUX-8.5**: New Version Prompt: Detects Service Worker updates and displays a gentle toast: *"A new version of Files of Ba Sing Se is available. [Refresh to Update]"*.
 
 ---
 
@@ -267,4 +269,4 @@ flowchart TD
 - **AUX-05 (Resiliency)**: Simulate offline event via devtools and verify warning banner and auto-retry.
 - **AUX-06 (Theme)**: Verify zero FOUT on dark/light mode toggle.
 - **AUX-07 (Manifest Exporter)**: Verify exported `.csv` and `.json` files contain valid checksums and cost estimates.
-- **AUX-08 (Service Worker)**: Verify SW registration and update lifecycle.
+- **AUX-08 (Service Worker)**: Verify SW registration, keep-alive heartbeat loop, pass-through CRC32c calculation, and native browser download shelf tracking.

@@ -25,7 +25,7 @@ This directory contains the complete product requirements, user stories, UI wire
 1. **[Module 1: Authentication & GCP Project Onboarding](module_1_auth_onboarding_design_and_requirements.md)** (`MOD-01-AUTH-ONBOARDING`)
 2. **[Module 2: GCS Explorer & Virtualized Asset Grid](module_2_gcs_explorer_design_and_requirements.md)** (`MOD-02-GCS-EXPLORER`)
 3. **[Module 3: Cost Governance & Real-Time Estimator](module_3_cost_governance_design_and_requirements.md)** (`MOD-03-COST-GOVERNANCE`)
-4. **[Module 4: Memory-Bounded Streaming Download Pipeline](module_4_streaming_download_design_and_requirements.md)** (`MOD-04-STREAM-DOWNLOADER`)
+4. **[Module 4: Resilient Service Worker Streaming Download Pipeline](module_4_streaming_download_design_and_requirements.md)** (`MOD-04-STREAM-DOWNLOADER`)
 5. **[Module 5: Cryptographic Integrity & Checksum Verification](module_5_cryptographic_integrity_design_and_requirements.md)** (`MOD-05-CRYPTOGRAPHIC-INTEGRITY`)
 6. **[Module 6: Asset Deep-Inspection & Technical Metadata Drawer](module_6_asset_inspector_design_and_requirements.md)** (`MOD-06-ASSET-INSPECTOR`)
 7. **[Module 7: Automated Batch & CLI Companion Generator](module_7_cli_generator_design_and_requirements.md)** (`MOD-07-CLI-GENERATOR`)
@@ -33,7 +33,7 @@ This directory contains the complete product requirements, user stories, UI wire
 9. **[Module 9: Workspace Navigation, Bucket Switcher & GCP Config Center](module_9_workspace_and_gcp_config_center_design_and_requirements.md)** (`MOD-09-WORKSPACE-GCP-CONFIG-CENTER`)
 10. **[Module 10: Session Continuity, Silent Token Restoration & Onboarding Bypass](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`)
 11. **[Module 11: Browser History API, URL Synchronization & Deep Linking](module_11_browser_history_and_navigation_routing_design_and_requirements.md)** (`MOD-11-BROWSER-HISTORY-ROUTING`)
-12. **[Module 12: OS File System Feedback & File Manager Reveal Integration](module_12_os_filesystem_feedback_and_reveal_integration.md)** (`MOD-12-OS-FILESYSTEM-FEEDBACK`)
+12. **[Module 12: Native Browser Download Integration & Stream Resilience](module_12_os_filesystem_feedback_and_reveal_integration.md)** (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`)
 
 ---
 

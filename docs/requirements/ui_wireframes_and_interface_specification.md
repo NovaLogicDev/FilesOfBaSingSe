@@ -203,7 +203,7 @@ flowchart LR
    - Shows itemized single-file cost calculation.
 2. **Floating Download Manager**:
    - Fixed position at the bottom-right corner of the viewport (z-index: 50).
-   - Shows continuous 4MB micro-chunk disk piping progress via File System Access API.
+   - Shows continuous 4MB micro-chunk stream piping progress via Resilient Service Worker Stream Interceptor with native browser download manager logging (`chrome://downloads`).
    - **Constant Memory Footprint Gauge**: Proves memory is strictly capped (<15MB RAM) even when streaming a 25GB file.
    - **Live CRC32c Hash Stream**: Calculates hash on the fly and confirms match against `x-goog-hash` upon stream completion.
 
@@ -423,52 +423,43 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ---
 
-## 12. Screen 9: Post-Download Success Card with OS File Manager Reveal Actions
+## 12. Screen 9: Post-Download Success Card & Browser Download Shelf Integration
 
-**Trigger**: Displayed automatically inside `DownloadManager` when direct-to-disk streaming reaches 100% and disk flushing finishes via `writableStream.close()`.
+**Trigger**: Displayed automatically inside `DownloadManager` when the Service Worker stream reaches 100% and CRC32c verification completes.
 
 ```
 +----------------------------------------------------------------------------------------------------+
 |  ACTIVE DOWNLOAD MANAGER                                                               [_ Min] [X] |
 +----------------------------------------------------------------------------------------------------+
-|  [✓] DOWNLOAD COMPLETE & FLUSHED TO LOCAL DISK                                                     |
+|  [✓] DOWNLOAD COMPLETE & SAVED TO BROWSER DOWNLOADS                                                |
 |                                                                                                    |
 |  [Video Icon] reel04_cam_A_raw.mxf                                                                 |
 |               18,400,000,000 bytes (18.40 GB / 17.13 GiB)                                          |
 |                                                                                                    |
 |  Transfer Speed:      48.5 MB/s (Average)             Duration:        03m 42s                     |
 |  Integrity Status:    CRC32c 0xAF82F6C0 (Match Confirmed ●)            Memory Peak: 11.4 MB (Fixed)|
-|  Disk Storage Status: [✓ Saved to Local Disk via File System Access API]                           |
+|  Destination:         Default Downloads (~/Downloads) • Native Browser Shelf Tracked               |
 |                                                                                                    |
 |  +----------------------------------------------------------------------------------------------+  |
-|  | [Finder / Explorer / Dolphin Icon] REVEAL IN OPERATING SYSTEM FILE MANAGER:                  |  |
-|  | Command:  dolphin --select "./reel04_cam_A_raw.mxf"                                         |  |
+|  | [Chrome / Safari Downloads Icon] BROWSER DOWNLOAD SHELF READY:                              |  |
+|  | • This download is logged in chrome://downloads and your browser's toolbar tray.           |  |
+|  | • Click the native 'Show in folder' magnifying glass icon in your browser to highlight file.|  |
 |  |                                                                                              |  |
-|  | [ ⚡ Copy Reveal Command for Dolphin ]             [ 🔍 Inspect Local File on Disk ]          |  |
+|  | [ 🔍 Inspect Stream Diagnostics ]                       [ 📂 Download Another File ]          |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |                                                                                                    |
-|  +----------------------------------------------------------------------------------------------+  |
-|  | (i) Notice: Chrome direct-to-disk streams write directly to your OS filesystem and bypass    |  |
-|  |     the chrome://downloads shelf. Use the command above to highlight your file.              |  |
-|  |     [ ⚙️ Prefer Chrome Downloads Shelf? Switch to Service Worker Stream Strategy ]             |  |
-|  +----------------------------------------------------------------------------------------------+  |
-|                                                                                                    |
-|  [ Download Another File ]                                                            [ Dismiss ]  |
+|  Status: Billed to client-prod-media-2026 ($3.13 USD)                                 [ Dismiss ]  |
 +----------------------------------------------------------------------------------------------------+
 ```
 
 ### Behavioral Specifications
-1. **OS-Aware Contextual Button**:
-   - On macOS: Displays Apple Finder icon with `[ ⚡ Copy Reveal Command for Finder ]` (`open -R "./filename.mxf"`).
-   - On Windows: Displays Windows Explorer icon with `[ ⚡ Copy Reveal Command for Explorer ]` (`explorer.exe /select,"filename.mxf"`).
-   - On Linux KDE: Displays KDE Dolphin icon with `[ ⚡ Copy Reveal Command for Dolphin ]` (`dolphin --select "./filename.mxf"`).
-   - On Linux GNOME: Displays GNOME Files icon with `[ ⚡ Copy Reveal Command for Files ]` (`nautilus --select "./filename.mxf"`).
-2. **1-Click Copy & Toast Feedback**:
-   - Clicking the reveal button invokes `navigator.clipboard.writeText()` and fires an emerald toast: *"Copied reveal command for {FileManager}: Run in terminal to highlight file."*
-3. **In-Browser Disk Handle Re-Verification**:
-   - Clicking `[ 🔍 Inspect Local File on Disk ]` queries `handle.getFile()`, verifying size on disk, last modified date, and local MIME type without network egress.
-4. **Download Strategy Quick Switcher**:
-   - Allows toggling to Service Worker streaming so future downloads show in Chrome's download bubble.
+1. **Native Browser Download Shelf Integration**:
+   - The transfer is logged automatically in `chrome://downloads` and the browser toolbar download tray.
+   - Users can open the file or click the native browser "Show in folder" magnifying glass to highlight the file in macOS Finder, Windows File Explorer, or Linux Dolphin/Nautilus.
+2. **Stream Diagnostics & Health Drawer**:
+   - Clicking `[ 🔍 Inspect Stream Diagnostics ]` opens a slide-out drawer presenting verified byte counts, duration, average speed, CRC32c Hex/Base64, MD5, and Service Worker stream telemetry.
+3. **Audio / Visual Confirmation**:
+   - Emits a non-intrusive green toast confirming transfer completion and CRC32c checksum verification.
 
 
 

@@ -11,14 +11,15 @@ The system guarantees **zero bandwidth and retrieval cost liability for the host
 
 Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. This engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits.
 
-Furthermore, the application achieves **zero browser crashes / zero Out-of-Memory (OOM) failures** through a constant-memory direct-to-disk streaming engine using the **File System Access API** and **Service Worker stream interception**.
+Furthermore, the application achieves **zero browser crashes / zero Out-of-Memory (OOM) failures** through a constant-memory streaming engine using the **Resilient Service Worker Stream Interceptor** with native browser download shelf integration (`chrome://downloads`).
 
 ```mermaid
 flowchart TD
     subgraph ClientEnvironment ["Client Local Environment"]
         Browser["Client Web Browser (SPA)"]
-        Disk["Local File System (Direct Stream via FSAA)"]
-        OSFileManager["OS File Manager (Finder / Explorer / Dolphin / Nautilus)"]
+        SW["Service Worker Stream Engine\n(Pass-Through TransformStream & Keep-Alive)"]
+        BrowserDL["Native Browser Download Shelf\n(chrome://downloads & ~/Downloads)"]
+        OSFileManager["OS File Manager (Finder / Explorer / Dolphin / Nautilus)\n(Native 'Show in Folder' Ready)"]
         ClientGCP["Client GCP Project & Billing Account"]
     end
 
@@ -36,17 +37,19 @@ flowchart TD
     StaticCDN -->|"1. Serve Static SPA (HTML/JS/CSS)"| Browser
     Browser -->|"2. Authenticate & Obtain OAuth Bearer Token"| GIS
     GIS -->|"3. Return Bearer Token"| Browser
-    Browser -->|"4. Send API Request with ?userProject=Client_Project_ID"| GCS_API
-    GCS_API -->|"5. Validate IAM & Bill Retrieval + Egress"| GCP_Billing
-    GCP_Billing -->|"6. Charge Client Account ($0.05/GB + $0.12/GB)"| ClientGCP
-    GCS_API -->|"7. Stream Binary Chunks (Zero Host Proxy)"| Browser
-    Browser -->|"8. Direct Pipe (4MB Buffer) to Disk"| Disk
-    Browser -->|"9. Emit Post-Download OS Reveal Feedback"| OSFileManager
+    Browser -->|"4. Dispatch Download to Service Worker"| SW
+    SW -->|"5. Send API Request with ?userProject=Client_Project_ID"| GCS_API
+    GCS_API -->|"6. Validate IAM & Bill Retrieval + Egress"| GCP_Billing
+    GCP_Billing -->|"7. Charge Client Account ($0.05/GB + $0.12/GB)"| ClientGCP
+    GCS_API -->|"8. Stream Binary Chunks (Zero Host Proxy)"| SW
+    SW -->|"9. Return Response with Content-Disposition: attachment"| BrowserDL
+    BrowserDL -->|"10. Native 'Show in Folder' Action"| OSFileManager
     HostGCS -.->|"Object Data (Zero Host Egress Cost)"| GCS_API
 
     style ClientGCP fill:#ff9999,stroke:#cc0000,stroke-width:2px;
     style HostEnvironment fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    style Disk fill:#cce5ff,stroke:#004085,stroke-width:2px;
+    style SW fill:#cce5ff,stroke:#004085,stroke-width:2px;
+    style BrowserDL fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     style OSFileManager fill:#e2e8f0,stroke:#475569,stroke-width:2px;
 ```
 
@@ -327,101 +330,108 @@ Provide comprehensive, technical object inspection including cryptographic hashe
 
 ---
 
-## Epic 5: Memory-Bounded Direct-to-Disk Stream Download Pipeline
+## Epic 5: Resilient Service Worker Streaming & Native Browser Download Engine
 
 ### Epic Goal
-Stream multi-gigabyte media files (10GB–50GB+) directly from GCS to the client's local disk with constant, minimal memory footprint (<15MB RAM), zero browser crashes, and automated integrity validation.
+Stream multi-gigabyte media files (10GB–50GB+) directly from GCS to the client's local workstation with constant, minimal memory footprint (<15MB RAM), zero browser crashes, active keep-alive lifecycle resilience, real-time CRC32c integrity verification, and seamless native browser download manager integration (`chrome://downloads`).
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as Client User (Editor)
     participant App as Browser SPA (React)
-    participant FSAA as File System Access API
-    participant Disk as Local NVMe/SSD Storage
+    participant Bridge as ResilientSWStreamEngine
+    participant SW as Service Worker (sw.js)
     participant GCS as GCS REST API (Google)
     participant Billing as Client GCP Billing Engine
+    participant BrowserDL as Native Browser Download Shelf
 
     User->>App: Clicks "Download Asset" (reel04_cam_A_raw.mxf, 18.4 GB)
     App->>User: Renders Cost Verification ($0.92 Retrieval + $2.21 Egress = $3.13 USD)
     User->>App: Confirms Download
 
-    App->>FSAA: window.showSaveFilePicker({ suggestedName: 'reel04_cam_A_raw.mxf' })
-    FSAA-->>User: Native OS Finder / Save Dialog
-    User->>FSAA: Chooses destination folder & clicks Save
-    FSAA-->>App: Returns FileSystemFileHandle
+    App->>Bridge: startStream({ asset, userProject, oauthToken })
+    Bridge->>SW: postMessage({ type: 'REGISTER_STREAM_TICKET', ticket })
+    SW-->>Bridge: Ticket Confirmed (60s Claim TTL)
 
-    App->>Disk: fileHandle.createWritable()
-    Disk-->>App: Returns FileSystemWritableFileStream
+    Bridge->>Bridge: Start Keep-Alive Heartbeat (10s Ping)
+    Bridge->>BrowserDL: Trigger Hidden Anchor <a href="/sw-pipe/:id/file.mxf" download>
 
-    App->>GCS: GET /storage/v1/b/BUCKET/o/FILE?alt=media&userProject=CLIENT_PROJECT<br>Header: Authorization: Bearer <TOKEN>
+    BrowserDL->>SW: GET /sw-pipe/:id/reel04_cam_A_raw.mxf
+    SW->>GCS: GET /storage/v1/b/BUCKET/o/FILE?alt=media&userProject=CLIENT_PROJECT<br>Header: Authorization: Bearer <TOKEN>
     GCS->>Billing: Meters 18.4 GB to Client Project
-    GCS-->>App: HTTP 200 OK (ReadableStream Response, Content-Length: 18400000000)
+    GCS-->>SW: HTTP 200 OK (ReadableStream Response, Content-Length: 18400000000)
 
-    Note over App,Disk: Continuous Stream Piped to Disk (4MB Micro-Chunks)
-    loop While Stream Has Chunks
-        GCS->>App: Binary Chunk (4MB Uint8Array)
-        App->>Disk: writableStream.write(chunk)
-        App->>App: Update CRC32c Rolling Hash & Throughput Speed
-        App->>User: Render Live Throughput (48.5 MB/s, ETA: 02m 41s, Fixed RAM: 11.4 MB)
+    SW-->>BrowserDL: HTTP 200 Response(transformStream.readable, { Content-Disposition: attachment })
+
+    Note over SW,BrowserDL: Pass-Through TransformStream with Rolling CRC32c & Telemetry
+    loop While Stream Has Chunks (Constant <15MB RAM)
+        GCS->>SW: Binary Chunk (4MB Uint8Array)
+        SW->>SW: Update Castagnoli CRC32c State
+        SW->>Bridge: postMessage({ type: 'SW_STREAM_PROGRESS', loadedBytes, speed })
+        Bridge->>App: Update Telemetry (48.5 MB/s, ETA: 02m 41s, Fixed RAM: 11.4 MB)
+        SW->>BrowserDL: Pipe Chunk to Local ~/Downloads File
+        Bridge->>SW: Keep-Alive Ping (SW_KEEP_ALIVE_PING)
     end
 
-    App->>Disk: writableStream.close()
-    Disk-->>App: File Flushed & Committed to Disk
-    App->>App: Compare Final CRC32c with GCS x-goog-hash header
+    SW->>SW: Stream Closed -> Finalize CRC32c Digest
+    SW->>Bridge: postMessage({ type: 'SW_STREAM_COMPLETE', finalCrc32c: '0xAF82F6C0' })
+    Bridge->>Bridge: Stop Keep-Alive Heartbeat
+    Bridge->>App: Compare Final CRC32c with GCS x-goog-hash header
+    BrowserDL-->>User: File Complete in chrome://downloads ("Show in folder" Ready)
     App->>User: Display "Download Complete & Integrity Verified (CRC32c Match)"
 ```
 
 ---
 
-### Story 5.1: Tier 1 Direct-to-Disk Streaming via File System Access API (Chromium / macOS & Windows)
-**As an** editor on Google Chrome (macOS / Windows),  
-**I want to** choose my local destination folder and stream 25GB+ files directly to disk,  
-**So that** the file writes continuously to my hard drive without loading into system RAM or crashing my browser tab.
+### Story 5.1: Unified Resilient Service Worker Stream Interception & Native Chrome/Safari Download Integration
+**As an** editor on Google Chrome or Apple Safari (Taylor/Alex),  
+**I want to** stream 25GB+ master reels directly into my downloads folder and have them appear in my browser's native download manager (`chrome://downloads`),  
+**So that** I can track transfer progress in the browser toolbar tray and use the native "Show in folder" magnifying glass without risking browser memory crashes.
 
 #### Acceptance Criteria
-1. **Given** the user is running a Chromium-based browser (Chrome, Edge, Brave, Arc), **When** initiating a download (>200MB), **Then** the application triggers `window.showSaveFilePicker()` with suggested filename and extension.
-2. **Given** the user selects a save destination in the native macOS Finder / Windows Explorer sheet, **When** confirmed, **Then** the app creates a `FileSystemWritableFileStream`.
-3. **Given** the writable stream is ready, **When** fetching `https://storage.googleapis.com/storage/v1/b/{BUCKET}/o/{OBJECT}?alt=media&userProject={PROJECT_ID}`, **Then**:
-   - The browser connects with `Authorization: Bearer {TOKEN}`.
-   - The response stream is read in 4MB micro-chunks.
-   - Each chunk is written directly to `FileSystemWritableFileStream.write(chunk)`.
+1. **Given** the user initiates a download (>200MB) on any modern browser (Chrome, Edge, Brave, Arc, Safari), **When** triggered, **Then** the application registers an ephemeral stream ticket with the registered Service Worker.
+2. **Given** ticket registration succeeds, **When** the synthetic anchor navigation `/sw-pipe/:streamId/:filename` is dispatched, **Then**:
+   - The Service Worker intercepts the request.
+   - The Service Worker attaches `Authorization: Bearer {TOKEN}` and `?userProject={PROJECT_ID}` to the upstream GCS fetch.
+   - The Service Worker returns a streaming `Response` with `Content-Disposition: attachment; filename="{filename}"` and exact `Content-Length`.
+3. **Given** the streaming response is received by the browser, **When** downloaded, **Then**:
+   - The file appears immediately in `chrome://downloads` and the browser toolbar download tray.
    - The browser's active heap memory consumption remains **strictly bounded under 15MB** throughout the entire transfer.
-4. **Given** all chunks are read, **When** the stream completes, **Then** the app invokes `writableStream.close()`, flushing the file to disk.
+   - The stream pipes directly to the user's default downloads location (e.g. `~/Downloads`).
+4. **Given** the transfer finishes, **When** completed, **Then** the browser's native "Show in folder" / magnifying glass button is immediately functional.
 
 ---
 
-### Story 5.2: Real-Time Stream CRC32c Integrity Validation
+### Story 5.2: Service Worker Stream Keep-Alive Heartbeat & Lifecycle Resilience for Long Transfers (50GB+)
+**As a** post-production lead (Alex) downloading a 50GB Archive reel over a 30-minute transfer,  
+**I want the** application to maintain an active keep-alive heartbeat with the Service Worker,  
+**So that** the browser does not terminate or idle-kill the background worker thread mid-transfer.
+
+#### Acceptance Criteria
+1. **Given** an active Service Worker stream, **When** downloading, **Then** the main thread application transmits a `SW_KEEP_ALIVE_PING` message to the Service Worker every 10 seconds.
+2. **Given** the Service Worker receives the heartbeat ping, **When** processed, **Then** the worker acknowledges with `SW_KEEP_ALIVE_PONG` and resets its internal thread idle timer.
+3. **Given** the download completes or is cancelled, **When** finalized, **Then** the keep-alive timer is cleanly torn down to release background resources.
+
+---
+
+### Story 5.3: Real-Time Pass-Through Castagnoli CRC32c Integrity Validation
 **As a** technical post-production supervisor (Alex/Devon),  
-**I want the** application to verify the cryptographic integrity of the downloaded file in real-time,  
+**I want the** Service Worker stream to calculate the cryptographic CRC32c checksum on the fly as chunks pass through,  
 **So that** I am 100% confident the multi-gigabyte file is uncorrupted before opening it in my editing suite.
 
 #### Acceptance Criteria
-1. **Given** an active stream, **When** each binary chunk arrives, **Then** the app computes a running CRC32c checksum (Castagnoli polynomial `0x1EDC6F41`) on the byte stream.
-2. **Given** the download completes, **When** `writableStream.close()` finishes, **Then** the computed CRC32c hash is compared against the GCS `x-goog-hash: crc32c=...` header.
-3. **Given** hashes match, **When** verified, **Then** the UI displays `[Integrity Verified: CRC32c Match]` in green.
+1. **Given** an active stream, **When** binary micro-chunks flow through the Service Worker's `TransformStream`, **Then** the worker continuously computes a running CRC32c checksum (Castagnoli polynomial `0x1EDC6F41`).
+2. **Given** the stream reaches EOF, **When** finalized, **Then** the worker converts the 32-bit CRC32c state to big-endian Base64/Hex representation and transmits it to the main thread via `SW_STREAM_COMPLETE`.
+3. **Given** the computed hash matches the GCS `x-goog-hash: crc32c=...` header, **When** verified, **Then** the UI displays `[Integrity Verified: CRC32c Match: 0xAF82F6C0]` in green.
 4. **Given** a hash mismatch (bit corruption), **When** detected, **Then** the UI flags an immediate alert `[Integrity Check Failed]` and offers a 1-click retry.
 
 ---
 
-### Story 5.3: Tier 2 Hybrid Service Worker Streaming (Safari on macOS)
-**As a** client using Apple Safari on macOS,  
-**I want to** stream large files without browser memory crashing,  
-**So that** I can still download large assets even though Safari lacks the File System Access API.
-
-#### Acceptance Criteria
-1. **Given** Apple Safari is detected (where `showSaveFilePicker` is unavailable), **When** the user clicks download, **Then** the app routes the transfer through a registered **Service Worker Stream Interceptor**.
-2. **Given** the Service Worker pipeline, **When** executed, **Then**:
-   - The Service Worker attaches the required `Authorization` and `userProject` headers.
-   - The stream is piped directly into a synthetic browser download response (`Content-Disposition: attachment`).
-   - The file streams directly into the user's macOS `~/Downloads` directory with constant memory consumption.
-
----
-
-### Story 5.4: Tier 3 In-Memory Blob Handling for Small Assets (<200MB)
+### Story 5.4: Tier 2 In-Memory Blob Handling for Small Assets (<200MB)
 **As a** client user,  
-**I want** small metadata files, PDFs, and audio snippets to download instantly without file picker prompts,  
-**So that** lightweight operations are fast and frictionless.
+**I want** small metadata files, PDFs, and audio snippets to download instantly without Service Worker overhead,  
+**So that** lightweight operations are instantaneous.
 
 #### Acceptance Criteria
 1. **Given** any file under 200MB (or when explicitly opted), **When** clicked, **Then** the application performs standard `fetch()` into memory, converts to `URL.createObjectURL(blob)`, and triggers synthetic `<a download>` click.
@@ -465,7 +475,7 @@ Provide a non-blocking, dockable download manager widget that gives live telemet
 #### Acceptance Criteria
 1. **Given** an active download, **When** the user clicks `[Cancel]`, **Then**:
    - An `AbortController.abort()` signal is immediately sent to the `fetch` request.
-   - The `FileSystemWritableFileStream.abort()` is called to close and delete incomplete temporary disk data.
+   - The application transmits `SW_ABORT_STREAM` to the Service Worker to close the active `TransformStream` and cancel the upstream GCS fetch.
    - Network transfer ceases within <200ms, halting further GCP egress charges.
    - The UI updates status to `[Download Cancelled]`.
 
@@ -818,111 +828,101 @@ flowchart TD
 
 ---
 
-## Epic 12: OS File System Feedback, Local Path Tracking & File Manager Reveal Integration
+## Epic 12: Native Browser Download Shelf Integration, Stream Resilience & Lifecycle Diagnostics
 
 ### Epic Goal
-Bridge the gap between Chromium's direct-to-disk File System Access API streaming (which intentionally bypasses Chrome's `chrome://downloads` manager) and desktop operating systems. Provide rich post-download feedback in the Download Manager and Toast system, confirming file flushing to local disk, displaying local filename/path previews, generating 1-click OS file reveal commands tailored to the user's detected desktop environment (macOS Finder, Windows Explorer, Linux KDE Dolphin / GNOME Nautilus / Generic XDG), enabling in-browser file handle re-verification, and offering an intuitive dual-strategy selector between direct-to-disk streaming and standard browser download manager routing.
+Guarantee that all high-throughput multi-gigabyte media streams (10GB–50GB+) are tracked directly within the browser's native download manager (`chrome://downloads`, Microsoft Edge Downloads, Apple Safari Downloads) with full keep-alive lifecycle resilience, real-time telemetry, native "Show in folder" accessibility, and in-depth stream health diagnostics.
 
 ```mermaid
 flowchart TD
-    subgraph StreamCompletion ["Stream Completion"]
-        Complete["writableStream.close() Resolves"] --> EmitsResult["Download Result Emitted with File Handle"]
+    subgraph StreamCompletion ["Stream Completion Handshake"]
+        Complete["GCS ReadableStream Closes"] --> EmitsResult["SW Emits SW_STREAM_COMPLETE with CRC32c Match"]
     end
 
-    subgraph OSFeedbackEngine ["Module 12: OS File System Feedback Subsystem"]
-        Detect["Detect Client Platform\n(macOS | Windows | Linux KDE/GNOME)"]
-        Synthesize["Generate OS Reveal Snippet\n• Finder: open -R 'file'\n• Explorer: explorer.exe /select,'file'\n• Dolphin: dolphin --select 'file'"]
-        VerifyHandle["Query FileSystemFileHandle\n(handle.getFile() on-disk check)"]
+    subgraph NativeBrowserManager ["Browser Download Shelf Integration"]
+        Detect["Native Browser Integration\n(Chrome, Edge, Safari, Brave, Arc)"]
+        ShelfEntry["Tracked in chrome://downloads & Toolbar Bubble"]
+        NativeShowFolder["Native 'Show in Folder' Magnifying Glass Operable"]
     end
 
     subgraph UIUXExperience ["User Interaction Surface"]
-        SuccessCard["Post-Download Card in DownloadManager\n[✓ Saved to Disk: reel04_cam_A_raw.mxf]"]
-        CopyAction["1-Click 'Reveal in File Manager' (Copies Command)"]
-        InspectAction["1-Click 'Inspect File on Disk' (Queries Handle)"]
-        StrategyToggle["1-Click 'Switch to Chrome Download Manager'"]
+        SuccessCard["Post-Download Card in DownloadManager\n[✓ Saved to Browser Downloads: reel04_cam_A_raw.mxf]"]
+        InspectAction["1-Click 'Inspect Stream Diagnostics'"]
+        KeepAliveStatus["Keep-Alive Watchdog: 100% Active"]
     end
 
     EmitsResult --> Detect
-    EmitsResult --> VerifyHandle
-    Detect --> Synthesize
-    Synthesize --> SuccessCard
-    VerifyHandle --> SuccessCard
-    SuccessCard --> CopyAction
+    Detect --> ShelfEntry
+    ShelfEntry --> NativeShowFolder
+    EmitsResult --> SuccessCard
     SuccessCard --> InspectAction
-    SuccessCard --> StrategyToggle
+    SuccessCard --> KeepAliveStatus
 ```
 
 ---
 
-### Story 12.1: Post-Download Local File System Feedback & Handle Confirmation
-**As a** freelance video editor (Taylor) on macOS or Linux,  
-**I want to** see immediate visual confirmation in the Download Manager showing that my multi-gigabyte file has been flushed to disk with its exact filename and CRC32c verification,  
-**So that** I know the file is safely saved on my local workstation even though Chrome does not log it in the `chrome://downloads` shelf.
+### Story 12.1: Native Browser Download Shelf Visibility (`chrome://downloads` & Download Bubble)
+**As a** freelance video editor (Taylor) on macOS or Windows,  
+**I want to** see my active and completed media downloads logged directly in Chrome's top-right download bubble and `chrome://downloads`,  
+**So that** my downloads behave like standard browser files and I can easily locate them in my browser's download history.
 
 #### Acceptance Criteria
-1. **Given** an active direct-to-disk stream download completes, **When** `writableStream.close()` resolves successfully:
-   - The `DownloadManager` floating widget transitions into the **Post-Download Success State**.
-   - The card displays the confirmed local filename (e.g. `reel04_cam_A_raw.mxf`), disk file handle status `[✓ Saved to Local Disk]`, total bytes written, elapsed time, and CRC32c integrity verification badge `[CRC32c Match: 0xAF82F6C0]`.
-   - The application retains the `FileSystemFileHandle` reference in runtime state for subsequent on-disk inspection.
-2. **Given** the download completes, **When** the completion toast notification is displayed:
-   - The toast presents a green success badge with the saved filename and a 1-click action: `[ ⚡ Reveal in File Manager ]`.
+1. **Given** a multi-gigabyte download streamed via the Service Worker pipeline, **When** the download begins, **Then**:
+   - The browser toolbar download bubble opens showing active progress, remaining time, and file size.
+   - A standard entry is created in `chrome://downloads` (or Safari / Edge Downloads).
+2. **Given** the download completes, **When** finished, **Then**:
+   - The browser's native download notification appears.
+   - The file is marked complete in `chrome://downloads` with the exact filename and byte size.
 
 ---
 
-### Story 12.2: OS-Native File Manager Reveal Integration (Finder, Explorer, Dolphin, Nautilus)
+### Story 12.2: Native Operating System "Show in Folder" Integration
 **As an** editor or VFX pipeline engineer (Alex/Devon) working on macOS, Windows, or Linux,  
-**I want the** system to provide a 1-click action and shell command to reveal and highlight the downloaded file in my operating system's native file manager,  
-**So that** I can immediately import the asset into DaVinci Resolve, Premiere Pro, or Nuke without manually navigating through complex folder trees.
+**I want to** click the native "Show in folder" button in my browser's download shelf,  
+**So that** my operating system's native file manager (macOS Finder, Windows File Explorer, or Linux Dolphin/Nautilus) opens immediately and highlights the downloaded media asset without requiring terminal scripts.
 
 #### Acceptance Criteria
-1. **Given** a completed download on macOS, **When** the reveal action is generated:
-   - The system formats the macOS Apple Finder command: `open -R "./filename.ext"`.
-   - The primary button reads: `[ ⚡ Reveal in Finder (Copy Command) ]`.
-2. **Given** a completed download on Windows, **When** the reveal action is generated:
-   - The system formats the Windows File Explorer command: `explorer.exe /select,"filename.ext"` (and PowerShell alternative).
-   - The primary button reads: `[ ⚡ Reveal in File Explorer (Copy Command) ]`.
-3. **Given** a completed download on Linux, **When** the reveal action is generated:
-   - The system formats the KDE Dolphin command (`dolphin --select "./filename.ext"`), GNOME Nautilus command (`nautilus --select "./filename.ext"`), or generic XDG command (`xdg-open .`).
-   - The primary button reflects the desktop environment (e.g. `[ ⚡ Reveal in Dolphin (Copy Command) ]`).
-4. **Given** the user clicks the reveal button, **When** clicked:
-   - The command is copied to the system clipboard via `navigator.clipboard.writeText()`.
-   - A confirmation toast is emitted: *"Copied reveal command for {FileManager}: Run in terminal or runner to open and highlight file."*
+1. **Given** a completed download in the browser download shelf, **When** the user clicks "Show in folder" (or the magnifying glass icon), **Then**:
+   - On macOS: Apple Finder opens and selects the file in `~/Downloads`.
+   - On Windows: Windows File Explorer opens and selects the file in the default Downloads folder.
+   - On Linux: KDE Dolphin or GNOME Nautilus opens and highlights the file in `~/Downloads`.
+2. **Given** the `DownloadManager` floating widget on screen, **When** the download completes:
+   - The card confirms: `[✓ Saved to Browser Downloads (~/Downloads)]`.
+   - Direct guidance informs the user: *"Accessible via chrome://downloads and your browser toolbar download shelf."*
 
 ---
 
-### Story 12.3: In-Browser Direct Disk Handle Inspection & Re-Verification
-**As a** technical supervisor (Devon),  
-**I want to** verify that the downloaded file is intact and physically exists on my local filesystem directly from the browser UI,  
-**So that** I can confirm on-disk byte size, last-modified timestamp, and file handle validity before closing my browser session.
+### Story 12.3: Service Worker Stream Keep-Alive Watchdog & Lifecycle Health Monitoring
+**As a** technical post-production supervisor (Devon),  
+**I want the** application to actively monitor the health of the Service Worker stream pipeline and keep-alive ping loop,  
+**So that** long-running downloads never stall due to browser worker thread suspension.
 
 #### Acceptance Criteria
-1. **Given** a completed download with an active `FileSystemFileHandle`, **When** the user clicks `[ 🔍 Inspect Local File on Disk ]`:
-   - The application invokes `handle.getFile()`.
-   - A modal or drawer inspection view displays:
-     - On-Disk File Name.
-     - Verified Byte Size on Disk (matching GCS downloaded bytes).
-     - Local File Last Modified timestamp.
-     - Local MIME type.
-     - Handle Validity Status (`[✓ Local Handle Active & Accessible]`).
-2. **Given** the file was moved or deleted outside the browser, **When** `handle.getFile()` fails:
-   - The UI surfaces an informative notice: *"File handle modified or file moved on disk."*
+1. **Given** an active download, **When** the keep-alive watchdog is running, **Then**:
+   - Main thread emits `SW_KEEP_ALIVE_PING` every 10 seconds.
+   - Service Worker returns `SW_KEEP_ALIVE_PONG` and updates its active stream timestamp.
+   - The `DownloadManager` displays a subtle green indicator: `[Keep-Alive: Healthy]`.
+2. **Given** a missed pong (>15 seconds without response), **When** detected, **Then**:
+   - The watchdog dispatches an immediate reconnection ping.
+   - If unrecovered, the UI alerts the user with an actionable resume option.
 
 ---
 
-### Story 12.4: Dual Download Strategy Selector (FSAA Direct-to-Disk vs. Chrome Download Manager)
-**As a** client user who prefers downloads to appear in Chrome's native download bubble and `chrome://downloads`,  
-**I want to** switch my download strategy to the Service Worker Stream pipe,  
-**So that** transfers are tracked directly in Chrome's download manager with the native "Show in folder" button.
+### Story 12.4: Stream Diagnostics Drawer & Cryptographic Checksum Audit
+**As a** studio post-production supervisor or security compliance auditor,  
+**I want to** open a comprehensive diagnostics drawer for any completed transfer,  
+**So that** I can inspect verified byte counts, transfer duration, average throughput, and cryptographic checksums (CRC32c Hex/Base64, MD5, ETag).
 
 #### Acceptance Criteria
-1. **Given** the user is on a Chromium browser, **When** configuring download preferences in the Header, Settings, or Download Manager:
-   - The UI presents a **Download Strategy Selector** with three distinct options:
-     1. **Direct to Disk (FSAA Stream + OS Reveal)** *(Default)*: Prompts OS folder picker upfront, constant <15MB RAM, writes directly to chosen disk location, provides OS reveal commands.
-     2. **Chrome Download Manager (Service Worker Stream)**: Intercepts stream via Service Worker, routes as a standard browser download, displays progress in Chrome's top-right download bubble and `chrome://downloads`, saves to default `~/Downloads` (or prompts if "Ask where to save" is enabled in Chrome settings).
-     3. **In-Memory Blob (Small Files <200MB)**: Instant memory buffer download.
-2. **Given** the user switches strategy, **When** changed:
-   - The preference is saved in persistent storage (`localStorage`).
-   - All subsequent downloads immediately follow the selected strategy.
+1. **Given** a completed transfer, **When** the user clicks `[ 🔍 Inspect Stream Diagnostics ]`:
+   - A slide-out drawer displays:
+     - Confirmed File Name and Path.
+     - Verified Byte Count matching `Content-Length`.
+     - Transfer Duration and Moving Average Speed (MB/s).
+     - CRC32c Hex (`0xAF82F6C0`) and Base64 (`r4L2wA==`).
+     - GCS Generation ID and ETag.
+     - Service Worker Stream ID and Ticket ID.
+2. **Given** individual diagnostic fields, **When** clicked, **Then** values copy to clipboard with instant visual confirmation.
 
 ---
 
@@ -934,14 +934,14 @@ flowchart TD
 | **EPIC-2** | Media Asset Explorer & Virtualized Grid | 3 Stories | High | P0 (Blocker) |
 | **EPIC-3** | Cost Governance & Real-Time Estimator | 2 Stories | Medium | P0 (Blocker) |
 | **EPIC-4** | Asset Deep Inspection & Metadata Drawer | 2 Stories | Low | P1 (Core) |
-| **EPIC-5** | Memory-Bounded Direct-to-Disk Streaming | 4 Stories | High | P0 (Blocker) |
+| **EPIC-5** | Resilient Service Worker Streaming & Native Browser Download | 4 Stories | High | P0 (Blocker) |
 | **EPIC-6** | Active Download Manager & Telemetry | 2 Stories | Medium | P1 (Core) |
 | **EPIC-7** | Automated Batch & CLI Companion Generator | 2 Stories | Low | P1 (Core) |
 | **EPIC-8** | Security, Resilience & Error Diagnostics | 2 Stories | Medium | P0 (Blocker) |
 | **EPIC-9** | Workspace Navigation, Bucket Switcher & GCP Config Center | 3 Stories | Medium | P1 (Core) |
 | **EPIC-10**| Seamless Session Persistence, Silent Restoration & Onboarding Bypass | 4 Stories | Medium | P0 (Blocker) |
 | **EPIC-11**| Browser History Navigation, URL Synchronization & Deep Linking | 4 Stories | Medium | P0 (Blocker) |
-| **EPIC-12**| OS File System Feedback, Local Path Tracking & File Manager Reveal | 4 Stories | Medium | P1 (Core) |
+| **EPIC-12**| Native Browser Download Shelf Integration, Stream Resilience & Diagnostics | 4 Stories | Medium | P1 (Core) |
 
 
 
