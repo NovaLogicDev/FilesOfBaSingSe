@@ -23,7 +23,7 @@ describe('Welcome Hero & Feature Highlight Cards when Unauthenticated', () => {
     expect(screen.getByText('Connect to Google Cloud Storage')).toBeInTheDocument()
     expect(
       screen.getByText(
-        /Authenticate directly from your browser to access Requester-Pays and Owner-Sponsored production buckets/i,
+        /Authenticate directly from your browser to access Requester-Pays/i,
       ),
     ).toBeInTheDocument()
 
@@ -34,7 +34,7 @@ describe('Welcome Hero & Feature Highlight Cards when Unauthenticated', () => {
     expect(screen.getByText('Direct-to-Disk Streaming')).toBeInTheDocument()
     expect(
       screen.getByText(
-        /4MB micro-chunks streamed via Native Chromium File System Access API and Safari Service Worker with bounded memory \(<15MB\)\./i,
+        /4MB micro-chunks streamed via Service Worker with bounded memory \(<15MB\)\./i,
       ),
     ).toBeInTheDocument()
 
