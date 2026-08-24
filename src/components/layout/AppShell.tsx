@@ -698,7 +698,7 @@ export const AppShell: React.FC = () => {
               rel="noreferrer"
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
-              Static Document
+              Privacy
             </a>
           </div>
         </div>
