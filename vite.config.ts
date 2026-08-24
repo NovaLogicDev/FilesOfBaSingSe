@@ -50,4 +50,21 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ['appa.basingse.bug'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons'
+            }
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react'
+            }
+            return 'vendor'
+          }
+        },
+      },
+    },
+  },
 })
