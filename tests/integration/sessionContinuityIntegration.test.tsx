@@ -21,8 +21,9 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
   })
 
   it('Scenario 1: Silent reload restoration bypasses onboarding wizard directly into workspace', async () => {
-    // 1. Setup persistent session hints simulating a returning user
+    // 1. Setup persistent session hints simulating a returning user with auto-restore enabled
     usePersistentStore.getState().setHasCompletedOnboarding(true)
+    usePersistentStore.getState().setAutoRestoreSessionOnReload(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
     usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
     usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
@@ -144,6 +145,94 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
 
     // 4. Onboarding wizard modal opens
     expect(screen.getByText(/Client GCP Connection & Onboarding Wizard/i)).toBeInTheDocument()
+
+    unmount()
+  })
+
+  it('Scenario 4: Transparent 401 recovery in AppShell silently refreshes token and loads directory without disruption', async () => {
+    // 1. Setup authenticated returning user with active session
+    usePersistentStore.getState().setHasCompletedOnboarding(true)
+    usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    useRuntimeStore.getState().setAuth('ya29.expired-token', 'taylor@freelance-edit.com', 'Taylor', undefined, 3600)
+
+    let listAttempt = 0
+    vi.spyOn(gcsClientService, 'listObjects').mockImplementation(async (token: string) => {
+      listAttempt++
+      if (token === 'ya29.expired-token') {
+        const err: any = new Error('OAuth access token has expired or is invalid.')
+        err.code = 'TOKEN_EXPIRED'
+        err.httpStatus = 401
+        throw err
+      }
+      return {
+        folders: ['RESTORED_AFTER_401/'],
+        files: [],
+      }
+    })
+
+    const refreshSpy = vi.spyOn(gisAuthService, 'refreshTokenSilent').mockImplementation(async () => {
+      useRuntimeStore
+        .getState()
+        .setAuth('ya29.refreshed-after-401', 'taylor@freelance-edit.com', 'Taylor', undefined, 3600)
+      return {
+        accessToken: 'ya29.refreshed-after-401',
+        expiresIn: 3600,
+        tokenExpiresAt: Date.now() + 3600000,
+        userEmail: 'taylor@freelance-edit.com',
+        userName: 'Taylor',
+        scopes: ['devstorage.read_only'],
+      }
+    })
+
+    const { unmount } = render(<AppShell />)
+
+    // Verify recovery happened seamlessly
+    await waitFor(() => {
+      expect(screen.getByText('RESTORED_AFTER_401/')).toBeInTheDocument()
+    })
+
+    expect(refreshSpy).toHaveBeenCalled()
+    expect(useRuntimeStore.getState().oauthToken).toBe('ya29.refreshed-after-401')
+
+    unmount()
+  })
+
+  it('Scenario 5: Tab reload with sessionStorage persistence restores workspace instantly with zero popups and zero clicks', async () => {
+    // 1. Setup persistent preferences
+    usePersistentStore.getState().setHasCompletedOnboarding(true)
+    usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
+
+    // 2. Set auth in runtimeStore (which writes to sessionStorage)
+    useRuntimeStore
+      .getState()
+      .setAuth('ya29.session-storage-token', 'taylor@freelance-edit.com', 'Taylor (Colorist)', undefined, 3600, ['devstorage.read_only'])
+
+    // Verify sessionStorage has the token
+    expect(sessionStorage.getItem('basingse-tab-session')).not.toBeNull()
+
+    // 3. Mock GCS listObjects
+    vi.spyOn(gcsClientService, 'listObjects').mockResolvedValueOnce({
+      folders: ['INSTANT_RELOAD_DIR/'],
+      files: [],
+    })
+
+    // 4. Render AppShell (simulating same-tab page reload)
+    const { unmount } = render(<AppShell />)
+
+    // 5. Instantly renders directory without any popup or reconnect card
+    await waitFor(() => {
+      expect(screen.getByText('INSTANT_RELOAD_DIR/')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTestId('session-reconnect-card')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Step 1: Google Identity Sign-In/i)).not.toBeInTheDocument()
+
+    // 6. Security boundary is clean
+    const audit = StorageBoundaryAuditor.audit()
+    expect(audit.isClean).toBe(true)
 
     unmount()
   })

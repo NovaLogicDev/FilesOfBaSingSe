@@ -9,6 +9,7 @@ import {
   GoogleUserInfo,
 } from '../types/auth'
 import { useRuntimeStore } from '../store/runtimeStore'
+import { usePersistentStore } from '../store/persistentStore'
 import { ObservabilityService } from './observability'
 import { StorageBoundaryAuditor } from './storageBoundary'
 
@@ -81,38 +82,78 @@ export class GISAuthService {
     }
 
     return new Promise<void>((resolve, reject) => {
+      let settled = false
+      let checkInterval: ReturnType<typeof setInterval> | null = null
+      let timer: ReturnType<typeof setTimeout> | null = null
+
+      const cleanup = () => {
+        if (checkInterval) {
+          clearInterval(checkInterval)
+          checkInterval = null
+        }
+        if (timer) {
+          clearTimeout(timer)
+          timer = null
+        }
+      }
+
+      timer = setTimeout(() => {
+        cleanup()
+        if (window.google?.accounts?.oauth2) {
+          if (!settled) {
+            settled = true
+            resolve()
+          }
+        } else {
+          if (!settled) {
+            settled = true
+            reject({
+              code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
+              message: 'Timed out waiting for Google Identity Services (GIS) script to load.',
+            })
+          }
+        }
+      }, timeoutMs)
+
+      // Fast polling interval in case script loads asynchronously without triggering our event listener
+      checkInterval = setInterval(() => {
+        if (window.google?.accounts?.oauth2) {
+          cleanup()
+          if (!settled) {
+            settled = true
+            resolve()
+          }
+        }
+      }, 50)
+
       // Check if script tag already exists in DOM
       const existingScript = document.querySelector<HTMLScriptElement>(
         'script[src*="accounts.google.com/gsi/client"]',
       )
 
-      const timer = setTimeout(() => {
-        if (window.google?.accounts?.oauth2) {
-          resolve()
-        } else {
-          reject({
-            code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
-            message: 'Timed out waiting for Google Identity Services (GIS) script to load.',
-          })
-        }
-      }, timeoutMs)
-
       if (existingScript) {
         if (window.google?.accounts?.oauth2) {
-          clearTimeout(timer)
+          cleanup()
+          settled = true
           resolve()
           return
         }
         existingScript.addEventListener('load', () => {
-          clearTimeout(timer)
-          resolve()
+          cleanup()
+          if (!settled) {
+            settled = true
+            resolve()
+          }
         })
         existingScript.addEventListener('error', () => {
-          clearTimeout(timer)
-          reject({
-            code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
-            message: 'Failed to load Google Identity Services client script from CDN.',
-          })
+          cleanup()
+          if (!settled) {
+            settled = true
+            reject({
+              code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
+              message: 'Failed to load Google Identity Services client script from CDN.',
+            })
+          }
         })
         return
       }
@@ -122,15 +163,21 @@ export class GISAuthService {
       script.async = true
       script.defer = true
       script.onload = () => {
-        clearTimeout(timer)
-        resolve()
+        cleanup()
+        if (!settled) {
+          settled = true
+          resolve()
+        }
       }
       script.onerror = () => {
-        clearTimeout(timer)
-        reject({
-          code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
-          message: 'Failed to load Google Identity Services client script from CDN.',
-        })
+        cleanup()
+        if (!settled) {
+          settled = true
+          reject({
+            code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
+            message: 'Failed to load Google Identity Services client script from CDN.',
+          })
+        }
       }
       document.head.appendChild(script)
     })
@@ -449,18 +496,37 @@ export class GISAuthService {
       this.refreshTokenSilent().catch((err) => {
         ObservabilityService.warn(
           'AUTH',
-          'Automatic background token renewal attempt failed',
+          'Automatic background token renewal attempt failed; will retry before expiration',
           { error: err instanceof Error ? err.message : String(err) },
         )
+        // If renewal failed but token hasn't expired yet, retry before expiration
+        const remainingTTL = this.getRemainingTTLSeconds()
+        if (remainingTTL > 15) {
+          const retryDelay = Math.min(30, Math.max(10, Math.floor(remainingTTL / 2)))
+          this.scheduleTokenRefresh(remainingTTL, remainingTTL - retryDelay)
+        }
       })
     }, refreshDelayMs)
   }
 
   /**
    * Performs silent token refresh via `prompt: ''` without user interaction.
+   * Ensures GIS script is ready and provides user account hint to avoid disambiguation errors.
    */
-  public async refreshTokenSilent(): Promise<AuthSession> {
+  public async refreshTokenSilent(hint?: string): Promise<AuthSession> {
+    try {
+      await this.loadGisScript()
+    } catch {
+      throw {
+        code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
+        message: 'Could not load Google Identity Services library.',
+      }
+    }
+
     const client = this.initTokenClient()
+    const { userEmail } = useRuntimeStore.getState()
+    const lastAuthUserEmail = usePersistentStore.getState().lastAuthUserEmail
+    const effectiveHint = hint || userEmail || lastAuthUserEmail || undefined
 
     return new Promise<AuthSession>((resolve, reject) => {
       this.pendingAuthResolver = resolve
@@ -469,6 +535,7 @@ export class GISAuthService {
       try {
         client.requestAccessToken({
           prompt: '',
+          ...(effectiveHint ? { hint: effectiveHint } : {}),
         })
       } catch (err) {
         this.pendingAuthResolver = null
@@ -481,6 +548,29 @@ export class GISAuthService {
         })
       }
     })
+  }
+
+  /**
+   * Proactively returns a valid access token.
+   * If the current token is missing, expired, or expiring in less than 60 seconds,
+   * attempts silent background renewal before returning.
+   */
+  public async getValidToken(): Promise<string | null> {
+    const { oauthToken, tokenExpiresAt } = useRuntimeStore.getState()
+    if (!oauthToken) return null
+
+    if (tokenExpiresAt && tokenExpiresAt - Date.now() < 60000) {
+      try {
+        const session = await this.refreshTokenSilent()
+        return session.accessToken
+      } catch (err) {
+        ObservabilityService.warn('AUTH', 'Proactive token refresh attempt failed', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
+    return useRuntimeStore.getState().oauthToken
   }
 
   /**

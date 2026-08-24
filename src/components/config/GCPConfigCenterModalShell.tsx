@@ -46,6 +46,8 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
     customPricing,
     isFreeTrialAccount,
     hasCompletedOnboarding,
+    autoRestoreSessionOnReload,
+    setAutoRestoreSessionOnReload,
     preferredDownloadStrategy,
     setPreferredDownloadStrategy,
     setSavedProjectId,
@@ -64,8 +66,30 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
 
   const [preflightResult, setPreflightResult] = useState<PreflightCheckResult | null>(null)
   const [isRunningPreflight, setIsRunningPreflight] = useState(false)
+  const [isRenewingToken, setIsRenewingToken] = useState(false)
   const [remainingMinutes, setRemainingMinutes] = useState<number>(55)
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false)
+
+  const handleRenewToken = async () => {
+    setIsRenewingToken(true)
+    try {
+      const session = await gisAuthService.refreshTokenSilent()
+      addToast({
+        type: 'success',
+        title: 'Token Renewed',
+        message: `Successfully renewed Google OAuth token (~${Math.round(session.expiresIn / 60)}m validity).`,
+      })
+      runPreflightAudit()
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Token Renewal Failed',
+        message: err?.message || 'Could not silently renew token. Please re-authenticate.',
+      })
+    } finally {
+      setIsRenewingToken(false)
+    }
+  }
 
   // Live Token Expiration Countdown
   useEffect(() => {
@@ -281,16 +305,41 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                       : 'devstorage.read_only (Minimal)'}
                   </span>
                 </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800/80">
+                  <span className="text-slate-500">Auto-Popup on Reload:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAutoRestoreSessionOnReload(!autoRestoreSessionOnReload)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border ${
+                      autoRestoreSessionOnReload
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-400 text-emerald-800 dark:text-emerald-300'
+                        : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    {autoRestoreSessionOnReload ? 'Enabled (Auto-Popup)' : 'Disabled (1-Click)'}
+                  </button>
+                </div>
               </div>
 
-              <div className="pt-1">
+              <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                {oauthToken && (
+                  <button
+                    type="button"
+                    disabled={isRenewingToken}
+                    onClick={handleRenewToken}
+                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700/50 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center justify-center space-x-1 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRenewingToken ? 'animate-spin' : ''}`} />
+                    <span>{isRenewingToken ? 'Renewing...' : 'Renew Token Now'}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onOpenOnboarding}
-                  className="w-full py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-cyan-700 dark:text-cyan-300 flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-cyan-700 dark:text-cyan-300 flex items-center justify-center space-x-1 transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span>Switch Account / Reconnect GCS</span>
+                  <span>Switch Account / Reconnect</span>
                 </button>
               </div>
             </div>

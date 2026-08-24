@@ -59,7 +59,7 @@ export class SessionLifecycleEngine {
     )
 
     try {
-      const session = await gisAuthService.refreshTokenSilent()
+      const session = await gisAuthService.refreshTokenSilent(lastAuthUserEmail || undefined)
       if (session && session.accessToken) {
         useRuntimeStore.getState().setIsRestoringSession(false)
         useRuntimeStore
@@ -70,6 +70,7 @@ export class SessionLifecycleEngine {
             session.userName,
             session.userAvatar,
             session.expiresIn,
+            session.scopes,
           )
         ObservabilityService.info(
           'AUTH',

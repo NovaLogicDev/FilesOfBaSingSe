@@ -70,4 +70,32 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     expect(usePersistentStore.getState().savedBucketName).toBe('gs://my-cinematic-bucket')
     expect(usePersistentStore.getState().recentBuckets).toContain('my-cinematic-bucket')
   })
+
+  it('persists ephemeral tab session in sessionStorage and cleans up on clearAuthSession()', () => {
+    useRuntimeStore
+      .getState()
+      .setAuth('ya29.tab-token', 'editor@test.com', 'Editor', undefined, 3600, ['devstorage.read_only'])
+
+    // Check sessionStorage contains tab session
+    const tabSessionRaw = sessionStorage.getItem('basingse-tab-session')
+    expect(tabSessionRaw).not.toBeNull()
+    const parsed = JSON.parse(tabSessionRaw!)
+    expect(parsed.oauthToken).toBe('ya29.tab-token')
+    expect(parsed.userEmail).toBe('editor@test.com')
+
+    // Boundary auditor should consider authorized tab session clean
+    expect(StorageBoundaryAuditor.audit().isClean).toBe(true)
+
+    // Clear session
+    useRuntimeStore.getState().clearAuth()
+    expect(sessionStorage.getItem('basingse-tab-session')).toBeNull()
+  })
+
+  it('detects violations if unauthorized keys or private keys are stored in sessionStorage', () => {
+    sessionStorage.setItem('unauthorized_token_key', 'some-token')
+    const audit = StorageBoundaryAuditor.audit()
+    expect(audit.isClean).toBe(false)
+    expect(audit.violations.length).toBeGreaterThan(0)
+    expect(audit.violations[0]).toContain('unauthorized_token_key')
+  })
 })

@@ -12,6 +12,7 @@ export interface PersistentPreferences {
   customPricing: Partial<RateCard>
   isFreeTrialAccount: boolean
   hasCompletedOnboarding: boolean
+  autoRestoreSessionOnReload: boolean
   lastAuthUserEmail: string | null
   lastAuthUserName: string | null
   lastAuthTimestamp: number | null
@@ -25,6 +26,7 @@ export interface PersistentPreferences {
   setCustomPricing: (pricing: Partial<RateCard>) => void
   setFreeTrialAccount: (isFreeTrial: boolean) => void
   setHasCompletedOnboarding: (completed: boolean) => void
+  setAutoRestoreSessionOnReload: (enabled: boolean) => void
   setLastAuthUserEmail: (email: string | null) => void
   setLastAuthUserName: (name: string | null) => void
   setPreferredDownloadStrategy: (strategy: DownloadStrategy | null) => void
@@ -42,6 +44,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
       customPricing: {},
       isFreeTrialAccount: false,
       hasCompletedOnboarding: false,
+      autoRestoreSessionOnReload: false,
       lastAuthUserEmail: null,
       lastAuthUserName: null,
       lastAuthTimestamp: null,
@@ -81,6 +84,9 @@ export const usePersistentStore = create<PersistentPreferences>()(
           lastAuthTimestamp: completed ? Date.now() : null,
         }),
 
+      setAutoRestoreSessionOnReload: (enabled) =>
+        set({ autoRestoreSessionOnReload: enabled }),
+
       setLastAuthUserEmail: (email) => set({ lastAuthUserEmail: email }),
 
       setLastAuthUserName: (name) => set({ lastAuthUserName: name }),
@@ -101,6 +107,7 @@ export const usePersistentStore = create<PersistentPreferences>()(
           customPricing: {},
           isFreeTrialAccount: false,
           hasCompletedOnboarding: false,
+          autoRestoreSessionOnReload: false,
           lastAuthUserEmail: null,
           lastAuthUserName: null,
           lastAuthTimestamp: null,

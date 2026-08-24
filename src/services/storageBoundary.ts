@@ -58,19 +58,36 @@ export class StorageBoundaryAuditor {
       // Storage access blocked or unavailable
     }
 
-    // 2. Audit SessionStorage
+    // 2. Audit SessionStorage (Ephemeral Tab Session Boundary)
     try {
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i)
         if (!key) continue
 
+        const lowerKey = key.toLowerCase()
         const value = sessionStorage.getItem(key) || ''
-        if (
-          value.includes('ya29.') ||
-          value.includes('"oauthToken"') ||
-          value.includes('BEGIN PRIVATE KEY')
-        ) {
-          violations.push(`Sensitive token signature found in sessionStorage key: "${key}"`)
+
+        // Allow authorized tab session key; check for unauthorized keys and rogue tokens
+        if (key !== 'basingse-tab-session') {
+          if (this.FORBIDDEN_KEYS_OR_PATTERNS.some((p) => lowerKey.includes(p))) {
+            violations.push(`Prohibited unauthorized key in sessionStorage: "${key}"`)
+          }
+          if (
+            value.includes('ya29.') ||
+            value.includes('"oauthToken"') ||
+            value.includes('BEGIN PRIVATE KEY') ||
+            value.includes('service_account')
+          ) {
+            violations.push(`Sensitive token signature found in sessionStorage key: "${key}"`)
+          }
+        } else {
+          // Inside authorized basingse-tab-session, private keys and service accounts are strictly forbidden
+          if (
+            value.includes('BEGIN PRIVATE KEY') ||
+            value.includes('service_account')
+          ) {
+            violations.push(`Prohibited private credential found in sessionStorage key: "${key}"`)
+          }
         }
       }
     } catch {

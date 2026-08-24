@@ -350,4 +350,93 @@ describe('GISAuthService - Unit Tests', () => {
       'https://www.googleapis.com/auth/cloud-platform',
     )
   })
+
+  it('passes user email as hint to GIS requestAccessToken during silent refresh', async () => {
+    let capturedOpts: any
+    mockInitTokenClient.mockImplementation((config: GoogleTokenClientConfig) => {
+      return {
+        requestAccessToken: vi.fn((opts?: any) => {
+          capturedOpts = opts
+          config.callback({
+            access_token: 'ya29.hint_token',
+            expires_in: 3600,
+            token_type: 'Bearer',
+            scope: GIS_DEFAULT_SCOPES.join(' '),
+          })
+        }),
+      }
+    })
+
+    // 1. Direct hint passed
+    await gisAuthService.refreshTokenSilent('sokka@water-tribe.org')
+    expect(capturedOpts.prompt).toBe('')
+    expect(capturedOpts.hint).toBe('sokka@water-tribe.org')
+
+    // 2. Hint inferred from runtime store
+    useRuntimeStore.getState().setAuth('ya29.old', 'zuko@fire-nation.org', 'Zuko', undefined, 3600)
+    await gisAuthService.refreshTokenSilent()
+    expect(capturedOpts.prompt).toBe('')
+    expect(capturedOpts.hint).toBe('zuko@fire-nation.org')
+  })
+
+  it('proactively refreshes token via getValidToken when token is expiring soon', async () => {
+    // 1. Token valid for 30 minutes -> returns existing token without refresh
+    useRuntimeStore.getState().setAuth('ya29.still_good', 'iroh@tea-shop.org', 'Iroh', undefined, 1800)
+    const validToken = await gisAuthService.getValidToken()
+    expect(validToken).toBe('ya29.still_good')
+
+    // 2. Token expiring in 30 seconds -> triggers refreshTokenSilent
+    mockInitTokenClient.mockImplementation((config: GoogleTokenClientConfig) => {
+      return {
+        requestAccessToken: vi.fn((opts?: any) => {
+          config.callback({
+            access_token: 'ya29.proactively_refreshed',
+            expires_in: 3600,
+            token_type: 'Bearer',
+            scope: GIS_DEFAULT_SCOPES.join(' '),
+          })
+        }),
+      }
+    })
+
+    useRuntimeStore.getState().setAuth('ya29.about_to_expire', 'iroh@tea-shop.org', 'Iroh', undefined, 30)
+    const renewedToken = await gisAuthService.getValidToken()
+    expect(renewedToken).toBe('ya29.proactively_refreshed')
+    expect(useRuntimeStore.getState().oauthToken).toBe('ya29.proactively_refreshed')
+  })
+
+  it('retries background refresh before expiration when initial attempt fails', async () => {
+    vi.useFakeTimers()
+    const service = new GISAuthService('test-client')
+    let callCount = 0
+
+    const refreshSpy = vi.spyOn(service, 'refreshTokenSilent').mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        throw new Error('Transient network error')
+      }
+      return {
+        accessToken: 'ya29.retry_success_token',
+        expiresIn: 3600,
+        tokenExpiresAt: Date.now() + 3600000,
+        userEmail: 'retry@user.com',
+        userName: 'Retry User',
+        scopes: [],
+      }
+    })
+
+    // Set auth in runtime store with 600s TTL (10m)
+    useRuntimeStore.getState().setAuth('ya29.token', 'retry@user.com', 'Retry User', undefined, 600)
+    service.scheduleTokenRefresh(600, 300) // First fires at 300s
+
+    // Fast forward to first attempt (300s) -> fails
+    await vi.advanceTimersByTimeAsync(300 * 1000)
+    expect(refreshSpy).toHaveBeenCalledTimes(1)
+
+    // Fast forward to retry (30s later)
+    await vi.advanceTimersByTimeAsync(31 * 1000)
+    expect(refreshSpy).toHaveBeenCalledTimes(2)
+
+    vi.useRealTimers()
+  })
 })

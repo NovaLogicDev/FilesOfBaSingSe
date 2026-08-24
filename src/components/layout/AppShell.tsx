@@ -40,6 +40,7 @@ export const AppShell: React.FC = () => {
     isFreeTrialAccount,
     customPricing,
     hasCompletedOnboarding,
+    autoRestoreSessionOnReload,
     lastAuthUserEmail,
     lastAuthUserName,
     setSavedBucketName,
@@ -101,7 +102,10 @@ export const AppShell: React.FC = () => {
         ObservabilityService.info('GCS', `Listing directory prefix: "${prefix}" in gs://${effectiveBucket}`)
         const cleanBucket = gcsClientService.cleanBucketName(effectiveBucket)
 
-        const res = await gcsClientService.listObjects(oauthToken, cleanBucket, {
+        // Ensure active valid token
+        const activeToken = (await gisAuthService.getValidToken()) || oauthToken
+
+        const res = await gcsClientService.listObjects(activeToken, cleanBucket, {
           prefix,
           delimiter: '/',
           userProject: savedProjectId,
@@ -116,6 +120,34 @@ export const AppShell: React.FC = () => {
         if (err.name === 'AbortError' || abortController.signal.aborted) {
           return
         }
+
+        // Automatic 401 / token expiration recovery
+        if (err?.code === 'TOKEN_EXPIRED' || err?.httpStatus === 401) {
+          try {
+            ObservabilityService.info('AUTH', 'Access token expired during directory listing; attempting silent recovery...')
+            const session = await gisAuthService.refreshTokenSilent()
+            if (session.accessToken) {
+              const cleanBucket = gcsClientService.cleanBucketName(effectiveBucket)
+              const res = await gcsClientService.listObjects(session.accessToken, cleanBucket, {
+                prefix,
+                delimiter: '/',
+                userProject: savedProjectId,
+                pageToken,
+                signal: abortController.signal,
+              })
+              setFolders(res.folders)
+              setFiles(res.files)
+              setCurrentPrefix(prefix)
+              setNextPageToken(res.nextPageToken)
+              return
+            }
+          } catch (recoveryErr: any) {
+            ObservabilityService.warn('AUTH', 'Silent recovery after 401 failed', {
+              error: recoveryErr?.message || String(recoveryErr),
+            })
+          }
+        }
+
         ObservabilityService.error('GCS', `Failed to list directory: ${err.message}`)
         addToast({
           type: 'error',
@@ -190,6 +222,7 @@ export const AppShell: React.FC = () => {
   useEffect(() => {
     if (
       !oauthToken &&
+      autoRestoreSessionOnReload &&
       SessionLifecycleEngine.shouldBypassOnboarding(
         hasCompletedOnboarding,
         savedProjectId,
@@ -206,7 +239,7 @@ export const AppShell: React.FC = () => {
         }
       })
     }
-  }, [])
+  }, [autoRestoreSessionOnReload])
 
   // Listen to OS system color scheme changes if theme === 'system'
   useEffect(() => {
@@ -510,7 +543,9 @@ export const AppShell: React.FC = () => {
               errorMessage={sessionRestorationError}
               onReconnect={async () => {
                 try {
-                  const session = await gisAuthService.signIn()
+                  const session = await gisAuthService.signIn({
+                    hint: lastAuthUserEmail || undefined,
+                  })
                   addToast({
                     type: 'success',
                     title: 'Google Session Reconnected',
