@@ -594,19 +594,19 @@ export const AppShell: React.FC = () => {
                 <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
                   <div className="font-semibold text-slate-900 dark:text-white text-xs">Direct-to-Disk Streaming</div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                    4MB micro-chunks streamed via Native Chromium File System Access API with bounded memory (&lt;15MB).
+                    4MB micro-chunks streamed via Service Worker with bounded memory (&lt;15MB).
                   </p>
                 </div>
                 <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
                   <div className="font-semibold text-slate-900 dark:text-white text-xs">Castagnoli CRC32c</div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                    Live bit-exact parity validation against Google Cloud Storage hash digests.
+                    Live bit-exact parity validation against Google Cloud Storage x-goog-hash checksum digests.
                   </p>
                 </div>
                 <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
                   <div className="font-semibold text-slate-900 dark:text-white text-xs">Zero Host Liability</div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                    Client-side execution with volatile in-memory OAuth tokens. Keys never touch server disk.
+                    Client-side execution with minimal scopes, volatile in-memory OAuth tokens, and zero telemetry tracking.
                   </p>
                 </div>
               </div>
