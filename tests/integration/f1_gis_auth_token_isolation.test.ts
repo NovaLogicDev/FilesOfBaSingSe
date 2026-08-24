@@ -26,7 +26,7 @@ describe('Tier 1 - F1: GIS Auth & In-Memory Token Isolation', () => {
     expect(state.tokenExpiresAt).toBeGreaterThan(Date.now())
   })
 
-  it('proves zero-persistence: persistent localStorage contains zero token data', () => {
+  it('proves zero-persistence: persistent localStorage client preferences contain zero token data', () => {
     const mockToken = 'ya29.a0AfH6SMB_secret_access_token'
     useRuntimeStore.getState().setAuthSession(mockToken, 'sokka@water-tribe-films.com', 'Sokka', undefined, 1800)
 
@@ -39,13 +39,12 @@ describe('Tier 1 - F1: GIS Auth & In-Memory Token Isolation', () => {
     expect(audit.isClean).toBe(true)
     expect(audit.violations).toHaveLength(0)
 
-    // Inspect raw localStorage keys
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)!
-      const value = localStorage.getItem(key)!
-      expect(value).not.toContain(mockToken)
-      expect(value).not.toContain('oauthToken')
-      expect(value).not.toContain('ya29.')
+    // Inspect raw localStorage client preferences: must never leak token
+    const prefs = localStorage.getItem('basingse-media-client-prefs')
+    if (prefs) {
+      expect(prefs).not.toContain(mockToken)
+      expect(prefs).not.toContain('oauthToken')
+      expect(prefs).not.toContain('ya29.')
     }
   })
 

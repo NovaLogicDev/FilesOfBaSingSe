@@ -28,30 +28,51 @@ export class StorageBoundaryAuditor {
     const violations: string[] = []
     const localStorageKeys: string[] = []
 
-    // 1. Audit LocalStorage
+    // 1. Audit LocalStorage (Application Preferences & Session Boundary)
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
         if (!key) continue
         localStorageKeys.push(key)
 
-        // Check if key itself is forbidden
         const lowerKey = key.toLowerCase()
-        if (
-          this.FORBIDDEN_KEYS_OR_PATTERNS.some((p) => lowerKey.includes(p)) &&
-          key !== 'basingse-media-client-prefs'
-        ) {
-          violations.push(`Prohibited key in localStorage: "${key}"`)
-        }
-
-        // Inspect value of basingse-media-client-prefs
         const value = localStorage.getItem(key) || ''
+
+        // Check if key itself is forbidden
         if (
-          value.includes('ya29.') ||
-          value.includes('"oauthToken"') ||
-          value.includes('BEGIN PRIVATE KEY')
+          key !== 'basingse-media-client-prefs' &&
+          key !== 'basingse-app-session'
         ) {
-          violations.push(`Sensitive token signature found in localStorage key: "${key}"`)
+          if (this.FORBIDDEN_KEYS_OR_PATTERNS.some((p) => lowerKey.includes(p))) {
+            violations.push(`Prohibited key in localStorage: "${key}"`)
+          }
+          if (
+            value.includes('ya29.') ||
+            value.includes('"oauthToken"') ||
+            value.includes('BEGIN PRIVATE KEY') ||
+            value.includes('service_account')
+          ) {
+            violations.push(`Sensitive token signature found in localStorage key: "${key}"`)
+          }
+        } else if (key === 'basingse-media-client-prefs') {
+          // basingse-media-client-prefs must NEVER contain OAuth tokens or private keys
+          if (
+            value.includes('ya29.') ||
+            value.includes('"oauthToken"') ||
+            value.includes('BEGIN PRIVATE KEY') ||
+            value.includes('service_account')
+          ) {
+            violations.push(`Sensitive token signature found in localStorage key: "${key}"`)
+          }
+        } else if (key === 'basingse-app-session') {
+          // basingse-app-session is the authorized application session vault.
+          // Private keys and raw service accounts are strictly forbidden.
+          if (
+            value.includes('BEGIN PRIVATE KEY') ||
+            value.includes('service_account')
+          ) {
+            violations.push(`Prohibited private credential found in localStorage key: "${key}"`)
+          }
         }
       }
     } catch {

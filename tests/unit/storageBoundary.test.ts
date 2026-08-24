@@ -10,8 +10,8 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     useRuntimeStore.getState().clearAuthSession()
   })
 
-  it('keeps OAuth tokens strictly in volatile runtime memory and NOT in localStorage', () => {
-    // 1. Set volatile session
+  it('stores active OAuth token in application session vault and NOT in user preferences', () => {
+    // 1. Set session
     useRuntimeStore
       .getState()
       .setAuthSession('ya29.sample-ephemeral-access-token', 'taylor@freelance-edit.com')
@@ -24,15 +24,21 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     expect(audit.isClean).toBe(true)
     expect(audit.violations).toHaveLength(0)
 
-    // 3. Inspect raw localStorage
+    // 3. Inspect raw localStorage preferences: preferences must NEVER contain token
     const rawPrefs = localStorage.getItem('basingse-media-client-prefs')
     if (rawPrefs) {
       expect(rawPrefs).not.toContain('ya29.')
       expect(rawPrefs).not.toContain('oauthToken')
     }
+
+    // 4. Inspect authorized app session
+    const rawAppSession = localStorage.getItem('basingse-app-session')
+    expect(rawAppSession).not.toBeNull()
+    const parsed = JSON.parse(rawAppSession!)
+    expect(parsed.oauthToken).toBe('ya29.sample-ephemeral-access-token')
   })
 
-  it('detects violations if a prohibited token is stored in localStorage', () => {
+  it('detects violations if a prohibited unauthorized key or token is stored in localStorage', () => {
     localStorage.setItem('oauth_access_token', 'ya29.leaked-token')
 
     const audit = StorageBoundaryAuditor.audit()
@@ -40,7 +46,7 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     expect(audit.violations.length).toBeGreaterThan(0)
   })
 
-  it('flushes volatile memory and aborts active streams on clearAuthSession()', () => {
+  it('flushes application session from storage and aborts active streams on clearAuthSession()', () => {
     const abortController = new AbortController()
     let wasAborted = false
     abortController.signal.addEventListener('abort', () => {
@@ -51,6 +57,7 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     useRuntimeStore.getState().setActiveAbortController(abortController)
 
     expect(useRuntimeStore.getState().oauthToken).toBe('token-123')
+    expect(localStorage.getItem('basingse-app-session')).not.toBeNull()
 
     // Clear session
     useRuntimeStore.getState().clearAuthSession()
@@ -58,6 +65,7 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     expect(useRuntimeStore.getState().oauthToken).toBeNull()
     expect(useRuntimeStore.getState().userEmail).toBeNull()
     expect(useRuntimeStore.getState().activeAbortController).toBeNull()
+    expect(localStorage.getItem('basingse-app-session')).toBeNull()
     expect(wasAborted).toBe(true)
   })
 
@@ -71,24 +79,24 @@ describe('Storage Boundary & Security Isolation Auditor', () => {
     expect(usePersistentStore.getState().recentBuckets).toContain('my-cinematic-bucket')
   })
 
-  it('persists ephemeral tab session in sessionStorage and cleans up on clearAuthSession()', () => {
+  it('persists application session across all tabs and cleans up on clearAuthSession()', () => {
     useRuntimeStore
       .getState()
       .setAuth('ya29.tab-token', 'editor@test.com', 'Editor', undefined, 3600, ['devstorage.read_only'])
 
-    // Check sessionStorage contains tab session
-    const tabSessionRaw = sessionStorage.getItem('basingse-tab-session')
-    expect(tabSessionRaw).not.toBeNull()
-    const parsed = JSON.parse(tabSessionRaw!)
+    // Check localStorage contains app session
+    const appSessionRaw = localStorage.getItem('basingse-app-session')
+    expect(appSessionRaw).not.toBeNull()
+    const parsed = JSON.parse(appSessionRaw!)
     expect(parsed.oauthToken).toBe('ya29.tab-token')
     expect(parsed.userEmail).toBe('editor@test.com')
 
-    // Boundary auditor should consider authorized tab session clean
+    // Boundary auditor should consider authorized app session clean
     expect(StorageBoundaryAuditor.audit().isClean).toBe(true)
 
     // Clear session
     useRuntimeStore.getState().clearAuth()
-    expect(sessionStorage.getItem('basingse-tab-session')).toBeNull()
+    expect(localStorage.getItem('basingse-app-session')).toBeNull()
   })
 
   it('detects violations if unauthorized keys or private keys are stored in sessionStorage', () => {

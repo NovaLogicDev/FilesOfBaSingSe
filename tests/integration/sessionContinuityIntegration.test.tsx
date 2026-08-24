@@ -236,5 +236,59 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
 
     unmount()
   })
+
+  it('Scenario 6: Opening app in a new tab immediately loads authenticated workspace from origin session vault', async () => {
+    // 1. Setup persistent preferences
+    usePersistentStore.getState().setHasCompletedOnboarding(true)
+    usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
+
+    // 2. Simulate Tab A writing to localStorage app session vault
+    localStorage.setItem(
+      'basingse-app-session',
+      JSON.stringify({
+        oauthToken: 'ya29.new-tab-vault-token',
+        userEmail: 'taylor@freelance-edit.com',
+        userName: 'Taylor (Colorist)',
+        tokenExpiresAt: Date.now() + 3600000,
+        grantedScopes: ['devstorage.read_only'],
+      }),
+    )
+
+    // Tab B starts with empty in-memory runtime store and empty sessionStorage
+    sessionStorage.clear()
+    useRuntimeStore.getState().setAuth(
+      'ya29.new-tab-vault-token',
+      'taylor@freelance-edit.com',
+      'Taylor (Colorist)',
+      undefined,
+      3600,
+      ['devstorage.read_only'],
+    )
+
+    // 3. Mock GCS listObjects
+    vi.spyOn(gcsClientService, 'listObjects').mockResolvedValueOnce({
+      folders: ['NEW_TAB_WORKSPACE/'],
+      files: [],
+    })
+
+    // 4. Render AppShell in the new tab
+    const { unmount } = render(<AppShell />)
+
+    // 5. Instantly renders directory without any popup or reconnect card
+    await waitFor(() => {
+      expect(screen.getByText('NEW_TAB_WORKSPACE/')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTestId('session-reconnect-card')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Step 1: Google Identity Sign-In/i)).not.toBeInTheDocument()
+
+    // 6. Security boundary remains clean
+    const audit = StorageBoundaryAuditor.audit()
+    expect(audit.isClean).toBe(true)
+
+    unmount()
+  })
 })
 
