@@ -20,7 +20,8 @@ describe('Welcome Hero & Feature Highlight Cards when Unauthenticated', () => {
     render(<AppShell />)
 
     // Hero title & subtitle
-    expect(screen.getByText('Connect to Google Cloud Storage')).toBeInTheDocument()
+    expect(screen.getAllByText('Files of Ba Sing Se').length).toBeGreaterThan(0)
+    expect(screen.getByText('Requester-Pays Google Cloud Storage File Explorer')).toBeInTheDocument()
     expect(
       screen.getByText(
         /Authenticate directly from your browser to access Requester-Pays/i,

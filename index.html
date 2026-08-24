@@ -8,6 +8,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark light" />
   <title>Files of Ba Sing Se</title>
+  <meta name="description" content="Files of Ba Sing Se - Direct browser-to-cloud client for Google Cloud Storage requester-pays buckets." />
+  <meta name="application-name" content="Files of Ba Sing Se" />
+  <meta name="apple-mobile-web-app-title" content="Files of Ba Sing Se" />
+  <meta property="og:title" content="Files of Ba Sing Se" />
+  <meta property="og:site_name" content="Files of Ba Sing Se" />
+  <meta property="og:description" content="Files of Ba Sing Se is a client-side Google Cloud Storage web portal for browsing and streaming files from Requester-Pays buckets." />
+  <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -45,7 +52,26 @@
 
 <body
   class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased min-h-screen font-sans selection:bg-emerald-500 selection:text-slate-950">
-  <div id="root"></div>
+  <div id="root">
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-4">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <span class="font-bold text-lg">Files of Ba Sing Se</span>
+        <a href="/privacy.html" class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">Privacy Policy</a>
+      </div>
+    </header>
+    <main class="max-w-2xl mx-auto px-4 py-16 text-center">
+      <h1 class="text-3xl font-extrabold tracking-tight mb-2">Files of Ba Sing Se</h1>
+      <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-4">
+        Requester-Pays Google Cloud Storage File Explorer
+      </p>
+      <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+        Files of Ba Sing Se is a browser-based application designed to authenticate directly with Google Identity Services to explore and stream media assets from Google Cloud Storage Requester-Pays buckets.
+      </p>
+      <noscript>
+        <p class="text-amber-500 text-xs">JavaScript is required to run the interactive storage explorer.</p>
+      </noscript>
+    </main>
+  </div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

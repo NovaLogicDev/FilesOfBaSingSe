@@ -569,11 +569,14 @@ export const AppShell: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  Connect to Google Cloud Storage
-                </h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
-                  Authenticate directly from your browser to access Requester-Pays production buckets. No server middleware, 100% zero host liability.
+                <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  Files of Ba Sing Se
+                </h1>
+                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                  Requester-Pays Google Cloud Storage File Explorer
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto pt-1">
+                  Authenticate directly from your browser to access Requester-Pays production buckets. Direct browser-to-cloud streaming with bounded memory and zero host liability.
                 </p>
               </div>
 

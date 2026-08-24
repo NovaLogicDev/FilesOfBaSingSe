@@ -136,7 +136,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     const { unmount } = render(<AppShell />)
 
     // 2. Asserts Welcome Hero is rendered
-    expect(screen.getByText(/Connect to Google Cloud Storage/i)).toBeInTheDocument()
+    expect(screen.getByText('Requester-Pays Google Cloud Storage File Explorer')).toBeInTheDocument()
     expect(screen.getByText(/Launch Connection Wizard/i)).toBeInTheDocument()
 
     // 3. User clicks Launch Connection Wizard
