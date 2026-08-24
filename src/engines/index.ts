@@ -9,3 +9,5 @@ export * from './osFileSystemReveal'
 export * from './resilientSWStreamEngine'
 export * from './browserDownloadBridge'
 export * from './theme'
+export * from './trustSafety'
+

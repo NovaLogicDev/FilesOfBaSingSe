@@ -75,7 +75,7 @@ describe('GISAuthService - Unit Tests', () => {
     delete (window as any).google
   })
 
-  it('initializes token client with required GCS and CRM scopes', () => {
+  it('initializes token client with minimal non-sensitive scopes (Least Privilege)', () => {
     const service = new GISAuthService('test-id', GIS_DEFAULT_SCOPES)
     const client = service.initTokenClient()
 
@@ -84,8 +84,10 @@ describe('GISAuthService - Unit Tests', () => {
     expect(capturedConfig).toBeDefined()
     expect(capturedConfig!.client_id).toBe('test-id')
     expect(capturedConfig!.scope).toContain('https://www.googleapis.com/auth/devstorage.read_only')
-    expect(capturedConfig!.scope).toContain('https://www.googleapis.com/auth/cloud-platform')
     expect(capturedConfig!.scope).toContain('openid')
+    expect(capturedConfig!.scope).toContain('userinfo.email')
+    expect(capturedConfig!.scope).toContain('userinfo.profile')
+    expect(capturedConfig!.scope).not.toContain('https://www.googleapis.com/auth/cloud-platform')
   })
 
   it('authenticates user via interactive popup and populates volatile runtime store', async () => {
@@ -310,5 +312,42 @@ describe('GISAuthService - Unit Tests', () => {
     const remaining = gisAuthService.getRemainingTTLSeconds()
     expect(remaining).toBeGreaterThan(1190)
     expect(remaining).toBeLessThanOrEqual(1200)
+  })
+
+  it('performs contextual step-up authorization with include_granted_scopes: true', async () => {
+    let capturedOverride: any
+
+    mockInitTokenClient.mockImplementation((config: GoogleTokenClientConfig) => {
+      capturedConfig = config
+      return {
+        requestAccessToken: vi.fn((override?: any) => {
+          capturedOverride = override
+          const response: GoogleTokenResponse = {
+            access_token: 'ya29.elevated_step_up_token',
+            expires_in: 3600,
+            token_type: 'Bearer',
+            scope:
+              'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/devstorage.read_only https://www.googleapis.com/auth/cloud-platform',
+          }
+          config.callback(response)
+        }),
+      }
+    })
+
+    const session = await gisAuthService.requestElevatedScopes([
+      'https://www.googleapis.com/auth/cloud-platform',
+    ])
+
+    expect(session.accessToken).toBe('ya29.elevated_step_up_token')
+    expect(capturedOverride).toBeDefined()
+    expect(capturedOverride.scope).toBe('https://www.googleapis.com/auth/cloud-platform')
+    expect(capturedOverride.include_granted_scopes).toBe(true)
+    expect(capturedOverride.prompt).toBe('consent')
+
+    expect(gisAuthService.hasElevatedScopes()).toBe(true)
+    expect(gisAuthService.hasScope('https://www.googleapis.com/auth/cloud-platform')).toBe(true)
+    expect(gisAuthService.getGrantedScopes()).toContain(
+      'https://www.googleapis.com/auth/cloud-platform',
+    )
   })
 })

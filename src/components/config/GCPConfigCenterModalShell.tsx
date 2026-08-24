@@ -23,6 +23,7 @@ import { gisAuthService } from '../../services/gisAuthService'
 import { gcsClientService } from '../../services/gcsClientService'
 import { ObservabilityService } from '../../services/observability'
 import { CostGovernanceEngine } from '../../engines/cost'
+import { PrivacyPolicyModalShell } from '../privacy/PrivacyPolicyModalShell'
 import { PreflightCheckResult } from '../../types'
 
 interface GCPConfigCenterModalShellProps {
@@ -64,6 +65,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
   const [preflightResult, setPreflightResult] = useState<PreflightCheckResult | null>(null)
   const [isRunningPreflight, setIsRunningPreflight] = useState(false)
   const [remainingMinutes, setRemainingMinutes] = useState<number>(55)
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false)
 
   // Live Token Expiration Countdown
   useEffect(() => {
@@ -273,8 +275,10 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Scopes:</span>
-                  <span className="text-slate-600 dark:text-slate-300 text-[11px]">
-                    devstorage.read_only, cloud-platform
+                  <span className="text-emerald-700 dark:text-emerald-400 font-mono text-[11px] font-semibold">
+                    {gisAuthService.hasElevatedScopes()
+                      ? 'devstorage.read_only + cloud-platform'
+                      : 'devstorage.read_only (Minimal)'}
                   </span>
                 </div>
               </div>
@@ -507,8 +511,19 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
               )}
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-mono">
-              OAuth 2.0 access bearer tokens are held exclusively in volatile RAM and are never written to disk or LocalStorage.
+              OAuth 2.0 access bearer tokens are held exclusively in volatile RAM and are never written to disk or LocalStorage. Zero telemetry beacons are collected (blocked at CSP network layer).
             </p>
+            <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 text-xs">
+              <span className="text-slate-500 font-mono text-[11px]">Telemetry: 0 Beacons</span>
+              <button
+                type="button"
+                onClick={() => setIsPrivacyModalOpen(true)}
+                className="text-cyan-700 dark:text-cyan-400 hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+              >
+                <span>Privacy Policy &amp; Google Trust</span>
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
           </div>
 
           {/* 7. Download Pipeline Strategy & OS Integration (Module 12) */}
@@ -623,6 +638,11 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
         </div>
       </div>
 
+      {/* In-App Privacy Policy Modal (AUX-09) */}
+      <PrivacyPolicyModalShell
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
     </div>
   )
 }

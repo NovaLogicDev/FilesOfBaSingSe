@@ -8,6 +8,7 @@ export interface VolatileRuntimeSession {
   userName: string | null
   userAvatar: string | null
   tokenExpiresAt: number | null
+  grantedScopes: string[]
 
   // Active Download & Telemetry (VOLATILE RAM ONLY)
   activeDownload: DownloadProgressTelemetry | null
@@ -25,6 +26,7 @@ export interface VolatileRuntimeSession {
     name?: string,
     avatar?: string,
     expiresInSeconds?: number,
+    scopes?: string[],
   ) => void
   setAuthSession: (
     token: string,
@@ -32,7 +34,9 @@ export interface VolatileRuntimeSession {
     name?: string,
     avatar?: string,
     expiresInSeconds?: number,
+    scopes?: string[],
   ) => void
+  setGrantedScopes: (scopes: string[]) => void
   clearAuth: () => void
   clearAuthSession: () => void
   setIsRestoringSession: (restoring: boolean, error?: string | null) => void
@@ -48,6 +52,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
   userName: null,
   userAvatar: null,
   tokenExpiresAt: null,
+  grantedScopes: [],
 
   activeDownload: null,
   activeAbortController: null,
@@ -61,6 +66,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
     name = 'Google User',
     avatar = undefined,
     expiresInSeconds = 3600,
+    scopes = [],
   ) => {
     set({
       oauthToken: token,
@@ -68,6 +74,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       userName: name,
       userAvatar: avatar,
       tokenExpiresAt: Date.now() + expiresInSeconds * 1000,
+      grantedScopes: scopes,
       isRestoringSession: false,
       sessionRestorationError: null,
     })
@@ -79,8 +86,13 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
     name = 'Google User',
     avatar = undefined,
     expiresInSeconds = 3600,
+    scopes = [],
   ) => {
-    get().setAuth(token, email, name, avatar, expiresInSeconds)
+    get().setAuth(token, email, name, avatar, expiresInSeconds, scopes)
+  },
+
+  setGrantedScopes: (scopes) => {
+    set({ grantedScopes: scopes })
   },
 
   clearAuth: () => {
@@ -96,6 +108,7 @@ export const useRuntimeStore = create<VolatileRuntimeSession>((set, get) => ({
       userName: null,
       userAvatar: null,
       tokenExpiresAt: null,
+      grantedScopes: [],
       activeDownload: null,
       activeAbortController: null,
       isRestoringSession: false,

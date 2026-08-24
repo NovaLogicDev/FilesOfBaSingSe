@@ -13,11 +13,10 @@ import { ObservabilityService } from './observability'
 import { StorageBoundaryAuditor } from './storageBoundary'
 
 export const GIS_DEFAULT_SCOPES = [
-  'https://www.googleapis.com/auth/devstorage.read_only',
-  'https://www.googleapis.com/auth/cloud-platform',
-  'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/userinfo.email',
   'openid',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/devstorage.read_only',
 ]
 
 export const DEFAULT_CLIENT_ID =
@@ -211,8 +210,14 @@ export class GISAuthService {
     const name = userProfile?.name || 'Google User'
     const avatar = userProfile?.picture
 
+    const grantedScopesList = response.scope
+      ? response.scope.split(' ').filter(Boolean)
+      : [...this.scopes]
+
     // 1. Commit strictly to volatile in-memory store
-    useRuntimeStore.getState().setAuth(accessToken, email, name, avatar, expiresIn)
+    useRuntimeStore
+      .getState()
+      .setAuth(accessToken, email, name, avatar, expiresIn, grantedScopesList)
 
     // 2. Schedule silent background renewal
     this.scheduleTokenRefresh(expiresIn)
@@ -234,7 +239,7 @@ export class GISAuthService {
       userEmail: email,
       userName: name,
       userAvatar: avatar,
-      scopes: response.scope ? response.scope.split(' ') : [...this.scopes],
+      scopes: grantedScopesList,
     }
 
     if (this.pendingAuthResolver) {
@@ -322,6 +327,73 @@ export class GISAuthService {
    */
   public async switchAccount(): Promise<AuthSession> {
     return this.signIn({ selectAccount: true, prompt: 'select_account' })
+  }
+
+  /**
+   * Performs contextual step-up authorization for elevated GCP scopes (e.g. cloud-platform).
+   * Appends include_granted_scopes: true to preserve existing base permissions.
+   */
+  public async requestElevatedScopes(
+    elevatedScopes: string[] = ['https://www.googleapis.com/auth/cloud-platform'],
+  ): Promise<AuthSession> {
+    try {
+      await this.loadGisScript()
+    } catch {
+      throw {
+        code: 'SCRIPT_LOAD_FAILED' as AuthErrorCode,
+        message: 'Could not load Google Identity Services library.',
+      }
+    }
+
+    const client = this.initTokenClient()
+
+    ObservabilityService.info(
+      'AUTH',
+      `Requesting elevated Google OAuth scopes via step-up consent: ${elevatedScopes.join(', ')}`,
+    )
+
+    return new Promise<AuthSession>((resolve, reject) => {
+      this.pendingAuthResolver = resolve
+      this.pendingAuthRejecter = reject
+
+      try {
+        client.requestAccessToken({
+          scope: elevatedScopes.join(' '),
+          include_granted_scopes: true,
+          prompt: 'consent',
+        })
+      } catch (err) {
+        this.pendingAuthResolver = null
+        this.pendingAuthRejecter = null
+        reject({
+          code: 'UNKNOWN' as AuthErrorCode,
+          message: err instanceof Error ? err.message : 'Step-up authorization failed.',
+          rawError: err,
+        })
+      }
+    })
+  }
+
+  /**
+   * Checks whether the current active session has a specific scope granted.
+   */
+  public hasScope(scope: string): boolean {
+    const scopes = useRuntimeStore.getState().grantedScopes || []
+    return scopes.includes(scope)
+  }
+
+  /**
+   * Checks whether the current session has elevated cloud-platform management scope.
+   */
+  public hasElevatedScopes(): boolean {
+    return this.hasScope('https://www.googleapis.com/auth/cloud-platform')
+  }
+
+  /**
+   * Returns list of currently granted scopes from runtime store.
+   */
+  public getGrantedScopes(): string[] {
+    return useRuntimeStore.getState().grantedScopes || []
   }
 
   /**

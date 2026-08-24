@@ -23,6 +23,8 @@ import { gisAuthService } from '../../services/gisAuthService'
 import { gcpProjectService } from '../../services/gcpProjectService'
 import { gcsClientService } from '../../services/gcsClientService'
 import { SessionLifecycleEngine } from '../../engines/sessionLifecycleEngine'
+import { PrivacyPolicyModalShell } from '../privacy/PrivacyPolicyModalShell'
+import { StepUpConsentModalShell } from '../auth/StepUpConsentModalShell'
 import { GCPProject, BillingStatus, ProvisioningProgress, PreflightCheckResult } from '../../types'
 
 interface OnboardingWizardShellProps {
@@ -59,6 +61,13 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
   const [manualOverride, setManualOverride] = useState(false)
   const [projectSetupTab, setProjectSetupTab] = useState<'new_user' | 'existing_project' | 'auto_create'>('new_user')
   const [copiedCors, setCopiedCors] = useState(false)
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false)
+  const [stepUpModalState, setStepUpModalState] = useState<{
+    isOpen: boolean
+    reason: 'discovery' | 'creation'
+    onConfirm: () => void
+    onSwitchToManual?: () => void
+  }>({ isOpen: false, reason: 'discovery', onConfirm: () => {} })
 
   // Load GCP Projects
   useEffect(() => {
@@ -74,6 +83,13 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
       setPreflightStatus(null)
       setIsLoadingProjects(false)
       setProjectSetupTab('new_user')
+      return
+    }
+
+    // If active session only has base scopes, do not auto-query CRM API (Least Privilege)
+    if (!gisAuthService.hasElevatedScopes()) {
+      setDiscoveredProjects([])
+      setIsLoadingProjects(false)
       return
     }
 
@@ -218,12 +234,13 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     }
   }
 
-  const handleAutoCreateProject = async () => {
+  const executeAutoCreateProject = async () => {
     setIsCreatingProject(true)
     setProvisioningProgress(null)
     try {
+      const token = useRuntimeStore.getState().oauthToken || ''
       const result = await gcpProjectService.autoProvisionProject(
-        oauthToken || '',
+        token,
         (progress) => {
           setProvisioningProgress(progress)
         },
@@ -260,7 +277,33 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     }
   }
 
-  const handleDetectNewProjects = async () => {
+  const handleAutoCreateProject = async () => {
+    if (!gisAuthService.hasElevatedScopes()) {
+      setStepUpModalState({
+        isOpen: true,
+        reason: 'creation',
+        onConfirm: async () => {
+          try {
+            await gisAuthService.requestElevatedScopes()
+            executeAutoCreateProject()
+          } catch (err: any) {
+            addToast({
+              type: 'error',
+              title: 'Step-Up Consent Denied',
+              message: err?.message || 'Elevated project creation permission was not granted.',
+            })
+          }
+        },
+        onSwitchToManual: () => {
+          setProjectSetupTab('new_user')
+        },
+      })
+      return
+    }
+    executeAutoCreateProject()
+  }
+
+  const executeDetectNewProjects = async () => {
     setIsDetecting(true)
     addToast({
       type: 'info',
@@ -268,8 +311,9 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
       message: 'Scanning for newly created Google Cloud projects...',
     })
     try {
+      const token = useRuntimeStore.getState().oauthToken || ''
       const knownIds = discoveredProjects.map((p) => p.projectId)
-      const newProjects = await gcpProjectService.detectNewProjects(oauthToken || '', knownIds)
+      const newProjects = await gcpProjectService.detectNewProjects(token, knownIds)
       if (newProjects.length > 0) {
         setDiscoveredProjects((prev) => [...newProjects, ...prev])
         setProjectIdInput(newProjects[0].projectId)
@@ -280,7 +324,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
           message: `Discovered and selected project ${newProjects[0].projectId}.`,
         })
       } else {
-        const allProjects = await gcpProjectService.listProjects(oauthToken || undefined)
+        const allProjects = await gcpProjectService.listProjects(token)
         setDiscoveredProjects(allProjects)
         addToast({
           type: 'info',
@@ -297,6 +341,36 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     } finally {
       setIsDetecting(false)
     }
+  }
+
+  const handleDetectNewProjects = async () => {
+    if (!gisAuthService.hasElevatedScopes()) {
+      setStepUpModalState({
+        isOpen: true,
+        reason: 'discovery',
+        onConfirm: async () => {
+          try {
+            await gisAuthService.requestElevatedScopes()
+            executeDetectNewProjects()
+          } catch (err: any) {
+            addToast({
+              type: 'error',
+              title: 'Step-Up Consent Denied',
+              message: err?.message || 'Elevated project discovery permission was not granted.',
+            })
+          }
+        },
+        onSwitchToManual: () => {
+          setProjectSetupTab('new_user')
+        },
+      })
+      return
+    }
+    executeDetectNewProjects()
+  }
+
+  const handleScanExistingProjects = async () => {
+    handleDetectNewProjects()
   }
 
   const handleRecheckBilling = async () => {
@@ -598,7 +672,11 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200 dark:border-slate-800">
                       <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
                         <span className="text-slate-500 dark:text-slate-400">Granted Scopes:</span>
-                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">devstorage.read_only + CRM</span>
+                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                          {gisAuthService.hasElevatedScopes()
+                            ? 'devstorage.read_only + CRM'
+                            : 'devstorage.read_only (Minimal)'}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
                         <span className="text-slate-500 dark:text-slate-400">Token Renewal:</span>
@@ -612,11 +690,24 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                     <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-700 dark:text-slate-300">Requested Permission Scopes:</span>
-                        <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400 font-semibold">devstorage.read_only, cloud-platform</span>
+                        <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                          devstorage.read_only (Minimal)
+                        </span>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         Tokens are held strictly in temporary runtime memory and are never written to disk or local storage.
                       </p>
+                      <div className="pt-1 flex items-center justify-between border-t border-slate-200 dark:border-slate-800/80 text-[11px]">
+                        <span className="text-slate-500">Principle of Least Privilege</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsPrivacyModalOpen(true)}
+                          className="text-cyan-700 dark:text-cyan-400 hover:underline font-semibold flex items-center space-x-1 cursor-pointer"
+                        >
+                          <span>Privacy Policy &amp; Scopes</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
                     <button
@@ -768,6 +859,28 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Direct Manual Project ID Input (Zero Elevated Permissions) */}
+                  <div className="pt-3 border-t border-indigo-200 dark:border-indigo-500/20 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Or enter Google Cloud Project ID manually:
+                      </label>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold font-mono">
+                        Zero Elevated Scopes
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={projectIdInput}
+                      onChange={(e) => {
+                        setProjectIdInput(e.target.value)
+                        setSavedProjectId(e.target.value)
+                      }}
+                      placeholder="e.g. client-prod-media-2026"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-white focus:border-emerald-500 dark:focus:border-emerald-400 focus:outline-none transition-colors"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -815,13 +928,40 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                   )}
 
                   {discoveredProjects.length === 0 && !isLoadingProjects && (
-                    <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                      <p>
-                        No active Google Cloud projects were discovered under this account.
-                      </p>
-                      <p className="text-slate-500">
-                        If you are new to GCP, claim free credits in the <strong>New to GCP</strong> tab, or use <strong>Auto-Create Project</strong> to provision one.
-                      </p>
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-2">
+                      {!gisAuthService.hasElevatedScopes() ? (
+                        <>
+                          <p className="text-slate-800 dark:text-slate-200">
+                            Automatic project discovery requires Cloud Resource Manager read permissions (<code className="font-mono text-cyan-600 dark:text-cyan-400">cloud-platform</code>).
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={handleScanExistingProjects}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-sm"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>Grant Permission &amp; Scan Projects</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProjectSetupTab('new_user')}
+                              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
+                            >
+                              <span>Enter Project ID Manually</span>
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            No active Google Cloud projects were discovered under this account.
+                          </p>
+                          <p className="text-slate-500">
+                            If you are new to GCP, claim free credits in the <strong>New to GCP</strong> tab, or use <strong>Auto-Create Project</strong> to provision one.
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1334,6 +1474,21 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
           )}
         </div>
       </div>
+
+      {/* Privacy Policy Modal (AUX-09) */}
+      <PrivacyPolicyModalShell
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
+
+      {/* Contextual Step-Up Consent Modal (Module 14) */}
+      <StepUpConsentModalShell
+        isOpen={stepUpModalState.isOpen}
+        onClose={() => setStepUpModalState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirmStepUp={stepUpModalState.onConfirm}
+        onSwitchToManual={stepUpModalState.onSwitchToManual}
+        reason={stepUpModalState.reason}
+      />
     </div>
   )
 }

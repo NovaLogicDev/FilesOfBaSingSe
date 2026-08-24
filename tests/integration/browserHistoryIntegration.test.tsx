@@ -213,6 +213,8 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
   })
 
   it('should guarantee zero credential token leakage in history.state', async () => {
+    window.location.hash = ''
+    window.history.replaceState(null, '', '/')
     const pushSpy = vi.spyOn(window.history, 'pushState')
 
     render(<AppShell />)

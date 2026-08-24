@@ -16,6 +16,7 @@ import { SessionReconnectCard } from '../onboarding/SessionReconnectCard'
 import { DiagnosticsModalShell } from '../diagnostics/DiagnosticsModalShell'
 import { PricingSettingsModalShell } from '../cost/PricingSettingsModalShell'
 import { GCPConfigCenterModalShell } from '../config/GCPConfigCenterModalShell'
+import { PrivacyPolicyModalShell } from '../privacy/PrivacyPolicyModalShell'
 import { ToastContainer } from '../ui/Toast'
 
 import { usePersistentStore } from '../../store/persistentStore'
@@ -66,6 +67,7 @@ export const AppShell: React.FC = () => {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false)
   const [isPricingSettingsOpen, setIsPricingSettingsOpen] = useState(false)
   const [isGcpConfigOpen, setIsGcpConfigOpen] = useState(false)
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false)
   const [inspectedAsset, setInspectedAsset] = useState<GCSMediaItem | null>(null)
   const [cliModalPaths, setCliModalPaths] = useState<string[] | null>(null)
   const [highCostConfirm, setHighCostConfirm] = useState<{
@@ -661,6 +663,12 @@ export const AppShell: React.FC = () => {
         onClose={() => setIsDiagnosticsOpen(false)}
       />
 
+      {/* Privacy Policy & Regulatory Compliance Modal (AUX-09) */}
+      <PrivacyPolicyModalShell
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
+
       {/* Toast Notification Container */}
       <ToastContainer />
 
@@ -674,6 +682,24 @@ export const AppShell: React.FC = () => {
             <span className="font-mono text-slate-900 dark:text-white">
               2026 Max Paulson
             </span>
+          </div>
+
+          <div className="flex items-center space-x-3 text-[11px]">
+            <button
+              onClick={() => setIsPrivacyModalOpen(true)}
+              className="text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer font-medium"
+            >
+              Privacy Policy &amp; Google Trust
+            </button>
+            <span>&bull;</span>
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noreferrer"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              Static Document
+            </a>
           </div>
         </div>
       </footer>

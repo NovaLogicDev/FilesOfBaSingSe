@@ -19,6 +19,11 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     })
     useRuntimeStore.setState({
       oauthToken: 'mock-oauth-token',
+      grantedScopes: [
+        'https://www.googleapis.com/auth/devstorage.read_only',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'openid',
+      ],
     })
   })
 

@@ -121,6 +121,41 @@ export interface GisAuthConfig {
   refreshBufferSeconds?: number // Default: 300 (5 mins)
 }
 
+// --- Google OAuth Trust & Safety Scope Classifications (Module 14) ---
+
+export const GIS_BASE_SCOPES = [
+  'openid',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/devstorage.read_only',
+] as const
+
+export const GIS_ELEVATED_SCOPES = [
+  'https://www.googleapis.com/auth/cloud-platform',
+] as const
+
+export type BaseOAuthScope = (typeof GIS_BASE_SCOPES)[number]
+export type ElevatedOAuthScope = (typeof GIS_ELEVATED_SCOPES)[number]
+
+export interface ScopePolicyStatus {
+  hasBaseScopes: boolean
+  hasElevatedScopes: boolean
+  activeScopes: string[]
+  isLeastPrivilegeCompliant: boolean
+}
+
+export interface StepUpConsentOptions {
+  reason: 'PROJECT_DISCOVERY' | 'PROJECT_CREATION' | 'BILLING_CHECK'
+  title?: string
+  description?: string
+}
+
+export interface StepUpConsentResult {
+  granted: boolean
+  session?: AuthSession
+  error?: AuthError
+}
+
 import { GCPProject, BillingStatus } from './gcp'
 
 export type { GCPProject, BillingStatus }
