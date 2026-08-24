@@ -1,6 +1,8 @@
 [
   {
     "origin": [
+      "https://the-files-of-basingse.web.app",
+      "https://the-files-of-basingse.firebaseapp.com",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
       "https://*.storage.googleapis.com"
@@ -19,7 +21,8 @@
       "x-goog-hash",
       "x-goog-generation",
       "x-goog-metageneration",
-      "x-goog-storage-class"
+      "x-goog-storage-class",
+      "x-goog-date"
     ],
     "maxAgeSeconds": 3600
   }
