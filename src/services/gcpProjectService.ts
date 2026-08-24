@@ -94,7 +94,13 @@ export class GCPProjectService {
 
       const data: ListProjectsResponse = await res.json()
       const projects = data.projects || []
-      return projects.filter((p) => p.lifecycleState === 'ACTIVE')
+      const activeProjects = projects.filter((p) => p.lifecycleState === 'ACTIVE')
+      const seen = new Set<string>()
+      return activeProjects.filter((p) => {
+        if (!p.projectId || seen.has(p.projectId)) return false
+        seen.add(p.projectId)
+        return true
+      })
     } catch (err: any) {
       if (err?.code) throw err
       ObservabilityService.error('GCS', err?.message || 'Error listing projects')

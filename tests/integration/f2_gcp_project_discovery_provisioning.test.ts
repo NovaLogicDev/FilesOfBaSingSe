@@ -56,4 +56,11 @@ describe('Tier 1 - F2: GCP Project Auto-Discovery & Provisioning', () => {
     const uniqueNumbers = new Set(projectNumbers)
     expect(uniqueNumbers.size).toBe(projectNumbers.length)
   })
+
+  it('guarantees discovered projects are unique by projectId without duplicates', async () => {
+    const projects = await gcpProjectService.listProjects(testToken)
+    const projectIds = projects.map((p) => p.projectId)
+    const uniqueIds = new Set(projectIds)
+    expect(uniqueIds.size).toBe(projectIds.length)
+  })
 })

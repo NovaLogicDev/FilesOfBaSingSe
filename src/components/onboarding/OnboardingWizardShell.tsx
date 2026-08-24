@@ -307,36 +307,44 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
     setIsDetecting(true)
     addToast({
       type: 'info',
-      title: 'Auto-Detecting Project',
-      message: 'Scanning for newly created Google Cloud projects...',
+      title: 'Scanning Projects',
+      message: 'Scanning for accessible Google Cloud projects...',
     })
     try {
       const token = useRuntimeStore.getState().oauthToken || ''
-      const knownIds = discoveredProjects.map((p) => p.projectId)
-      const newProjects = await gcpProjectService.detectNewProjects(token, knownIds)
-      if (newProjects.length > 0) {
-        setDiscoveredProjects((prev) => [...newProjects, ...prev])
-        setProjectIdInput(newProjects[0].projectId)
-        setSavedProjectId(newProjects[0].projectId)
+      const allProjects = await gcpProjectService.listProjects(token)
+      // Deduplicate projects by projectId
+      const seen = new Set<string>()
+      const uniqueProjects = allProjects.filter((p) => {
+        if (!p.projectId || seen.has(p.projectId)) return false
+        seen.add(p.projectId)
+        return true
+      })
+
+      setDiscoveredProjects(uniqueProjects)
+      if (uniqueProjects.length > 0) {
+        setProjectSetupTab('existing_project')
+        if (!projectIdInput || !uniqueProjects.some((p) => p.projectId === projectIdInput)) {
+          setProjectIdInput(uniqueProjects[0].projectId)
+          setSavedProjectId(uniqueProjects[0].projectId)
+        }
         addToast({
           type: 'success',
-          title: 'New Project Detected',
-          message: `Discovered and selected project ${newProjects[0].projectId}.`,
+          title: 'Project List Updated',
+          message: `Discovered ${uniqueProjects.length} active Google Cloud project${uniqueProjects.length === 1 ? '' : 's'}.`,
         })
       } else {
-        const allProjects = await gcpProjectService.listProjects(token)
-        setDiscoveredProjects(allProjects)
         addToast({
           type: 'info',
-          title: 'Project List Refreshed',
-          message: `Found ${allProjects.length} active projects.`,
+          title: 'No Projects Found',
+          message: 'No active Google Cloud projects found for this account.',
         })
       }
     } catch (err: any) {
       addToast({
         type: 'error',
-        title: 'Auto-Detection Failed',
-        message: err?.message || 'Could not detect new projects.',
+        title: 'Project Discovery Failed',
+        message: err?.message || 'Could not list Google Cloud projects.',
       })
     } finally {
       setIsDetecting(false)
@@ -913,7 +921,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                           ? `-- Select a Google Cloud Project (${discoveredProjects.length} available) --`
                           : '-- No active projects discovered --'}
                       </option>
-                      {discoveredProjects.map((p) => (
+                      {Array.from(new Map(discoveredProjects.map((p) => [p.projectId, p])).values()).map((p) => (
                         <option key={p.projectId} value={p.projectId}>
                           {p.name} ({p.projectId})
                         </option>
