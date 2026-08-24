@@ -50,6 +50,7 @@ flowchart TD
 - **FR-8.3**: IndexedDB Range Cache: Persists download progress checkpoints and ETags via `idb` for resuming interrupted transfers.
 - **FR-8.4**: Logout & Memory Flush: Clicking "Sign Out" or "Disconnect" immediately purges all volatile memory, aborts active streams, and resets application state.
 - **FR-8.5**: Prohibited Storage Enforcement: The application strictly rejects, strips, and prohibits storage of Google Service Account JSON files, private keys, or refresh tokens.
+- **FR-8.6**: Zero-Telemetry Web Storage Boundary: Persistent web storage (`localStorage`, `sessionStorage`, cookies, IndexedDB) is strictly prohibited from storing tracking IDs, advertising identifiers, or analytics payloads (*Module 14*, `MOD-14-TRUST-SAFETY-PRIVACY`).
 
 #### Non-Functional Requirements
 - **NFR-8.1**: XSS Protection: Content Security Policy (CSP) header enforcement restricting script origins exclusively to Google Identity Services and Google Storage endpoints.

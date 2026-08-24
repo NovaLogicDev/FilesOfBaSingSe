@@ -1052,6 +1052,136 @@ flowchart TD
 
 ---
 
+
+---
+
+## Epic 14: Google API Trust & Safety, Incremental Authorization & Privacy Governance
+
+### Epic Goal
+Ensure rigorous adherence to Google OAuth Trust & Safety guidelines by minimizing default scopes to non-sensitive permissions (`devstorage.read_only`, `email`, `profile`, `openid`), introducing contextual step-up consent for elevated GCP management scopes (`cloud-platform`), exempting manual project entries from elevated permissions, providing an in-app Privacy Policy with required Google "Limited Use" disclosures, enforcing strict zero-telemetry network isolation via CSP, and executing instant token revocation on sign-out.
+
+```mermaid
+flowchart TD
+    subgraph Epic14Flow ["Epic 14: Trust & Safety Governance"]
+        SignIn["Initial Google Sign-In"] --> BaseScopes["Base Non-Sensitive Scopes\n(openid, email, profile, devstorage.read_only)"]
+        BaseScopes --> Decision{"User Intent"}
+        
+        Decision -->|"Manual Project ID\nor Owner-Pays Bucket"| DirectAccess["Zero-Elevated Permissions Path\n(100% GCS Browsing & Streaming Ready)"]
+        
+        Decision -->|"Auto-Detect Projects\nor 1-Click Auto-Create"| StepUpModal["Contextual Step-Up Modal\n(Explains why Cloud Platform access is needed)"]
+        
+        StepUpModal --> IncrementalConsent["GIS requestAccessToken\n(scope: cloud-platform, include_granted_scopes: true)"]
+        
+        IncrementalConsent --> CRMDiscovery["CRM Project Discovery & Storage Enablement"]
+        CRMDiscovery --> DirectAccess
+        
+        DirectAccess --> ZeroTelemetryAudit["Zero-Telemetry & Privacy Verification\n• CSP Blocks Third-Party Analytics\n• In-App Privacy Policy (/privacy.html)\n• Revoke Token on Sign-Out"]
+    end
+```
+
+---
+
+### Story 14.1: Minimal Default Scopes & Non-Sensitive Initial Authorization
+**As a** security-conscious client user (Taylor/Alex),  
+**I want the** application to request only the minimum non-sensitive permissions (`devstorage.read_only`, `email`, `profile`, `openid`) when I initially sign in,  
+**So that** I do not encounter frightening "Unverified App" warnings or have to grant broad administrative permissions just to browse media files.
+
+#### Acceptance Criteria
+1. **Given** a user initiates Google Sign-In, **When** the GIS OAuth popup appears, **Then** the initial requested scopes are strictly limited to:
+   - `openid`
+   - `https://www.googleapis.com/auth/userinfo.email`
+   - `https://www.googleapis.com/auth/userinfo.profile`
+   - `https://www.googleapis.com/auth/devstorage.read_only`
+2. **Given** authentication completes with base scopes, **When** entering the application, **Then**:
+   - The user can execute 100% of GCS bucket listings, metadata extractions, preflight checks, and streaming downloads with `?userProject={projectId}`.
+   - The application does **not** prompt for `cloud-platform` at initial sign-in.
+3. **Given** Google's OAuth review process, **When** evaluated, **Then** the application does not require CASA Tier 2/3 security assessments for baseline users.
+
+---
+
+### Story 14.2: Contextual Step-Up Consent for GCP Project Discovery & Auto-Provisioning
+**As a** freelance client using the 1-click project assistant (Taylor),  
+**I want to** be asked for elevated GCP management permissions (`cloud-platform`) only at the moment I ask the app to discover or create a project for me,  
+**So that** I understand exactly why elevated access is needed before granting it.
+
+#### Acceptance Criteria
+1. **Given** an authenticated user on Step 2 of the Onboarding Wizard, **When** they click "Auto-Detect My Project" or "Auto-Create Media Project", **Then**:
+   - An informative pre-consent modal appears: *"Files of Ba Sing Se needs permission to inspect your Google Cloud projects to list your existing project IDs."*
+   - Explains that this permission is used exclusively for project discovery and storage enablement.
+2. **Given** the user confirms, **When** the step-up prompt launches, **Then**:
+   - GIS `requestAccessToken` is invoked with `scope: 'https://www.googleapis.com/auth/cloud-platform'` and `include_granted_scopes: true`.
+   - Existing `devstorage.read_only` permissions are preserved without forcing a full re-login.
+3. **Given** step-up authorization succeeds, **When** returned, **Then** the app immediately proceeds to discover or create the media project.
+
+---
+
+### Story 14.3: Direct Manual Project ID Input Bypass (Zero-Elevated Permissions Path)
+**As a** post-production lead with an existing project ID from IT (Alex/Devon),  
+**I want to** enter my project ID manually into the text input,  
+**So that** I never have to grant the app administrative access to my company's Google Cloud Platform account.
+
+#### Acceptance Criteria
+1. **Given** a user inputs an existing GCP Project ID into the manual input field (in Onboarding Wizard, Header popover, or GCP Config Center), **When** submitted:
+   - The project ID is validated against GCP naming regex (`^[a-z0-9-]{6,30}$`).
+   - The application **does not** trigger step-up authorization for `cloud-platform`.
+   - All subsequent GCS REST API calls use the entered ID as the `?userProject=` query parameter.
+2. **Given** a user connects to an Owner-Pays bucket, **When** project setup is skipped:
+   - The application executes all operations with zero elevated scopes and without requiring `userProject`.
+
+---
+
+### Story 14.4: In-App Privacy Policy & Google Limited Use Disclosure
+**As a** studio compliance officer or end-user,  
+**I want to** view a clear, comprehensive Privacy Policy inside the app and via a public link,  
+**So that** I can verify how my data is protected and confirm compliance with Google's Limited Use requirements.
+
+#### Acceptance Criteria
+1. **Given** the application UI, **When** viewed, **Then** a visible "Privacy Policy" link is accessible from:
+   - The persistent application footer.
+   - Step 1 of the Onboarding Wizard.
+   - The GCP Configuration Center modal.
+2. **Given** a user clicks "Privacy Policy", **When** clicked, **Then**:
+   - An accessible modal (`AUX-09`) opens with full policy details, including zero-backend architecture, memory-only token storage, and the Google API Services User Data Policy Limited Use statement.
+   - A direct external link opens the standalone unauthenticated page (`/privacy.html`).
+3. **Given** Google's OAuth verification crawler, **When** accessing `/privacy.html`, **Then** the page renders cleanly without requiring JavaScript execution or authentication.
+
+---
+
+### Story 14.5: Strict Zero-Telemetry Network Isolation & CSP Enforcement
+**As a** security auditor or privacy-conscious client,  
+**I want the** application to transmit zero telemetry, analytics, or behavioral tracking beacons,  
+**So that** my studio's project names, file paths, and access patterns are never leaked to third parties.
+
+#### Acceptance Criteria
+1. **Given** the application runtime, **When** network requests are inspected:
+   - Zero requests are sent to Firebase Analytics, Google Tag Manager (`gtag.js`), Sentry, PostHog, or any third-party tracking server.
+   - The application does not set third-party cookies or telemetry identifiers in `localStorage`.
+2. **Given** HTTP headers in `firebase.json` and `<meta>` tags in `index.html`, **When** evaluated:
+   - Content Security Policy (CSP) `connect-src` is strictly restricted to:
+     `'self' https://accounts.google.com https://cloudresourcemanager.googleapis.com https://serviceusage.googleapis.com https://cloudbilling.googleapis.com https://storage.googleapis.com`.
+3. **Given** internal diagnostic logging via `ObservabilityService`, **When** executed:
+   - Logs are confined to an in-memory ring buffer of 100 entries ($<500\text{ KB}$ RAM).
+   - OAuth tokens (`ya29.*`) and emails are automatically redacted via regex before buffering.
+   - Logs are only exported if the user manually clicks "Export Diagnostics".
+
+---
+
+### Story 14.6: Instant OAuth Token Revocation & Google Security Boundary Audit
+**As a** client user signing out of the portal,  
+**I want the** app to immediately revoke my OAuth token at Google's servers,  
+**So that** the token cannot be reused even if my browser remains open.
+
+#### Acceptance Criteria
+1. **Given** an authenticated user clicks "Sign Out" or "Disconnect Session", **When** initiated, **Then**:
+   - The application calls `google.accounts.oauth2.revoke(accessToken)` to invalidate the token at Google's OAuth servers within $<1000\text{ ms}$.
+   - All volatile RAM stores (`useRuntimeStore`) are purged to `null`.
+   - All active download streams and network abort controllers are terminated immediately.
+2. **Given** the sign-out process, **When** completed:
+   - `StorageBoundaryAuditor.audit()` executes and verifies that zero token remnants exist in `localStorage`, `sessionStorage`, or cookies.
+   - The UI returns cleanly to the unauthenticated welcome screen.
+
+---
+
 ### Summary Matrix: Epics & Story Points Allocation
 
 | Epic ID | Epic Title | Story Count | Complexity | Priority |
@@ -1069,6 +1199,10 @@ flowchart TD
 | **EPIC-11**| Browser History Navigation, URL Synchronization & Deep Linking | 4 Stories | Medium | P0 (Blocker) |
 | **EPIC-12**| Native Browser Download Shelf Integration, Stream Resilience & Diagnostics | 4 Stories | Medium | P1 (Core) |
 | **EPIC-13**| Dual Billing Mode Support & Owner-Pays Bucket Consumption | 6 Stories | Medium | P0 (Blocker) |
+| **EPIC-14**| Google API Trust & Safety, Incremental Authorization & Privacy Governance | 6 Stories | Medium | P0 (Blocker) |
+
+**Total Scope:** 14 Epics | 50 User Stories
+
 
 
 

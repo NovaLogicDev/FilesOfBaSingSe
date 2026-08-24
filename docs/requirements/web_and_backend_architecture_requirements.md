@@ -147,9 +147,11 @@ flowchart LR
 
 ---
 
-### 1.5 Client-Side Content Security Policy (CSP) Requirements
+### 1.5 Client-Side Content Security Policy (CSP) & Zero-Telemetry Requirements
 
-To prevent cross-site scripting (XSS) and token exfiltration, the web application must enforce the following strict CSP header:
+To prevent cross-site scripting (XSS), token exfiltration, and unauthorized tracking, the web application enforces a strict CSP header and **Zero-Telemetry Protocol**:
+1. **No External Analytics Beacons**: Requests to `google-analytics.com`, `firebaseinstallations.googleapis.com`, or third-party trackers are strictly prohibited and blocked at the browser network layer by CSP.
+2. **Authorized Endpoint Whitelist**: Outbound network connections are restricted strictly to official Google Cloud API endpoints.
 
 ```http
 Content-Security-Policy: 
@@ -231,32 +233,38 @@ sequenceDiagram
     participant GCS as GCS REST API
 
     User->>App: Clicks "Sign in with Google"
-    App->>GIS: initTokenClient({ scope: 'devstorage.read_only cloud-platform' })
-    GIS-->>User: Google Login Popup
+    App->>GIS: initTokenClient({ scope: 'openid email profile devstorage.read_only' })
+    GIS-->>User: Google Login Popup (Non-Sensitive Scopes)
     User->>GIS: Consents
     GIS-->>App: Access Token (Volatile RAM)
 
-    Note over App,CRM: Automated Project Discovery
-    App->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
-    alt Existing Projects Found
-        CRM-->>App: HTTP 200 OK (Project List)
-        App->>User: Populates Project Dropdown
-    else No Projects Found
-        App->>User: Prompts 1-Click "Auto-Create Media Project"
-        User->>App: Clicks Auto-Create
-        App->>CRM: POST /v1/projects { projectId: 'basingse-media-dl-9921', name: 'Ba Sing Se Downloads' }
-        CRM-->>App: HTTP 200 OK (Project Created)
-        App->>SU: POST /v1/projects/basingse-media-dl-9921/services/storage.googleapis.com:enable
-        SU-->>App: HTTP 200 OK (Storage API Enabled)
+    Note over App,CRM: Optional Step-Up Project Discovery
+    alt User Requests Project Auto-Discovery / Creation
+        App->>GIS: requestAccessToken({ scope: 'cloud-platform', include_granted_scopes: true })
+        GIS-->>User: Step-Up Consent Popup
+        User->>GIS: Consents
+        GIS-->>App: Merged Access Token (Volatile RAM)
+        App->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
+        alt Existing Projects Found
+            CRM-->>App: HTTP 200 OK (Project List)
+            App->>User: Populates Project Dropdown
+        else No Projects Found
+            App->>User: Prompts 1-Click "Auto-Create Media Project"
+            User->>App: Clicks Auto-Create
+            App->>CRM: POST /v1/projects { projectId: 'basingse-media-dl-9921', name: 'Ba Sing Se Downloads' }
+            CRM-->>App: HTTP 200 OK (Project Created)
+            App->>SU: POST /v1/projects/basingse-media-dl-9921/services/storage.googleapis.com:enable
+            SU-->>App: HTTP 200 OK (Storage API Enabled)
+        end
+        App->>CB: GET /v1/projects/{projectId}/billingInfo
+        CB-->>App: { billingEnabled: true }
+    else User Supplies Manual Project ID or Connects to Owner-Pays Bucket
+        Note over App,GCS: Zero Elevated Permissions Path
     end
-
-    Note over App,CB: Billing Linkage Verification
-    App->>CB: GET /v1/projects/{projectId}/billingInfo
-    CB-->>App: { billingEnabled: true }
 
     Note over App,GCS: Live 4-Point Preflight Handshake
     App->>GCS: GET /storage/v1/b/TARGET_BUCKET?userProject={projectId}
-    GCS-->>App: HTTP 200 OK (Requester-Pays Verified)
+    GCS-->>App: HTTP 200 OK (Preflight Verified)
     App->>User: Illuminates Green "Enter Media Portal" Button
 ```
 

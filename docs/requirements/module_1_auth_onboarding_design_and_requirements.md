@@ -32,7 +32,7 @@ flowchart TD
 ### 2. Functional & Non-Functional Requirements
 
 #### Functional Requirements
-- **FR-1.1**: Direct Google Sign-In with popup OAuth 2.0 requesting `https://www.googleapis.com/auth/devstorage.read_only` and progressive onboarding scope `https://www.googleapis.com/auth/cloud-platform`.
+- **FR-1.1**: Direct Google Sign-In with popup OAuth 2.0 requesting **minimal non-sensitive scopes** (`openid`, `https://www.googleapis.com/auth/userinfo.email`, `https://www.googleapis.com/auth/userinfo.profile`, `https://www.googleapis.com/auth/devstorage.read_only`) by default. Contextual step-up authorization for administrative scope `https://www.googleapis.com/auth/cloud-platform` is deferred until explicitly triggered in Step 2 (Project Discovery/Creation), adhering to the Principle of Least Privilege (*Module 14*, `MOD-14-TRUST-SAFETY-PRIVACY`).
 - **FR-1.2**: Project auto-discovery via `GET https://cloudresourcemanager.googleapis.com/v1/projects`, automatically populating existing projects in a user-friendly dropdown.
 - **FR-1.3**: 1-click automated project creation (`basingse-media-dl-XXXX`) via `POST /v1/projects` with automated `storage.googleapis.com` enablement via Service Usage API.
 - **FR-1.4**: \$300 Free Trial visual assistant card for clients with zero prior GCP experience, deep-linking to `https://console.cloud.google.com/freetrial` and providing an instant `[Auto-Detect My Project]` return trigger.
@@ -69,8 +69,8 @@ sequenceDiagram
     participant PStore as PersistentStore
 
     Client->>UI: Clicks "Sign in with Google" (or silent auto-auth on reload)
-    UI->>GIS: initTokenClient({ scope: 'devstorage.read_only cloud-platform' })
-    GIS-->>Client: Displays Google OAuth Consent
+    UI->>GIS: initTokenClient({ scope: 'openid email profile devstorage.read_only' })
+    GIS-->>Client: Displays Base Google OAuth Consent (Non-Sensitive)
     Client->>GIS: Grants Consent
     GIS-->>UI: Returns Access Token (Stored in volatile RAM)
 
@@ -82,13 +82,17 @@ sequenceDiagram
         UI-->>Client: DIRECT WORKSPACE LANDING (Bypasses Wizard Steps 1-4)
     else First-Time User (Standard Unseeded Flow)
         Note over UI,Client: Step 2: GCP Project Setup (or Skip for Owner-Pays)
-        UI->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
-        alt User Selects / Auto-Creates Project
+        alt User Selects "Auto-Discover My Projects" or "Auto-Create"
+            UI->>GIS: requestAccessToken({ scope: 'cloud-platform', include_granted_scopes: true })
+            GIS-->>Client: Step-Up Consent Popup
+            Client->>GIS: Grants Elevated Scope
+            GIS-->>UI: Returns Merged Token
+            UI->>CRM: GET /v1/projects (Authorization: Bearer <TOKEN>)
             CRM-->>UI: Projects Found or Auto-Created via POST /v1/projects
             UI->>CB: Verify Billing Active
             UI->>Client: Step 2 Complete (Project Selected)
-        else User Clicks "Skip for Owner-Sponsored Bucket"
-            UI->>Client: Step 2 Skipped (projectId = null)
+        else User Enters Manual Project ID or Skips for Owner-Sponsored Bucket
+            UI->>Client: Step 2 Complete via Manual Entry / Skipped (Zero Elevated Scopes)
         end
 
         Note over UI,Client: Step 3: Target GCS Bucket Input

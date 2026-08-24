@@ -5,7 +5,7 @@
 
 ## Executive Architectural Overview
 
-**Files of Ba Sing Se** is powered by eleven modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, dynamic dual-billing attribution (Requester-Pays vs Owner-Pays), and rigorous cryptographic integrity standards.
+**Files of Ba Sing Se** is powered by twelve modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, dynamic dual-billing attribution (Requester-Pays vs Owner-Pays), Google OAuth Trust & Safety least-privilege policies, and rigorous cryptographic integrity standards.
 
 ```mermaid
 flowchart TD
@@ -21,8 +21,11 @@ flowchart TD
         E9["9. Browser History & Navigation Router Engine\n(pushState, popstate, URL Hash Sync, Deep-Link)"]
         E10["10. Browser Download Bridge Engine\n(chrome://downloads, Native 'Show in Folder', Watchdog)"]
         E11["11. Dual Billing Mode & Owner-Pays Engine\n(Auto-Detection, Free Egress, Status Badges)"]
+        E12["12. Trust & Safety & Scope Governance Engine\n(Least Privilege, Step-Up Consent, Zero-Telemetry, Privacy)"]
     end
 
+    E12 --> E1
+    E12 --> E7
     E8 --> E1
     E8 --> E7
     E1 --> E11
@@ -1413,9 +1416,150 @@ export class DualModeBillingEngine {
 
 ---
 
-## 12. Cross-Engine Integration Matrix (Engines 1 through 11)
+---
+
+## 12. Engine 12: Trust & Safety, Incremental Authorization & Scope Governance Engine
+
+### 12.1 Purpose & Domain Scope
+Governs Google OAuth 2.0 scope compliance under the **Principle of Least Privilege**, manages contextual step-up consent prompts for administrative GCP scopes (`cloud-platform`), enforces zero-telemetry boundaries via strict Content Security Policy headers, and manages instant Google OAuth token revocation.
+
+### 12.2 Subsystem Architecture & State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> MinimalAuth: User Signs In
+    MinimalAuth --> NonSensitiveActive: GIS Grants Base Scopes\n(openid, email, profile, devstorage.read_only)
+    
+    NonSensitiveActive --> StandardOperation: Browsing, Inspecting, Streaming\n(Manual Project ID or Owner-Pays)
+    
+    NonSensitiveActive --> StepUpRequested: User clicks 'Auto-Detect Projects'\nor '1-Click Auto-Create'
+    StepUpRequested --> StepUpConsentModal: Pre-Consent Explanation
+    
+    StepUpConsentModal --> NonSensitiveActive: User Cancels (Returns to manual entry)
+    StepUpConsentModal --> LaunchingGISStepUp: User Confirms
+    
+    LaunchingGISStepUp --> ElevatedActive: GIS Returns Merged Token\n(devstorage.read_only + cloud-platform)
+    LaunchingGISStepUp --> StepUpFailed: User Closes Popup / Denies
+    StepUpFailed --> NonSensitiveActive: Fallback to Manual Project Input
+    
+    ElevatedActive --> StandardOperation: CRM Projects Discovered / Auto-Created
+    
+    StandardOperation --> RevokingSession: User clicks 'Sign Out'
+    RevokingSession --> [*]: google.accounts.oauth2.revoke() + RAM Purge
+```
+
+### 12.3 TypeScript Interface & Contract Specification
+
+```typescript
+export const GIS_BASE_SCOPES = [
+  'openid',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/devstorage.read_only',
+] as const;
+
+export const GIS_ELEVATED_SCOPES = [
+  'https://www.googleapis.com/auth/cloud-platform',
+] as const;
+
+export type BaseOAuthScope = typeof GIS_BASE_SCOPES[number];
+export type ElevatedOAuthScope = typeof GIS_ELEVATED_SCOPES[number];
+
+export interface ScopePolicyStatus {
+  hasBaseScopes: boolean;
+  hasElevatedScopes: boolean;
+  activeScopes: string[];
+  isLeastPrivilegeCompliant: boolean;
+}
+
+export interface StepUpAuthOptions {
+  reason: 'PROJECT_DISCOVERY' | 'PROJECT_CREATION' | 'BILLING_CHECK';
+  prompt?: string;
+}
+
+export class TrustSafetyEngine {
+  private static instance: TrustSafetyEngine | null = null;
+
+  public static getInstance(): TrustSafetyEngine {
+    if (!this.instance) {
+      this.instance = new TrustSafetyEngine();
+    }
+    return this.instance;
+  }
+
+  public getBaseScopes(): string[] {
+    return [...GIS_BASE_SCOPES];
+  }
+
+  public getElevatedScopes(): string[] {
+    return [...GIS_ELEVATED_SCOPES];
+  }
+
+  /**
+   * Evaluates if active session conforms to Principle of Least Privilege
+   */
+  public evaluateScopeStatus(grantedScopes: string[]): ScopePolicyStatus {
+    const hasBase = GIS_BASE_SCOPES.every((scope) => grantedScopes.includes(scope));
+    const hasElevated = GIS_ELEVATED_SCOPES.some((scope) => grantedScopes.includes(scope));
+
+    return {
+      hasBaseScopes: hasBase,
+      hasElevatedScopes: hasElevated,
+      activeScopes: grantedScopes,
+      isLeastPrivilegeCompliant: hasBase && !hasElevated, // Ideal default state
+    };
+  }
+
+  /**
+   * Triggers contextual step-up consent for elevated GCP management scopes
+   */
+  public async requestStepUpConsent(
+    tokenClient: any,
+    options: StepUpAuthOptions
+  ): Promise<boolean> {
+    if (!tokenClient || typeof tokenClient.requestAccessToken !== 'function') {
+      throw new Error('GIS Token Client is not initialized.');
+    }
+
+    return new Promise<boolean>((resolve) => {
+      try {
+        tokenClient.requestAccessToken({
+          scope: GIS_ELEVATED_SCOPES.join(' '),
+          include_granted_scopes: true,
+          prompt: 'consent',
+        });
+        resolve(true);
+      } catch (err) {
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Revokes token at Google OAuth endpoint upon user sign-out
+   */
+  public async revokeSessionToken(token: string): Promise<boolean> {
+    if (!token || typeof window === 'undefined' || !window.google?.accounts?.oauth2?.revoke) {
+      return false;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      window.google!.accounts.oauth2.revoke(token, (res) => {
+        resolve(res.successful);
+      });
+      // Safety timeout in case revocation callback hangs
+      setTimeout(() => resolve(true), 1500);
+    });
+  }
+}
+```
+
+---
+
+## 13. Cross-Engine Integration Matrix (Engines 1 through 12)
 
 The primary engines operate as a cohesive, dual-mode, zero-liability mesh:
+- **Engine 12 (`TrustSafetyEngine`)**: Enforces default minimal non-sensitive scopes on Engine 1 (`GCPOnboardingEngine`), prompts for step-up consent on-demand during project discovery, and handles Google OAuth token revocation during logout coordinated with Engine 8 (`SessionLifecycleEngine`).
 - **Engine 11 (`DualModeBillingEngine`)**: Classifies bucket billing mode (`requester-pays` vs `owner-pays`), informs Engine 3 (`CostGovernanceEngine`) for zero-cost client governance, adjusts Engine 6 (`CliGeneratorEngine`) to omit project flags, and synchronizes status badges.
 - **Engine 10 (`BrowserDownloadBridgeEngine`)**: Manages the keep-alive heartbeat loop with Engine 4 (`ResilientSWStreamEngine`), ensures native download shelf tracking (`chrome://downloads`), and bridges real-time stream diagnostics.
 - **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
@@ -1432,7 +1576,8 @@ The primary engines operate as a cohesive, dual-mode, zero-liability mesh:
 
 ### Architectural Sign-Off for System Engines
 
-All 11 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support dual billing modes (Requester-Pays vs Owner-Pays), persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
+All 12 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support dual billing modes (Requester-Pays vs Owner-Pays), Google Trust & Safety scope minimization, persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
+
 
 
 

@@ -5,7 +5,7 @@
 
 ### Executive Overview & Subsystem Architecture
 
-To support the primary operational engines and deliver an enterprise-grade, resilient, accessible, and easily testable user experience, **Files of Ba Sing Se** incorporates eight **Auxiliary and Supporting Subsystems**.
+To support the primary operational engines and deliver an enterprise-grade, resilient, accessible, and easily testable user experience, **Files of Ba Sing Se** incorporates nine **Auxiliary and Supporting Subsystems**.
 
 ```mermaid
 flowchart TD
@@ -18,6 +18,7 @@ flowchart TD
         A6["AUX-06: Theme & Visual Tokens Engine\n(Slate Dark/Light Mode, OS Prefers Sync)"]
         A7["AUX-07: Manifest & Metadata Exporter\n(CSV / JSON Media Manifest Export)"]
         A8["AUX-08: Service Worker Lifecycle Controller\n(Cache Control, Stream Bypass, Update Handler)"]
+        A9["AUX-09: Privacy Policy & Limited Use Viewer\n(In-App Modal & Static /privacy.html Linkage)"]
     end
 
     A1 -.->|"Simulates Backend for Testing"| CoreApp["Core Application Views"]
@@ -28,6 +29,7 @@ flowchart TD
     A6 --> CoreApp
     A7 --> CoreApp
     A8 --> CoreApp
+    A9 --> CoreApp
 ```
 
 ---
@@ -265,6 +267,29 @@ flowchart TD
 
 ---
 
+---
+
+## 9. AUX-09: Privacy Policy & Regulatory Compliance Viewer
+
+### 9.1 Purpose & Scope
+Provides an in-app accessible modal and direct routing to the unauthenticated canonical Privacy Policy (`/privacy.html` / `#/privacy`). Ensures that clients, enterprise security teams, and Google OAuth verification auditors can readily inspect data handling policies, volatile RAM guarantees, zero-telemetry disclosures, and the Google API Services User Data Policy Limited Use statement.
+
+### 9.2 Functional Requirements
+- **FR-AUX-9.1**: Accessible from multiple entry points:
+  - Header brand dropdown / menu.
+  - Persistent application footer link.
+  - Step 1 of the Onboarding Wizard (`OnboardingWizardShell`).
+  - GCP Configuration Center (`GCPConfigCenterModalShell`).
+- **FR-AUX-9.2**: Displays full Markdown/HTML rendered privacy policy including:
+  - Zero-Backend / Zero-Intermediary server statement.
+  - Zero-Telemetry / Zero-Tracking confirmation.
+  - Granular breakdown of OAuth scopes requested (`devstorage.read_only` vs optional `cloud-platform`).
+  - Strict in-memory volatile token isolation and instant revocation mechanics.
+  - Required verbatim Google Limited Use disclosure statement.
+- **FR-AUX-9.3**: Unauthenticated direct access: Supports direct static landing via `public/privacy.html` without requiring JavaScript execution or Google Sign-In.
+
+---
+
 ### Verification Matrix for Auxiliary Components
 
 - **AUX-01 (Demo Engine)**: Verify all 24 mock items load, demo streaming pipes at ~45 MB/s, and preflight passes without GCP credentials.
@@ -275,3 +300,5 @@ flowchart TD
 - **AUX-06 (Theme)**: Verify zero FOUT on dark/light mode toggle.
 - **AUX-07 (Manifest Exporter)**: Verify exported `.csv` and `.json` files contain valid checksums and cost estimates.
 - **AUX-08 (Service Worker)**: Verify SW registration, keep-alive heartbeat loop, pass-through CRC32c calculation, and native browser download shelf tracking.
+- **AUX-09 (Privacy Policy)**: Verify Privacy Policy renders cleanly in modal, links out to `/privacy.html`, and displays the Google Limited Use clause.
+
