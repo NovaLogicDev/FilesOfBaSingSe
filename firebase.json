@@ -14,7 +14,7 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -22,7 +22,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; connect-src 'self' https://accounts.google.com https://cloudresourcemanager.googleapis.com https://serviceusage.googleapis.com https://cloudbilling.googleapis.com https://storage.googleapis.com; img-src 'self' data: https://lh3.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+            "value": "default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://openidconnect.googleapis.com https://cloudresourcemanager.googleapis.com https://serviceusage.googleapis.com https://cloudbilling.googleapis.com https://storage.googleapis.com; img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self';"
           },
           {
             "key": "Strict-Transport-Security",
@@ -43,6 +43,15 @@
         ]
       },
       {
+        "source": "/assets/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
         "source": "/sw.js",
         "headers": [
           {
@@ -52,15 +61,6 @@
           {
             "key": "Service-Worker-Allowed",
             "value": "/"
-          }
-        ]
-      },
-      {
-        "source": "/assets/**",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
           }
         ]
       }
