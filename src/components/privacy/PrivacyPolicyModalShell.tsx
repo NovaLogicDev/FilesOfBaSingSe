@@ -65,7 +65,7 @@ export const PrivacyPolicyModalShell: React.FC<PrivacyPolicyModalShellProps> = (
               <span>Core Privacy Guarantees</span>
             </div>
             <p className="text-slate-700 dark:text-slate-300">
-              <strong>Files of Ba Sing Se</strong> is an open-source, client-side application. We operate <strong>zero intermediary backend servers</strong>, collect <strong>zero telemetry or tracking beacons</strong>, and isolate all Google OAuth access tokens <strong>strictly in temporary volatile RAM</strong> without persistent token storage on disk.
+              <strong>Files of Ba Sing Se</strong> is an open-source, client-side application. We operate <strong>zero intermediary backend servers</strong>, collect <strong>zero telemetry or tracking beacons</strong>, and maintain your session securely in your browser&apos;s client-side storage (<code className="font-mono text-xs">localStorage</code> and <code className="font-mono text-xs">sessionStorage</code>) for continuity and cross-tab synchronization.
             </p>
           </div>
 
@@ -111,24 +111,27 @@ export const PrivacyPolicyModalShell: React.FC<PrivacyPolicyModalShellProps> = (
             </div>
           </div>
 
-          {/* Section 3: Data Storage, Credential Isolation & Session Continuity */}
+          {/* Section 3: Client-Side Data Storage, Session Persistence & Security Boundaries */}
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
               <EyeOff className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>3. Credential Isolation, Storage Boundaries &amp; Session Continuity</span>
+              <span>3. Client-Side Data Storage, Session Persistence &amp; Security Boundaries</span>
             </h3>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-600 dark:text-slate-300">
               <li>
-                <strong>Volatile Credential Isolation:</strong> OAuth 2.0 access bearer tokens, renewal handles, and active download stream controllers reside <strong>strictly in temporary volatile browser RAM</strong> (Zustand runtime state).
+                <strong>Client-Side Session Persistence:</strong> Active OAuth 2.0 access tokens, granted scopes, and user session profile details are stored in your browser&apos;s local web storage (<code className="font-mono text-xs">localStorage</code> under <code className="font-mono text-xs">basingse-app-session</code> and <code className="font-mono text-xs">sessionStorage</code> under <code className="font-mono text-xs">basingse-tab-session</code>) to maintain session continuity across reloads and enable real-time cross-tab synchronization.
               </li>
               <li>
-                <strong>Zero Disk Persistence of Credentials:</strong> Sensitive tokens and private keys are <strong>never</strong> written to <code className="font-mono text-xs">localStorage</code>, <code className="font-mono text-xs">sessionStorage</code>, cookies, or IndexedDB.
+                <strong>Zero Third-Party Credential Transfer:</strong> All credentials and session data remain strictly within your local browser environment. We operate no backend servers and never transmit your tokens, keys, or credentials to third-party endpoints.
               </li>
               <li>
-                <strong>Session Continuity &amp; Non-Sensitive Preferences:</strong> To preserve your active workspace across page reloads and browser visits, non-sensitive session configuration hints (onboarding status, selected GCP project ID, active bucket name, user account identifier, and session auto-restoration settings) are saved in browser <code className="font-mono text-xs">localStorage</code>.
+                <strong>Persistent Workspace Preferences:</strong> Non-sensitive preferences (selected GCP Project ID, active bucket name, onboarding status, and UI theme) are saved in <code className="font-mono text-xs">localStorage</code> (<code className="font-mono text-xs">basingse-media-client-prefs</code>).
               </li>
               <li>
-                <strong>Session Disconnect &amp; Revocation:</strong> Clicking &quot;Sign Out&quot; or &quot;Disconnect Session&quot; immediately wipes volatile runtime memory, revokes the OAuth token via Google&apos;s token revocation endpoint, and resets persistent session hints.
+                <strong>Storage Boundary Security &amp; Auditing:</strong> The Application actively enforces storage boundary constraints, prohibiting the storage of private keys, client secrets, or raw service account credentials in web storage.
+              </li>
+              <li>
+                <strong>Complete Session Purge &amp; Revocation:</strong> Clicking &quot;Sign Out&quot; or &quot;Disconnect Session&quot; immediately clears all session entries from <code className="font-mono text-xs">localStorage</code> and <code className="font-mono text-xs">sessionStorage</code>, flushes runtime state, and calls Google&apos;s OAuth 2.0 token revocation endpoint.
               </li>
             </ul>
           </div>

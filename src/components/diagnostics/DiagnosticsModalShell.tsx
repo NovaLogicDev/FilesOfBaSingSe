@@ -115,7 +115,7 @@ export const DiagnosticsModalShell: React.FC<DiagnosticsModalShellProps> = ({
                   </span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
-                  LocalStorage and SessionStorage audited. No OAuth tokens, bearer strings, or private keys exist in persistent browser storage. Volatile RAM isolation verified.
+                  LocalStorage and SessionStorage audited. Authorized application session keys verified. Zero unauthorized private keys, rogue tokens, or tracking beacons detected.
                 </p>
               </div>
 

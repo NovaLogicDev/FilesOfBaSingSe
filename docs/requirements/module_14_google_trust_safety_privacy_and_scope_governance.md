@@ -77,14 +77,14 @@ flowchart TD
   The policy must explicitly declare the Google API Services User Data Policy Limited Use statement.
 
 * **FR-14.6 (One-Click Token Revocation & Google Security Purge)**:
-  Clicking "Sign Out" or "Disconnect Session" must invoke Google Identity Services `google.accounts.oauth2.revoke(token)` to immediately invalidate the token at Google's OAuth endpoints, wipe volatile memory, and confirm storage boundary hygiene.
+  Clicking "Sign Out" or "Disconnect Session" must invoke Google Identity Services `google.accounts.oauth2.revoke(token)` to immediately invalidate the token at Google's OAuth endpoints, clear client web storage sessions, and confirm storage boundary hygiene.
 
 #### Non-Functional Requirements & Google Trust & Safety SLAs
 
 * **NFR-14.1 (Scope Least-Privilege Verification)**: 
   The application shall pass Google OAuth verification audits by demonstrating that 100% of core streaming capabilities execute without elevated administrative permissions.
-* **NFR-14.2 (Zero Token Storage Boundary SLA)**:
-  Automated tests and runtime auditors (`StorageBoundaryAuditor`) **MUST** verify that zero OAuth tokens (`ya29.*`) exist in `localStorage`, `sessionStorage`, cookies, or IndexedDB at any time ($0\text{ token leaks}$).
+* **NFR-14.2 (Storage Boundary & Token Hygiene SLA)**:
+  Automated tests and runtime auditors (`StorageBoundaryAuditor`) **MUST** verify that zero private keys, rogue credentials, or unauthorized token structures exist in web storage at any time ($0\text{ security leaks}$).
 * **NFR-14.3 (Telemetry Zero-Egress SLA)**:
   $0\text{ bytes}$ of telemetry or analytics beacons shall be transmitted to external servers. Internal observability is capped at 100 in-memory entries ($<500\text{ KB}$ RAM) with automatic token redaction.
 

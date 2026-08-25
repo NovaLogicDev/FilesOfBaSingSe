@@ -272,7 +272,7 @@ flowchart TD
 ## 9. AUX-09: Privacy Policy & Regulatory Compliance Viewer
 
 ### 9.1 Purpose & Scope
-Provides an in-app accessible modal and direct routing to the unauthenticated canonical Privacy Policy (`/privacy.html` / `#/privacy`). Ensures that clients, enterprise security teams, and Google OAuth verification auditors can readily inspect data handling policies, volatile RAM guarantees, zero-telemetry disclosures, and the Google API Services User Data Policy Limited Use statement.
+Provides an in-app accessible modal and direct routing to the unauthenticated canonical Privacy Policy (`/privacy.html` / `#/privacy`). Ensures that clients, enterprise security teams, and Google OAuth verification auditors can readily inspect data handling policies, client-side session persistence and storage boundaries, zero-telemetry disclosures, and the Google API Services User Data Policy Limited Use statement.
 
 ### 9.2 Functional Requirements
 - **FR-AUX-9.1**: Accessible from multiple entry points:
@@ -284,7 +284,7 @@ Provides an in-app accessible modal and direct routing to the unauthenticated ca
   - Zero-Backend / Zero-Intermediary server statement.
   - Zero-Telemetry / Zero-Tracking confirmation.
   - Granular breakdown of OAuth scopes requested (`devstorage.read_only` vs optional `cloud-platform`).
-  - Strict in-memory volatile token isolation and instant revocation mechanics.
+  - Client-side session persistence, storage boundary hygiene, and instant revocation mechanics.
   - Required verbatim Google Limited Use disclosure statement.
 - **FR-AUX-9.3**: Unauthenticated direct access: Supports direct static landing via `public/privacy.html` without requiring JavaScript execution or Google Sign-In.
 

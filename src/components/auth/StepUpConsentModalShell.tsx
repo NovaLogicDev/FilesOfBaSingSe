@@ -79,7 +79,7 @@ export const StepUpConsentModalShell: React.FC<StepUpConsentModalShellProps> = (
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Your credentials remain strictly in volatile RAM on your browser. Tokens are never stored on disk or sent to any backend servers.
+              Your credentials remain strictly client-side on your browser. Tokens are never sent to third-party backend servers.
             </p>
           </div>
 

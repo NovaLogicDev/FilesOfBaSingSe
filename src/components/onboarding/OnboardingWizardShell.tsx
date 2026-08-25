@@ -703,7 +703,7 @@ export const OnboardingWizardShell: React.FC<OnboardingWizardShellProps> = ({
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Tokens are held strictly in temporary runtime memory and are never written to disk or local storage.
+                        Authentication session is maintained client-side in your browser for seamless continuity. Credentials are never sent to third-party servers.
                       </p>
                       <div className="pt-1 flex items-center justify-between border-t border-slate-200 dark:border-slate-800/80 text-[11px]">
                         <span className="text-slate-500">Principle of Least Privilege</span>

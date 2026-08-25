@@ -551,7 +551,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
               {storageAudit.isClean ? (
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30 flex items-center space-x-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>100% Clean (0 Leaked Tokens)</span>
+                  <span>100% Clean (0 Security Violations)</span>
                 </span>
               ) : (
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-500/30">
@@ -560,7 +560,7 @@ export const GCPConfigCenterModalShell: React.FC<GCPConfigCenterModalShellProps>
               )}
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-mono">
-              OAuth 2.0 access bearer tokens are held exclusively in volatile RAM and are never written to disk or LocalStorage. Zero telemetry beacons are collected (blocked at CSP network layer).
+              Active session credentials reside securely in client-side browser storage for continuity and cross-tab sync. Zero credentials ever transit through third-party servers, and zero telemetry beacons are collected.
             </p>
             <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 text-xs">
               <span className="text-slate-500 font-mono text-[11px]">Telemetry: 0 Beacons</span>

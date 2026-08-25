@@ -84,7 +84,7 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
 
     // 6. Storage Boundary Audit
     expect(screen.getByText(/6\. Storage Boundary & Token Hygiene Audit/i)).toBeDefined()
-    expect(screen.getByText(/100% Clean \(0 Leaked Tokens\)/i)).toBeDefined()
+    expect(screen.getByText(/100% Clean \(0 Security Violations\)/i)).toBeDefined()
   })
 
   it('re-runs preflight audit when button is clicked', async () => {

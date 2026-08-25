@@ -179,13 +179,13 @@
         <li><strong>Google Cloud Platform Access (<code>https://www.googleapis.com/auth/cloud-platform</code>):</strong> Requested <em>strictly on-demand</em> only if you explicitly choose to use the automated GCP project discovery, 1-click project auto-provisioning, or billing account linkage verification features. If you manually enter your existing GCP Project ID, this permission is <strong>never requested</strong>.</li>
       </ul>
 
-      <h2>3. Data Storage, Credential Isolation &amp; Session Retention</h2>
+      <h2>3. Client-Side Data Storage, Session Persistence &amp; Security Boundaries</h2>
       <ul>
-        <li><strong>Volatile Memory Storage for Credentials:</strong> All OAuth 2.0 access bearer tokens, renewal handles, and active download stream controllers reside strictly in temporary, volatile browser RAM (JavaScript memory).</li>
-        <li><strong>Zero Disk Persistence of Credentials:</strong> The Application <strong>never</strong> writes OAuth access tokens, bearer credentials, private keys, or refresh tokens to <code>localStorage</code>, <code>sessionStorage</code>, cookies, or IndexedDB.</li>
-        <li><strong>Session Continuity &amp; Non-Sensitive Storage:</strong> The Application saves non-sensitive operational preferences and session configuration hints to your browser's <code>localStorage</code> (such as your chosen UI theme, saved bucket name, project ID label, onboarding completion status, last authorized user account identifier, and session auto-restoration settings) to preserve your workspace continuity across visits.</li>
-        <li><strong>Session Restoration Lifecycle:</strong> When returning to the application or reloading the page, the Application leverages standard Google Identity Services (GIS) session restoration (silent token re-acquisition or a 1-click reconnect prompt) without storing credentials in persistent browser storage.</li>
-        <li><strong>Immediate Session Purge &amp; Revocation:</strong> When you click "Sign Out" or "Disconnect Session", active authentication credentials in volatile memory are immediately wiped, persistent session hints are cleared from local storage, and Google's token revocation API is invoked.</li>
+        <li><strong>Client-Side Session Persistence:</strong> Active OAuth 2.0 access tokens, granted scopes, and user session profile details are stored in your browser's local web storage (<code>localStorage</code> under <code>basingse-app-session</code> and <code>sessionStorage</code> under <code>basingse-tab-session</code>) to maintain session continuity across page reloads and enable real-time cross-tab synchronization.</li>
+        <li><strong>Zero Third-Party Credential Transfer:</strong> All credentials and session data remain strictly within your local browser environment. We operate no backend servers and never transmit your tokens, keys, or credentials to third-party endpoints.</li>
+        <li><strong>Persistent Workspace Preferences:</strong> Non-sensitive operational preferences (such as your chosen UI theme, saved bucket name, and project ID label) are saved in <code>localStorage</code> (<code>basingse-media-client-prefs</code>) to preserve your workspace configuration.</li>
+        <li><strong>Storage Boundary Security &amp; Auditing:</strong> The Application actively enforces storage boundary constraints, prohibiting the storage of private keys, client secrets, or raw service account credentials in web storage.</li>
+        <li><strong>Complete Session Purge &amp; Revocation:</strong> Clicking "Sign Out" or "Disconnect Session" immediately wipes all session entries from <code>localStorage</code> and <code>sessionStorage</code>, flushes runtime state, and invokes Google's OAuth 2.0 token revocation endpoint.</li>
       </ul>
 
       <h2>4. Third-Party Data Sharing &amp; Disclosure</h2>
@@ -214,7 +214,7 @@
         You maintain complete control over your Google credentials, session preferences, and authorizations:
       </p>
       <ul>
-        <li><strong>In-App Sign Out &amp; Session Purge:</strong> Clicking "Sign Out" or "Disconnect Session" in the Application header or GCP Configuration Center instantly invokes Google's OAuth 2.0 token revocation endpoint (<code>https://accounts.google.com/o/oauth2/revoke</code>), flushes all runtime memory, and clears persistent session configuration hints.</li>
+        <li><strong>In-App Sign Out &amp; Session Purge:</strong> Clicking "Sign Out" or "Disconnect Session" in the Application header or GCP Configuration Center instantly invokes Google's OAuth 2.0 token revocation endpoint (<code>https://accounts.google.com/o/oauth2/revoke</code>), flushes runtime state, and clears all session data and configuration hints from <code>localStorage</code> and <code>sessionStorage</code>.</li>
         <li><strong>Session Continuity Controls:</strong> You can enable, disable, or adjust automatic session restoration settings at any time within the GCP Configuration Center.</li>
         <li><strong>Google Account Permissions Dashboard:</strong> You can review and revoke authorization at any time directly through your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account Permissions</a>.</li>
       </ul>
@@ -223,7 +223,7 @@
       <ul>
         <li><strong>Content Security Policy (CSP):</strong> Strict HTTP/meta headers restrict outbound connections exclusively to authenticated Google Cloud endpoints.</li>
         <li><strong>Cryptographic Checksum Verification:</strong> Every streamed file is validated against hardware-accelerated Castagnoli CRC32c checksums to prevent bit rot and data tampering.</li>
-        <li><strong>Automated Boundary Auditing:</strong> In-browser runtime scanners continuously verify that no sensitive token strings are leaked into persistent web storage.</li>
+        <li><strong>Automated Boundary Auditing:</strong> In-browser runtime scanners continuously verify storage hygiene and ensure no private keys or tracking beacons are present.</li>
       </ul>
 
       <h2>8. Contact &amp; Inquiries</h2>

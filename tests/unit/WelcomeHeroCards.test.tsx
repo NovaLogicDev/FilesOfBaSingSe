@@ -51,7 +51,7 @@ describe('Welcome Hero & Feature Highlight Cards when Unauthenticated', () => {
     expect(screen.getByText('Zero Host Liability')).toBeInTheDocument()
     expect(
       screen.getByText(
-        /Client-side execution with minimal scopes, volatile in-memory OAuth tokens, and zero telemetry tracking\./i,
+        /Client-side execution with minimal scopes, client-side session persistence, and zero telemetry tracking\./i,
       ),
     ).toBeInTheDocument()
   })

@@ -609,7 +609,7 @@ export const AppShell: React.FC = () => {
                 <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
                   <div className="font-semibold text-slate-900 dark:text-white text-xs">Zero Host Liability</div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                    Client-side execution with minimal scopes, volatile in-memory OAuth tokens, and zero telemetry tracking.
+                    Client-side execution with minimal scopes, client-side session persistence, and zero telemetry tracking.
                   </p>
                 </div>
               </div>
