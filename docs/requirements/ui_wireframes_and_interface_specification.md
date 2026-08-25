@@ -98,9 +98,10 @@ flowchart LR
 2. **Auto-Discovery Dropdown**: Calls Google Cloud Resource Manager API (`cloudresourcemanager.googleapis.com/v1/projects`) in the background. If projects exist, they populate automatically in the dropdown.
 3. **1-Click Auto-Create Media Project**: For users with billing accounts but no project, clicking this button triggers `POST /v1/projects` with `name: "Ba Sing Se Media Downloads"` and automatically enables `storage.googleapis.com` via `serviceusage.googleapis.com`.
 4. **$300 Free Trial Assistant Card**: For brand-new GCP users connecting to Requester-Pays buckets, provides an inviting card explaining that Google's \$300 credits eliminate out-of-pocket costs, with a direct 1-click link to Google's sign-up and an `[Auto-Detect My Project]` return button.
-5. **Dual-Pathway Preflight Checklist & Deferred Mode Detection**: 
+5. **Dual-Pathway Preflight Checklist & Deferred Mode Detection (Target Design Specification — Module 13)**: 
    - **Standard Flow (Bucket entered at Step 3)**: In Step 2, users are provided with an explicit `[ Skip for now (Owner-Sponsored bucket) ]` option. In Step 4, preflight probes the bucket entered at Step 3 without `userProject`. If `Owner-Pays` is detected, Checkpoint 2 renders `[ OK ] Billing Mode: Owner-Pays (Zero Client Cost 🎁)` and completes setup immediately. If `Requester-Pays` is detected and Step 2 was skipped, preflight halts with an actionable notification to configure a project.
    - **Deep-Linked Flow (Bucket known upfront)**: When launching with a pre-seeded bucket URL, preflight probes the bucket immediately upon Step 1 authentication, automatically bypassing Step 2 if `Owner-Pays` is detected.
+   - *(Note: The runtime application currently implements the Requester-Pays onboarding flow; Owner-Pays deferred detection is fully specified and designed for future release).*
 
 ---
 
@@ -119,15 +120,13 @@ flowchart LR
 |  Breadcrumbs: [ gs:// ] > [ media-vault-bucket ] > [ feature_films ] > [ reel_04 ]   |
 +----------------------------------------------------------------------------------------------------+
 |                                                                                                    |
-|  +----------------------------------------------------------------------------------------------+  |
-|  | [MODE A: REQUESTER-PAYS ENFORCED]                                                            |  |
-|  | [!] COST ESTIMATE: 3 items selected (42.60 GB Total)                                         |  |
-|  | Archive Retrieval: $2.13 | Egress: $5.11 | Total Estimate: $7.24 USD  [Covered by $300 Credits]|  |
-|  +----------------------------------------------------------------------------------------------+  |
-|  | [MODE B: OWNER-PAYS / STANDARD SPONSORED]                                                    |  |
-|  | [🎁] OWNER-SPONSORED BUCKET: 3 items selected (42.60 GB Total)                                |  |
-|  | Retrieval: $0.00 | Egress: $0.00 | Total Client Cost: $0.00 USD (Covered by Bucket Owner)     |  |
-|  +----------------------------------------------------------------------------------------------+  |
+|  [!] COST ESTIMATE: 3 items selected (42.60 GB Total)                                              |
+|  Archive Retrieval: $2.13 | Egress: $5.11 | Total Estimate: $7.24 USD  [Covered by $300 Credits]|
++----------------------------------------------------------------------------------------------------+
+|  [MODE B: OWNER-PAYS / STANDARD SPONSORED — Spec'd Target Design]                                  |
+|  [🎁] OWNER-SPONSORED BUCKET: 3 items selected (42.60 GB Total)                                    |
+|  Retrieval: $0.00 | Egress: $0.00 | Total Client Cost: $0.00 USD (Covered by Bucket Owner)         |
++----------------------------------------------------------------------------------------------------+
 |                                                                                                    |
 |  [+ Select All]  [Download Selected (3)]  [Generate CLI Script]   Filter: [Videos v]  Search: [reel] |
 |                                                                                                    |
@@ -141,8 +140,8 @@ flowchart LR
 |                                                                                                    |
 |  Showing 5 of 142 items in this directory                          [Page 1 of 15]  [< Prev] [Next >]|
 |  ------------------------------------------------------------------------------------------------  |
-|  [Requester-Pays Mode]: Requester-Pays Enforced [ShieldCheck 🛡️]                                    |
-|  [Owner-Pays Mode]    : Owner-Pays (Zero Client Cost) [Gift 🎁]                                    |
+|  [Requester-Pays Mode (Implemented)]: Requester-Pays Enforced [ShieldCheck 🛡️]                     |
+|  [Owner-Pays Mode (Spec'd Design)]  : Owner-Pays (Zero Client Cost) [Gift 🎁]                      |
 +----------------------------------------------------------------------------------------------------+
 ```
 
@@ -152,11 +151,11 @@ flowchart LR
    - Every breadcrumb click or folder drill-down automatically invokes `history.pushState()` and synchronizes the browser address bar to `#/browse/{bucketName}/{encodedPrefix}` (*Module 11*).
    - Pressing browser **Back** / **Forward** buttons (or `Alt+Left`/`Alt+Right`, `Cmd+[`/`Cmd+]`) dispatches `popstate`, re-rendering the exact historical breadcrumb stack and directory contents in $<16\text{ ms}$ without reloading the page.
 2. **Dual-Mode Sticky Cost Notification Banner**:
-   - In **Requester-Pays Mode**: Multiplies `ARCHIVE` bytes by \$0.05/GB, `COLDLINE` by \$0.02/GB, and all bytes by \$0.12/GB egress. Displays reminder `[Covered by your $300 Free Credits]` if applicable.
-   - In **Owner-Pays Mode**: Renders zero client cost notice ($0.00 Retrieval, $0.00 Egress, Total = $0.00 USD) confirming owner sponsorship.
+   - In **Requester-Pays Mode (Implemented)**: Multiplies `ARCHIVE` bytes by \$0.05/GB, `COLDLINE` by \$0.02/GB, and all bytes by \$0.12/GB egress. Displays reminder `[Covered by your $300 Free Credits]` if applicable.
+   - In **Owner-Pays Mode (Spec'd & Designed)**: Renders zero client cost notice ($0.00 Retrieval, $0.00 Egress, Total = $0.00 USD) confirming owner sponsorship once dual mode is implemented.
 3. **Dynamic Table Footer Status Badge**:
    - In Requester-Pays mode, displays `Requester-Pays Enforced` with `ShieldCheck` icon (emerald green).
-   - In Owner-Pays mode, displays `Owner-Pays (Zero Client Cost)` with `Gift` icon (sky/cyan).
+   - In Owner-Pays mode (spec'd target), displays `Owner-Pays (Zero Client Cost)` with `Gift` icon (sky/cyan).
 4. **Virtualized Table & Multi-Selection**: Renders thousands of files at a constant 60 FPS using DOM virtualization.
 5. **Instant Fuzzy Search & Filter Chips**: Filters file rows instantaneously (<50ms) by extension (`.mov`, `.mxf`, `.wav`, `.tar`) or keyword.r keyword.
 
@@ -266,8 +265,8 @@ flowchart LR
 ### Behavioral Specifications
 1. **Tabs**: Switches between modern `gcloud storage cp` (recommended) and legacy `gsutil -m cp`.
 2. **Adaptive Pre-Populated Parameters**:
-   - For **Requester-Pays buckets**: Automatically inserts `--billing-project={userProject}` (or `-u {userProject}`).
-   - For **Owner-Pays buckets**: Generates clean standard commands **omitting** billing flags.
+   - For **Requester-Pays buckets (Implemented)**: Automatically inserts `--billing-project={userProject}` (or `-u {userProject}`).
+   - For **Owner-Pays buckets (Spec'd & Designed — Module 13)**: Generates clean standard commands **omitting** billing flags once dual mode is implemented.
 3. **1-Click Copy**: Copies full multi-line shell script to clipboard with instantaneous visual checkmark feedback.
 4. **Firefox Graceful Degradation**: If Mozilla Firefox is detected, the UI explains why browser streaming is restricted (>200MB) and automatically surfaces this modal for instantaneous copy-pasting.
 
@@ -341,7 +340,7 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 |  [ 3. TARGET GCS BUCKET ]                            [ 4. COST & RATE CARD ]          |
 |  Bucket: gs://open-cinematic-assets                  Billing Mode: Owner-Pays 🎁      |
 |  Region: US Multi-Region                             Client Cost: $0.00 / GB (Free)   |
-|  Mode: Owner-Pays (Standard / Sponsored) 🎁          Contract: Owner-Sponsored        |
+|  Mode: Owner-Pays (Spec'd Target Design) 🎁          Contract: Owner-Sponsored        |
 |  CORS Headers: x-goog-hash, Content-Length Exposed   Free Trial Credit: Active ($300) |
 |  [ Switch Bucket ]      [ Quick Preflight ]          [ Edit Rates ]                   |
 |                                                                                       |

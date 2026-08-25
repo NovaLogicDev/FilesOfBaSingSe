@@ -36,7 +36,7 @@ flowchart TD
 - **FR-2.6**: Multi-column sorting (ascending/descending) on Name, Size, Storage Class, and Last Modified.
 - **FR-2.7**: Multi-selection state management supporting individual checkbox toggling, "Select All in Folder", and emitting selected items to the Cost Governance Engine.
 - **FR-2.8**: Browser History API & URL Hash Synchronization (*Module 11*): Every breadcrumb click and folder navigation updates the browser URL hash (`#/browse/{bucket}/{prefix}`) and pushes a history entry via `history.pushState()`. Native browser Back and Forward buttons (`popstate` events) seamlessly rehydrate directory views without page reload.
-- **FR-2.9**: Dynamic Table Footer Status Badge: The table footer shall dynamically display `[Requester-Pays Enforced 🛡️]` with a shield icon when Requester-Pays is active, or `[Owner-Pays / Free Egress 🎁]` with a gift icon when the active bucket is owner-sponsored. Clicking the badge opens the GCP Configuration Center.
+- **FR-2.9**: Dynamic Table Footer Status Badge: The table footer shall dynamically display `[Requester-Pays Enforced 🛡️]` with a shield icon when Requester-Pays is active, or `[Owner-Pays / Free Egress 🎁]` with a gift icon when the active bucket is owner-sponsored (*Spec'd in Module 13*). Clicking the badge opens the GCP Configuration Center.
 
 #### Non-Functional Requirements
 - **NFR-2.1**: Grid render latency: **< 16 ms per frame (60 FPS)** when scrolling 10,000 items.

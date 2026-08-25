@@ -31,7 +31,7 @@ flowchart TD
         CRM["Cloud Resource Manager API (Project Discovery & Creation)"]
         ServiceUsage["Service Usage API (Storage API Activation)"]
         BillingAPI["Cloud Billing API (Billing Linkage Check)"]
-        GCS["GCS Storage Buckets (gs://...)\n• Mode A: Requester-Pays ENFORCED (Client Billed)\n• Mode B: Owner-Pays Standard (Zero Client Cost)\n• Storage Object Viewer IAM & CORS Applied"]
+        GCS["GCS Storage Buckets (gs://...)\n• Mode A: Requester-Pays ENFORCED (Client Billed — Implemented)\n• Mode B: Owner-Pays Standard (Zero Client Cost — Spec'd & Designed)\n• Storage Object Viewer IAM & CORS Applied"]
         BillingEngine["GCP Billing Engine\n(Direct Client Billing Attribution on Req-Pays)"]
     end
 

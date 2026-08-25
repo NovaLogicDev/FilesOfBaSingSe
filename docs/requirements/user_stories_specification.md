@@ -7,11 +7,11 @@
 
 **Files of Ba Sing Se** is a client-side Single Page Application (SPA) designed to empower external clients (independent video editors, freelance audio engineers, boutique VFX studios, and data partners) to browse, inspect, and stream multi-gigabyte media assets (500MB to 50GB+) directly from Google Cloud Storage (GCS) Archive-tier and Standard-tier buckets to their local workstations.
 
-The system natively supports **Dual Bucket Billing Attribution**:
-1. **Requester-Pays Enforced Buckets (`userProject`)**: Guarantees **zero bandwidth and retrieval cost liability for the host** by strictly enforcing GCS Requester Pays. All data retrieval fees ($0.05/GB) and egress fees ($0.12/GB) are billed directly to the client's Google Cloud project, confirmed via the **`[Requester-Pays Enforced 🛡️]`** status badge.
-2. **Owner-Pays / Standard Buckets**: Seamlessly consumes standard or owner-sponsored buckets where retrieval and egress costs are covered by the bucket owner (**$0.00 client cost**), confirmed via the **`[Owner-Pays / Free Egress 🎁]`** status badge, allowing instant consumption without requiring client GCP billing project setup.
+The system architecture defines **Dual Bucket Billing Attribution** (with Requester-Pays currently implemented in the runtime application, and Owner-Pays dual-mode fully specified & designed for upcoming implementation):
+1. **Requester-Pays Enforced Buckets (`userProject`) — Implemented**: Guarantees **zero bandwidth and retrieval cost liability for the host** by strictly enforcing GCS Requester Pays. All data retrieval fees ($0.05/GB) and egress fees ($0.12/GB) are billed directly to the client's Google Cloud project, confirmed via the **`[Requester-Pays Enforced 🛡️]`** status badge.
+2. **Owner-Pays / Standard Buckets — Spec'd & Designed (Implementation Planned)**: Architected to seamlessly consume standard or owner-sponsored buckets where retrieval and egress costs are covered by the bucket owner (**$0.00 client cost**), confirmed via the **`[Owner-Pays / Free Egress 🎁]`** status badge, allowing instant consumption without requiring client GCP billing project setup.
 
-Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. When accessing Requester-Pays buckets, this engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits. When accessing Owner-Pays buckets, project configuration is made optional for frictionless instant access.
+Crucially, because external clients are often **single-person freelancers or creative professionals who have never interacted with Google Cloud Platform (GCP)**, the application includes a **first-class GCP Onboarding & Project Auto-Provisioning Engine**. When accessing Requester-Pays buckets, this engine automatically detects existing projects, auto-provisions new media projects via Google Cloud Resource Manager APIs, verifies billing account linkage, and provides a 2-minute guided wizard for claiming Google's $300 Free Trial credits. When accessing Owner-Pays buckets (as specified in Module 13), project configuration is designed to be optional for frictionless instant access.
 
 Furthermore, the application achieves **zero browser crashes / zero Out-of-Memory (OOM) failures** through a constant-memory streaming engine using the **Resilient Service Worker Stream Interceptor** with native browser download shelf integration (`chrome://downloads`).
 
@@ -930,8 +930,11 @@ flowchart TD
 
 ## Epic 13: Dual Billing Mode Support & Owner-Pays Bucket Consumption
 
+> [!NOTE]
+> **Epic 13 Implementation Status**: Epic 13 (Stories 13.1–13.6) is fully specified with user personas, user stories, acceptance criteria, and sequence flows. The dual-mode functionality has been **spec'd and designed, but is not yet implemented** in the active codebase. Currently, the application operates in Requester-Pays mode.
+
 ### Epic Goal
-Enable seamless consumption of both **Requester-Pays Enforced** buckets (client billed with zero host liability) and **Owner-Pays / Standard** buckets (owner-sponsored with $0.00 client cost), automatically detecting bucket billing enforcement during preflight, providing frictionless project-optional onboarding for owner-sponsored buckets, updating the object browser status badges (`[Requester-Pays Enforced 🛡️]` vs `[Owner-Pays / Free Egress 🎁]`), adjusting cost governance to zero client liability in Owner-Pays mode, and adapting CLI command outputs.
+Enable seamless consumption of both **Requester-Pays Enforced** buckets (client billed with zero host liability) and **Owner-Pays / Standard** buckets (owner-sponsored with $0.00 client cost) once implemented, automatically detecting bucket billing enforcement during preflight, providing frictionless project-optional onboarding for owner-sponsored buckets, updating the object browser status badges (`[Requester-Pays Enforced 🛡️]` vs `[Owner-Pays / Free Egress 🎁]`), adjusting cost governance to zero client liability in Owner-Pays mode, and adapting CLI command outputs.
 
 ```mermaid
 flowchart TD

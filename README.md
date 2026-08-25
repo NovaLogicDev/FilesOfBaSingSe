@@ -22,9 +22,9 @@
   - Leverages the **Chromium File System Access API** and **Resilient Service Worker Stream Interception** (`public/sw.js` compiled from TypeScript `src/sw/sw.ts`).
   - Streams massive files in 4MB micro-chunks with JavaScript heap consumption strictly bounded under **15 MB RAM** (tested up to 50GB+).
 - **Cryptographic CRC32c Integrity Parity**: Computes rolling Castagnoli CRC32c (`0x1EDC6F41`) checksums in real-time as binary chunks stream through, verifying bit-exact parity against GCS `x-goog-hash` headers upon completion.
-- **Dual-Mode Billing & Cost Governance**:
-  - **Requester-Pays Mode**: Automated live estimation of Archive retrieval ($0.05/GB), Coldline ($0.02/GB), and internet egress ($0.12/GB) fees before downloading, backed by high-cost confirmation safety gates (> $5.00 USD / > 25 GB).
-  - **Owner-Pays Mode**: Automatic detection and display for owner-sponsored buckets ($0.00 client egress cost).
+- **Cost Governance & Billing Mode Architecture**:
+  - **Requester-Pays Mode (Implemented)**: Automated live estimation of Archive retrieval ($0.05/GB), Coldline ($0.02/GB), and internet egress ($0.12/GB) fees before downloading, backed by high-cost confirmation safety gates (> $5.00 USD / > 25 GB).
+  - **Owner-Pays / Dual Mode (Spec'd & Designed; Implementation Planned)**: Fully architected and specified design for automated preflight detection of owner-sponsored buckets ($0.00 client egress cost), dynamic status badges, and project-optional onboarding fast track (Module 13 & Engine 11).
 - **Volatile Token Isolation & Storage Boundary Governance**:
   - OAuth 2.0 access bearer tokens reside exclusively in volatile runtime memory (`useRuntimeStore`) and are never written to `localStorage` or disk.
   - Active `StorageBoundaryAuditor` continuously monitors and prevents accidental leaks of private credentials.

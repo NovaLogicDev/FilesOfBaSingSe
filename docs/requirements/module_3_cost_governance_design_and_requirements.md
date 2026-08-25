@@ -40,7 +40,7 @@ flowchart LR
 - **FR-3.5**: \$300 Free Trial badge indicator reminding eligible users that their estimated charges are covered by Google free credits.
 - **FR-3.6**: High-Cost safety threshold gate: Automatically displays a confirmation modal requiring explicit confirmation if total estimated charge $\ge \$5.00\text{ USD}$ or total transfer volume $\ge 25\text{ GB}$ (active on Requester-Pays buckets).
 - **FR-3.7**: Custom Rate Card Override support: Allows enterprise clients to configure discounted contract rates in settings (stored in `localStorage`).
-- **FR-3.8**: Owner-Pays Zero Client Cost Governance: When the active bucket is classified as `owner-pays`, the engine computes client financial liability as **`$0.00 USD`** for all selected assets. The sticky banner indicates owner sponsorship, and dollar-based high-cost safety gates are bypassed.
+- **FR-3.8**: Owner-Pays Zero Client Cost Governance (*Spec'd & Designed — Module 13; Implementation Planned*): When the active bucket is classified as `owner-pays`, the engine computes client financial liability as **`$0.00 USD`** for all selected assets. The sticky banner indicates owner sponsorship, and dollar-based high-cost safety gates are bypassed.
 
 #### Non-Functional Requirements
 - **NFR-3.1**: Calculation execution latency: **< 5 ms** for selections of up to 5,000 items.

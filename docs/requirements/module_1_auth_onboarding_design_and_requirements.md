@@ -43,7 +43,7 @@ flowchart TD
   3. IAM `roles/storage.objectViewer` permission.
   4. CORS preflight exposure headers (`x-goog-hash`, `Content-Length`, `Range`, `ETag`).
 - **FR-1.7**: Automated Onboarding Bypass for Returning Users: When an authenticated session is established (via interactive sign-in or silent token restoration) and the system verifies that `hasCompletedOnboarding === true` with valid `savedBucketName` (and `savedProjectId` if in Requester-Pays mode), the system shall bypass the 4-step wizard entirely and route the user directly to the active media workspace (`AssetExplorer`) with background preflight verification.
-- **FR-1.8**: Owner-Pays Onboarding Fast-Track & Deferred Detection:
+- **FR-1.8**: Owner-Pays Onboarding Fast-Track & Deferred Detection (*Spec'd & Designed — Module 13; Implementation Planned*):
   - **Standard Flow**: In Step 2 (Project Setup), the UI provides an option to skip project setup (`[ Skip for now (I am connecting to an Owner-Sponsored bucket) ]`). In Step 3, the user enters the bucket. In Step 4 Preflight, the bucket is probed without `userProject`. If detected as `owner-pays`, the user enters the workspace without project configuration ($0.00 cost). If detected as `requester-pays` and the user had skipped Step 2, preflight prompts them with a 1-click action: `[ Return to Step 2: Configure Project ]`.
   - **Deep-Link / Seeded Flow**: When the target bucket is known at the outset (via deep link `#/browse/{bucket}`), preflight probes the bucket immediately upon Step 1 authentication. If `owner-pays`, Step 2 is automatically bypassed, taking the user directly into Step 4/workspace.
 

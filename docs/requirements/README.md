@@ -35,7 +35,7 @@ This directory contains the complete product requirements, user stories, UI wire
 10. **[Module 10: Session Continuity, Silent Token Restoration & Onboarding Bypass](module_10_session_lifecycle_and_restoration_design_and_requirements.md)** (`MOD-10-SESSION-LIFECYCLE`)
 11. **[Module 11: Browser History API, URL Synchronization & Deep Linking](module_11_browser_history_and_navigation_routing_design_and_requirements.md)** (`MOD-11-BROWSER-HISTORY-ROUTING`)
 12. **[Module 12: Native Browser Download Integration & Stream Resilience](module_12_os_filesystem_feedback_and_reveal_integration.md)** (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`)
-13. **[Module 13: Dual Bucket Billing Mode & Owner-Pays Consumption](module_13_dual_billing_mode_and_owner_pays_support_specification.md)** (`MOD-13-DUAL-BILLING-MODE`)
+13. **[Module 13: Dual Bucket Billing Mode & Owner-Pays Consumption](module_13_dual_billing_mode_and_owner_pays_support_specification.md)** (`MOD-13-DUAL-BILLING-MODE` — *Specification & Architectural Design; Implementation Planned*)
 14. **[Module 14: Google API Trust & Safety, Minimal Scopes, Incremental Authorization & Privacy Governance](module_14_google_trust_safety_privacy_and_scope_governance.md)** (`MOD-14-TRUST-SAFETY-PRIVACY`)
 
 ---

@@ -1,6 +1,9 @@
 # Module 13: Dual Bucket Billing Mode & Owner-Pays Consumption Specification
 ## Module ID: `MOD-13-DUAL-BILLING-MODE`
 
+> [!NOTE]
+> **Implementation Status**: This document defines the complete architectural design, requirements, sequence diagrams, and interface contracts for Dual Bucket Billing Mode & Owner-Pays Consumption (`MOD-13-DUAL-BILLING-MODE`). This capability has been **fully spec'd and designed**, but is **not yet implemented** in the active application codebase (which currently operates under the Requester-Pays paradigm). Implementation is planned for a subsequent development increment.
+
 ---
 
 ### 1. Executive Summary & Architectural Motivation
@@ -22,7 +25,7 @@ In Google Cloud Storage (GCS), bucket billing attribution falls into two distinc
 #### The Problem & Opportunity:
 Previously, the portal assumed *every* target bucket enforced Requester-Pays, requiring all clients to configure a GCP Billing Project even when accessing standard or owner-sponsored buckets. The presence of the **`[Requester-Pays Enforced 🛡️]`** badge in the object browser footer and GCP Config Center implies that non-enforced buckets exist and should be first-class citizens.
 
-**Module 13** defines the complete architecture, detection protocols, zero-cost financial governance, adaptive CLI generation, and UI state models required to seamlessly support both **Requester-Pays Enforced** and **Owner-Pays** buckets side-by-side.
+**Module 13** defines the complete architecture, detection protocols, zero-cost financial governance, adaptive CLI generation, and UI state models required to seamlessly support both **Requester-Pays Enforced** and **Owner-Pays** buckets side-by-side once implemented.
 
 ```mermaid
 flowchart TD

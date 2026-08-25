@@ -3,9 +3,9 @@
 
 ---
 
-## Executive Architectural Overview
+**Files of Ba Sing Se** is architected around twelve modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, dynamic dual-billing attribution (Requester-Pays vs Owner-Pays), Google OAuth Trust & Safety least-privilege policies, and rigorous cryptographic integrity standards.
 
-**Files of Ba Sing Se** is powered by twelve modular, decoupled, client-side engineering **Engines**. Each engine encapsulates a discrete domain of responsibility, adhering to strict memory boundaries, zero-backend host liability constraints, dynamic dual-billing attribution (Requester-Pays vs Owner-Pays), Google OAuth Trust & Safety least-privilege policies, and rigorous cryptographic integrity standards.
+> **Implementation Note**: Engines 1–10 and Engine 12 are implemented in the active application codebase under the Requester-Pays paradigm. Engine 11 (`DualModeBillingEngine`) has been fully designed and specified with production-ready TypeScript contracts and state machines, with code implementation scheduled for a subsequent development increment.
 
 ```mermaid
 flowchart TD
@@ -1314,8 +1314,11 @@ export class BrowserDownloadBridgeEngine {
 
 ## 11. Engine 11: Dual Bucket Billing Mode & Owner-Pays Governance Engine
 
+> [!NOTE]
+> **Engine 11 Implementation Status**: Engine 11 (`DualModeBillingEngine`) has been fully designed and specified with complete TypeScript interface contracts, error classification routines, and state machines. However, it is **currently not implemented** in the runtime application (which operates strictly under Requester-Pays enforcement). Full implementation of this engine is planned for a subsequent development milestone.
+
 ### 11.1 Purpose & Domain Scope
-Governs the detection, classification, financial calculation, and UI badge synchronization between **Requester-Pays Enforced** buckets and **Owner-Pays (Standard / Sponsored)** buckets. It ensures that clients consuming Owner-Pays buckets incur **$0.00 USD** in retrieval and egress fees, provides clean CLI commands without billing flags, and enables frictionless onboarding without mandatory GCP project creation.
+Governs the detection, classification, financial calculation, and UI badge synchronization between **Requester-Pays Enforced** buckets and **Owner-Pays (Standard / Sponsored)** buckets once implemented. It ensures that clients consuming Owner-Pays buckets incur **$0.00 USD** in retrieval and egress fees, provides clean CLI commands without billing flags, and enables frictionless onboarding without mandatory GCP project creation.
 
 ### 11.2 Subsystem Architecture & Classification Protocol
 
@@ -1558,9 +1561,9 @@ export class TrustSafetyEngine {
 
 ## 13. Cross-Engine Integration Matrix (Engines 1 through 12)
 
-The primary engines operate as a cohesive, dual-mode, zero-liability mesh:
+The primary engines are designed to operate as a cohesive, dual-mode, zero-liability mesh:
 - **Engine 12 (`TrustSafetyEngine`)**: Enforces default minimal non-sensitive scopes on Engine 1 (`GCPOnboardingEngine`), prompts for step-up consent on-demand during project discovery, and handles Google OAuth token revocation during logout coordinated with Engine 8 (`SessionLifecycleEngine`).
-- **Engine 11 (`DualModeBillingEngine`)**: Classifies bucket billing mode (`requester-pays` vs `owner-pays`), informs Engine 3 (`CostGovernanceEngine`) for zero-cost client governance, adjusts Engine 6 (`CliGeneratorEngine`) to omit project flags, and synchronizes status badges.
+- **Engine 11 (`DualModeBillingEngine` — Spec'd & Designed; Implementation Pending)**: Architected to classify bucket billing mode (`requester-pays` vs `owner-pays`), inform Engine 3 (`CostGovernanceEngine`) for zero-cost client governance, adjust Engine 6 (`CliGeneratorEngine`) to omit project flags, and synchronize status badges once implemented.
 - **Engine 10 (`BrowserDownloadBridgeEngine`)**: Manages the keep-alive heartbeat loop with Engine 4 (`ResilientSWStreamEngine`), ensures native download shelf tracking (`chrome://downloads`), and bridges real-time stream diagnostics.
 - **Engine 9 (`BrowserHistoryRouterEngine`)**: Intercepts `popstate` events from browser Back/Forward navigation, manages `pushState` for breadcrumbs and folder clicks, and drives directory re-fetching via Engine 2 (`BucketExplorerEngine`).
 - **Engine 8 (`SessionLifecycleEngine`)**: Coordinates boot-time silent token restoration with deep-link hash hydration parsed by Engine 9 before mounting `AssetExplorer`, supporting project-optional bypass for Owner-Pays buckets.
@@ -1576,7 +1579,7 @@ The primary engines operate as a cohesive, dual-mode, zero-liability mesh:
 
 ### Architectural Sign-Off for System Engines
 
-All 12 engines conform to the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and seamlessly support dual billing modes (Requester-Pays vs Owner-Pays), Google Trust & Safety scope minimization, persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
+All 12 engines have been fully specified and validated against the **Zero Host Liability** paradigm, provide full memory isolation, furnish production-ready TypeScript contracts, and comprehensively define dual billing mode support (Requester-Pays implemented, Owner-Pays spec'd & designed), Google Trust & Safety scope minimization, persistent live session continuity, browser history traversal, native browser download integration, and frictionless onboarding bypass.
 
 
 

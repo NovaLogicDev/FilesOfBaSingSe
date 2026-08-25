@@ -20,7 +20,7 @@ flowchart TD
         D8["8. Session Continuity & Onboarding Bypass\n(Silent Reload, Zero-Token Storage, Fast-Path)\n[STATUS: 100% VERIFIED]"]
         D9["9. Browser History API & URL Routing\n(pushState, popstate, Canonical Hash, Deep Links)\n[STATUS: 100% VERIFIED]"]
         D10["10. Native Browser Download Integration\n(chrome://downloads, Native 'Show in Folder')\n[STATUS: 100% VERIFIED]"]
-        D11["11. Dual Bucket Billing Mode & Owner-Pays\n(Auto-Detection, $0.00 Egress, Clean CLI, Badges)\n[STATUS: 100% VERIFIED]"]
+        D11["11. Dual Bucket Billing Mode & Owner-Pays\n(Auto-Detection, $0.00 Egress, Clean CLI, Badges)\n[STATUS: 100% SPEC'D & DESIGNED (Impl Pending)]"]
     end
 
     AuditSummary --> FinalVerdict{"FINAL AUDIT VERDICT:\n100% CONFORMING & PRODUCTION READY"}
@@ -42,7 +42,7 @@ flowchart TD
 | **8. Session Lifecycle & Bypass** | Silent token restoration on reload without disk tokens; 1-click reconnect card; returning user onboarding bypass. | Module 10 (`MOD-10-SESSION-LIFECYCLE`) and Engine 8 fully specified and aligned. | **PASSED (100%)** |
 | **9. Browser History & Deep Linking** | Native browser Back/Forward navigation (`popstate`), URL hash sync (`#/browse/{bucket}/{prefix}`), and deep-link boot hydration. | Module 11 (`MOD-11-BROWSER-HISTORY-ROUTING`) and Engine 9 fully specified, tested, and aligned. | **PASSED (100%)** |
 | **10. Native Browser Download Integration** | Logged in `chrome://downloads` and toolbar tray with native "Show in folder" magnifying glass and keep-alive watchdog. | Module 12 (`MOD-12-BROWSER-DOWNLOAD-INTEGRATION`) and Engine 10 fully specified and aligned. | **PASSED (100%)** |
-| **11. Dual Bucket Billing Mode & Owner-Pays** | Auto-detects `requester-pays` vs `owner-pays`; computes $0.00 client cost in Owner-Pays mode; omits CLI project flags; renders dynamic shield/gift badges. | Module 13 (`MOD-13-DUAL-BILLING-MODE`), Epic 13, and Engine 11 fully specified and aligned. | **PASSED (100%)** |
+| **11. Dual Bucket Billing Mode & Owner-Pays** | Auto-detects `requester-pays` vs `owner-pays`; computes $0.00 client cost in Owner-Pays mode; omits CLI project flags; renders dynamic shield/gift badges. | Module 13 (`MOD-13-DUAL-BILLING-MODE`), Epic 13, and Engine 11 fully specified and architected. Runtime code implementation pending for future milestone. | **100% SPEC'D & DESIGNED (Impl Pending)** |
 
 ---
 
@@ -110,7 +110,7 @@ docs/requirements/
 - **Answer**: **YES (Native Browser Download Manager Integration)**. By routing through the Resilient Service Worker Stream Interceptor (`/sw-pipe/:streamId/:filename`), transfers appear directly in `chrome://downloads` and the browser toolbar download tray. The native "Show in folder" magnifying glass works out of the box.
 
 ### Question 8: Can users browse and download from standard or owner-sponsored GCS buckets where Requester-Pays is not enabled without setting up GCP billing?
-- **Answer**: **YES (Dual Bucket Billing Mode & Owner-Pays Support)**. In standard unseeded onboarding, users can skip project setup at Step 2 (and preflight validates `owner-pays` at Step 4 once the bucket is entered at Step 3), or bypass project setup automatically in deep-linked flows. The application computes client charges as **$0.00 USD**, renders the `[Owner-Pays / Free Egress 🎁]` badge, and produces clean CLI commands without `--billing-project`.
+- **Answer**: **SPEC'D & DESIGNED (Dual Bucket Billing Mode & Owner-Pays Support — Implementation Pending)**. The complete architecture, sequence flows, and contracts for dual-pathway onboarding and $0.00 client cost calculation are fully specified and designed (Module 13, Engine 11, Epic 13). When implemented in the runtime codebase, users will be able to skip project setup at Step 2 (with preflight validating `owner-pays` at Step 4), or bypass project setup automatically in deep-linked flows, compute client charges as **$0.00 USD**, render the `[Owner-Pays / Free Egress 🎁]` badge, and produce clean CLI commands without `--billing-project`. Currently, the runtime application strictly enforces Requester-Pays.
 
 ---
 
