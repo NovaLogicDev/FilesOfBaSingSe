@@ -27,8 +27,12 @@ describe('PrivacyPolicyModalShell (AUX-09) - Unit Tests', () => {
     expect(screen.getByText(/devstorage\.read_only/i)).toBeInTheDocument()
     expect(screen.getByText(/cloud-platform/i)).toBeInTheDocument()
 
-    // 3. Volatile RAM storage
-    expect(screen.getByText(/Volatile In-Memory Credential Isolation/i)).toBeInTheDocument()
+    // 3. Credential Isolation, Storage Boundaries & Session Continuity
+    expect(
+      screen.getByText(/Credential Isolation, Storage Boundaries & Session Continuity/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Volatile Credential Isolation/i)).toBeInTheDocument()
+    expect(screen.getByText(/Session Continuity & Non-Sensitive Preferences/i)).toBeInTheDocument()
 
     // 4. Zero Telemetry & CSP
     expect(screen.getByText(/Zero Telemetry & Content Security Policy/i)).toBeInTheDocument()

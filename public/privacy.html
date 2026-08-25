@@ -179,12 +179,13 @@
         <li><strong>Google Cloud Platform Access (<code>https://www.googleapis.com/auth/cloud-platform</code>):</strong> Requested <em>strictly on-demand</em> only if you explicitly choose to use the automated GCP project discovery, 1-click project auto-provisioning, or billing account linkage verification features. If you manually enter your existing GCP Project ID, this permission is <strong>never requested</strong>.</li>
       </ul>
 
-      <h2>3. Data Storage, Memory Isolation &amp; Retention</h2>
+      <h2>3. Data Storage, Credential Isolation &amp; Session Retention</h2>
       <ul>
-        <li><strong>Volatile Memory Storage Only:</strong> All OAuth 2.0 access tokens and runtime session parameters reside strictly in temporary, volatile browser RAM (JavaScript memory).</li>
+        <li><strong>Volatile Memory Storage for Credentials:</strong> All OAuth 2.0 access bearer tokens, renewal handles, and active download stream controllers reside strictly in temporary, volatile browser RAM (JavaScript memory).</li>
         <li><strong>Zero Disk Persistence of Credentials:</strong> The Application <strong>never</strong> writes OAuth access tokens, bearer credentials, private keys, or refresh tokens to <code>localStorage</code>, <code>sessionStorage</code>, cookies, or IndexedDB.</li>
-        <li><strong>Immediate Session Purge:</strong> Active authentication credentials in volatile memory are completely purged when you click "Sign Out", close your browser tab/window, or when the token reaches its expiration time.</li>
-        <li><strong>Persistent Non-Sensitive Preferences:</strong> The Application only saves non-sensitive operational preferences to your browser's <code>localStorage</code> (such as your chosen UI theme, last entered bucket name, and project ID label) to preserve your workflow across visits.</li>
+        <li><strong>Session Continuity &amp; Non-Sensitive Storage:</strong> The Application saves non-sensitive operational preferences and session configuration hints to your browser's <code>localStorage</code> (such as your chosen UI theme, saved bucket name, project ID label, onboarding completion status, last authorized user account identifier, and session auto-restoration settings) to preserve your workspace continuity across visits.</li>
+        <li><strong>Session Restoration Lifecycle:</strong> When returning to the application or reloading the page, the Application leverages standard Google Identity Services (GIS) session restoration (silent token re-acquisition or a 1-click reconnect prompt) without storing credentials in persistent browser storage.</li>
+        <li><strong>Immediate Session Purge &amp; Revocation:</strong> When you click "Sign Out" or "Disconnect Session", active authentication credentials in volatile memory are immediately wiped, persistent session hints are cleared from local storage, and Google's token revocation API is invoked.</li>
       </ul>
 
       <h2>4. Third-Party Data Sharing &amp; Disclosure</h2>
@@ -210,10 +211,11 @@
 
       <h2>6. User Rights, Session Management &amp; Revocation of Access</h2>
       <p>
-        You maintain complete control over your Google credentials and authorizations:
+        You maintain complete control over your Google credentials, session preferences, and authorizations:
       </p>
       <ul>
-        <li><strong>In-App Sign Out:</strong> Clicking "Sign Out" in the Application header instantly invokes Google's OAuth 2.0 token revocation endpoint (<code>https://accounts.google.com/o/oauth2/revoke</code>) and flushes all runtime memory.</li>
+        <li><strong>In-App Sign Out &amp; Session Purge:</strong> Clicking "Sign Out" or "Disconnect Session" in the Application header or GCP Configuration Center instantly invokes Google's OAuth 2.0 token revocation endpoint (<code>https://accounts.google.com/o/oauth2/revoke</code>), flushes all runtime memory, and clears persistent session configuration hints.</li>
+        <li><strong>Session Continuity Controls:</strong> You can enable, disable, or adjust automatic session restoration settings at any time within the GCP Configuration Center.</li>
         <li><strong>Google Account Permissions Dashboard:</strong> You can review and revoke authorization at any time directly through your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google Account Permissions</a>.</li>
       </ul>
 

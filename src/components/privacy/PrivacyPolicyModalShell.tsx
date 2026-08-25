@@ -65,7 +65,7 @@ export const PrivacyPolicyModalShell: React.FC<PrivacyPolicyModalShellProps> = (
               <span>Core Privacy Guarantees</span>
             </div>
             <p className="text-slate-700 dark:text-slate-300">
-              <strong>Files of Ba Sing Se</strong> is an open-source, client-side application. We operate <strong>zero intermediary backend servers</strong>, collect <strong>zero telemetry or tracking beacons</strong>, and store all Google OAuth tokens <strong>exclusively in temporary volatile RAM</strong>.
+              <strong>Files of Ba Sing Se</strong> is an open-source, client-side application. We operate <strong>zero intermediary backend servers</strong>, collect <strong>zero telemetry or tracking beacons</strong>, and isolate all Google OAuth access tokens <strong>strictly in temporary volatile RAM</strong> without persistent token storage on disk.
             </p>
           </div>
 
@@ -111,17 +111,25 @@ export const PrivacyPolicyModalShell: React.FC<PrivacyPolicyModalShellProps> = (
             </div>
           </div>
 
-          {/* Section 3: Data Storage & Memory Isolation */}
+          {/* Section 3: Data Storage, Credential Isolation & Session Continuity */}
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
               <EyeOff className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>3. Volatile In-Memory Credential Isolation</span>
+              <span>3. Credential Isolation, Storage Boundaries &amp; Session Continuity</span>
             </h3>
-            <ul className="list-disc pl-5 space-y-1 text-slate-600 dark:text-slate-300">
-              <li>OAuth 2.0 access tokens reside <strong>strictly in volatile browser RAM</strong> (Zustand state).</li>
-              <li>Tokens are <strong>never</strong> written to <code className="font-mono text-xs">localStorage</code>, <code className="font-mono text-xs">sessionStorage</code>, or cookies.</li>
-              <li>Signing out or closing your browser tab immediately flushes memory and invokes Google's token revocation API.</li>
-              <li>Only non-sensitive preferences (UI theme, target bucket string, project ID label) persist in <code className="font-mono text-xs">localStorage</code>.</li>
+            <ul className="list-disc pl-5 space-y-1.5 text-slate-600 dark:text-slate-300">
+              <li>
+                <strong>Volatile Credential Isolation:</strong> OAuth 2.0 access bearer tokens, renewal handles, and active download stream controllers reside <strong>strictly in temporary volatile browser RAM</strong> (Zustand runtime state).
+              </li>
+              <li>
+                <strong>Zero Disk Persistence of Credentials:</strong> Sensitive tokens and private keys are <strong>never</strong> written to <code className="font-mono text-xs">localStorage</code>, <code className="font-mono text-xs">sessionStorage</code>, cookies, or IndexedDB.
+              </li>
+              <li>
+                <strong>Session Continuity &amp; Non-Sensitive Preferences:</strong> To preserve your active workspace across page reloads and browser visits, non-sensitive session configuration hints (onboarding status, selected GCP project ID, active bucket name, user account identifier, and session auto-restoration settings) are saved in browser <code className="font-mono text-xs">localStorage</code>.
+              </li>
+              <li>
+                <strong>Session Disconnect &amp; Revocation:</strong> Clicking &quot;Sign Out&quot; or &quot;Disconnect Session&quot; immediately wipes volatile runtime memory, revokes the OAuth token via Google&apos;s token revocation endpoint, and resets persistent session hints.
+              </li>
             </ul>
           </div>
 

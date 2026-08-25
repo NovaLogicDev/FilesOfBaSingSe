@@ -47,12 +47,13 @@ When you sign in using Google Identity Services (OAuth 2.0), the Application req
 
 ---
 
-### 3. Data Storage, Memory Isolation & Retention
+### 3. Data Storage, Credential Isolation & Session Retention
 
-* **Volatile Memory Storage Only**: All OAuth 2.0 access tokens and runtime session parameters reside strictly in temporary, volatile browser RAM (JavaScript memory).
+* **Volatile Memory Storage for Credentials**: All OAuth 2.0 access bearer tokens, renewal handles, and active download stream controllers reside strictly in temporary, volatile browser RAM (JavaScript memory).
 * **Zero Disk Persistence of Credentials**: The Application **never** writes OAuth access tokens, bearer credentials, private keys, or refresh tokens to `localStorage`, `sessionStorage`, cookies, or IndexedDB.
-* **Immediate Session Purge**: Active authentication credentials in volatile memory are completely purged when you click "Sign Out", close your browser tab/window, or when the token reaches its expiration time.
-* **Persistent Non-Sensitive Preferences**: The Application only saves non-sensitive operational preferences to your browser's `localStorage` (such as your chosen UI theme, last entered bucket name, and project ID label) to preserve your workflow across visits.
+* **Session Continuity & Non-Sensitive Storage**: The Application saves non-sensitive operational preferences and session configuration hints to your browser's `localStorage` (such as your chosen UI theme, saved bucket name, project ID label, onboarding completion status, last authorized user account identifier, and session auto-restoration settings) to preserve your workspace continuity across visits.
+* **Session Restoration Lifecycle**: When returning to the application or reloading the page, the Application leverages standard Google Identity Services (GIS) session restoration (silent token re-acquisition or a 1-click reconnect prompt) without storing credentials in persistent browser storage.
+* **Immediate Session Purge & Revocation**: When you click "Sign Out" or "Disconnect Session", active authentication credentials in volatile memory are immediately wiped, persistent session hints are cleared from local storage, and Google's token revocation API is invoked.
 
 ---
 
@@ -79,9 +80,10 @@ Specifically:
 
 ### 6. User Rights, Session Management & Revocation of Access
 
-You maintain complete control over your Google credentials and authorizations:
-1. **In-App Sign Out**: Clicking **"Sign Out"** in the Application header instantly invokes Google's OAuth 2.0 token revocation endpoint (`https://accounts.google.com/o/oauth2/revoke`) and flushes all runtime memory.
-2. **Google Account Permissions Dashboard**: You can review and revoke authorization at any time directly through your **[Google Account Permissions](https://myaccount.google.com/permissions)**.
+You maintain complete control over your Google credentials, session preferences, and authorizations:
+1. **In-App Sign Out & Session Purge**: Clicking **"Sign Out"** or **"Disconnect Session"** in the Application header or GCP Configuration Center instantly invokes Google's OAuth 2.0 token revocation endpoint (`https://accounts.google.com/o/oauth2/revoke`), flushes all runtime memory, and clears persistent session configuration hints.
+2. **Session Continuity Controls**: You can enable, disable, or adjust automatic session restoration settings at any time within the GCP Configuration Center.
+3. **Google Account Permissions Dashboard**: You can review and revoke authorization at any time directly through your **[Google Account Permissions](https://myaccount.google.com/permissions)**.
 
 ---
 
