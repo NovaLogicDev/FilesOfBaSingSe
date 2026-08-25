@@ -53,7 +53,7 @@ flowchart LR
 
 **Trigger**: Displayed automatically on first visit, when unauthenticated, or when the user clicks "Configure Connection".
 
-![Client Onboarding Wizard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/onboarding_wizard_ui_1787372078886.jpg)
+![Client Onboarding Wizard](./images/onboarding_wizard_ui_1787372078886.jpg)
 
 ### Component Breakdown & Interaction Flow
 
@@ -108,7 +108,7 @@ flowchart LR
 
 **Trigger**: Primary portal screen once onboarding/preflight verification passes.
 
-![Media Asset Explorer Dashboard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/media_asset_explorer_ui_1787372090138.jpg)
+![Media Asset Explorer Dashboard](./images/media_asset_explorer_ui_1787372090138.jpg)
 
 ### Component Breakdown & Interaction Flow
 
@@ -166,7 +166,7 @@ flowchart LR
 
 **Trigger**: Clicking `[Info]` or double-clicking any file row opens the Inspector Drawer; clicking `[Download]` launches the Floating Download Manager.
 
-![Asset Inspector & Floating Download Manager](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/asset_inspector_and_download_manager_ui_1787372101430.jpg)
+![Asset Inspector & Floating Download Manager](./images/asset_inspector_and_download_manager_ui_1787372101430.jpg)
 
 ### Component Breakdown & Interaction Flow
 
@@ -229,7 +229,7 @@ flowchart LR
 
 **Trigger**: Clicking `[Generate CLI Script]` or triggered automatically when Firefox is detected.
 
-![Automated Batch & CLI Command Generator Modal](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/cli_generator_modal_ui_1787372114190.jpg)
+![Automated Batch & CLI Command Generator Modal](./images/cli_generator_modal_ui_1787372114190.jpg)
 
 ### Component Breakdown & Interaction Flow
 

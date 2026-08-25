@@ -92,7 +92,7 @@ flowchart TD
     Preflight --> Ready([Enter Media Portal & Start Streaming])
 ```
 
-![Client Onboarding Wizard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/onboarding_wizard_ui_1787372078886.jpg)
+![Client Onboarding Wizard](./images/onboarding_wizard_ui_1787372078886.jpg)
 
 ---
 
@@ -194,7 +194,7 @@ flowchart TD
 ### Epic Goal
 Enable intuitive, lightning-fast exploration of massive GCS buckets containing tens of thousands of media files, with folder hierarchy, rich file metadata, and smooth virtualized rendering.
 
-![Media Asset Explorer Dashboard](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/media_asset_explorer_ui_1787372090138.jpg)
+![Media Asset Explorer Dashboard](./images/media_asset_explorer_ui_1787372090138.jpg)
 
 ---
 
@@ -291,7 +291,7 @@ Provide 100% upfront financial transparency to the client by calculating exact G
 ### Epic Goal
 Provide comprehensive, technical object inspection including cryptographic hashes, exact byte counts, GCS generation IDs, and direct command generators for technical media workflows.
 
-![Asset Inspector & Floating Download Manager](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/asset_inspector_and_download_manager_ui_1787372101430.jpg)
+![Asset Inspector & Floating Download Manager](./images/asset_inspector_and_download_manager_ui_1787372101430.jpg)
 
 ---
 
@@ -488,7 +488,7 @@ Provide a non-blocking, dockable download manager widget that gives live telemet
 ### Epic Goal
 Empower technical users, data engineers, and Firefox users with pre-formatted, 1-click Google Cloud CLI commands for automated, multi-threaded, or headless downloads.
 
-![Automated Batch & CLI Command Generator Modal](/var/home/mp/.gemini/antigravity/brain/458cc3b7-db71-40f9-aed2-0eca83080c1e/cli_generator_modal_ui_1787372114190.jpg)
+![Automated Batch & CLI Command Generator Modal](./images/cli_generator_modal_ui_1787372114190.jpg)
 
 ---
 

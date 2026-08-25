@@ -4,7 +4,7 @@
 
 Implement Work Increment 3 for "Files of Ba Sing Se", transforming the client-side media portal from a mock-backed prototype into a fully operational production application capable of live Google Cloud interactions, memory-bounded direct-to-disk streaming, and high-density virtualization.
 
-Working directory: /var/home/mp/Source/Antigravity/FilesOfBaSingSe
+Working directory: .
 Integrity mode: development
 
 Reference specifications: `docs/requirements/` (`module_1_auth_onboarding_design_and_requirements.md` through `module_8_state_persistence_design_and_requirements.md`, `system_engines_design_specification.md`, `web_and_backend_architecture_requirements.md`, `auxiliary_and_supporting_components_specification.md`, `user_stories_specification.md`, `ui_wireframes_and_interface_specification.md`).

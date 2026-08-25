@@ -2,6 +2,7 @@
   "name": "files-of-ba-sing-se",
   "private": true,
   "version": "0.1.0",
+  "license": "CC-BY-SA-4.0",
   "type": "module",
   "scripts": {
     "dev": "npm run build:sw && vite",
