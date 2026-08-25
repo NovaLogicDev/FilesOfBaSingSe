@@ -7,11 +7,11 @@ import { resetAllStores, renderWithProviders } from '../helpers/testUtils'
 import { GCSMediaItem } from '../../src/types/gcs'
 
 const sampleArchiveItem: GCSMediaItem = {
-  id: 'partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf',
+  id: 'test-studio-vault-2026/feature_films/reel_04/reel04_cam_A_raw.mxf',
   name: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
   displayName: 'reel04_cam_A_raw.mxf',
   type: 'file',
-  bucket: 'partner-raw-master-archives-2026',
+  bucket: 'test-studio-vault-2026',
   sizeBytes: 18_400_000_000,
   formattedSize: '18.40 GB',
   storageClass: 'ARCHIVE',
@@ -26,11 +26,11 @@ const sampleArchiveItem: GCSMediaItem = {
 }
 
 const sampleStandardItem: GCSMediaItem = {
-  id: 'partner-raw-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov',
+  id: 'test-studio-vault-2026/feature_films/reel_04/reel04_prores_proxy.mov',
   name: 'feature_films/reel_04/reel04_prores_proxy.mov',
   displayName: 'reel04_prores_proxy.mov',
   type: 'file',
-  bucket: 'partner-raw-master-archives-2026',
+  bucket: 'test-studio-vault-2026',
   sizeBytes: 8_000_000_000,
   formattedSize: '8.00 GB',
   storageClass: 'STANDARD',

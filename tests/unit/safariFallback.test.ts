@@ -109,7 +109,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         displayName: 'reel04_cam_A_raw.mxf',
         sizeBytes: 1048576000, // ~1GB
         crc32c: 'aB3d==',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
       }
 
       const telemetry: DownloadProgressTelemetry[] = []
@@ -129,7 +129,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
       expect(mockRegister).toHaveBeenCalled()
       expect(mockRegisterTicket).toHaveBeenCalledWith(
         expect.objectContaining({
-          bucket: 'partner-raw-master-archives-2026',
+          bucket: 'test-studio-vault-2026',
           object: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
           userProject: 'basingse-media-dl-1234',
           token: 'ya29.valid-token-safari',
@@ -175,7 +175,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         name: 'video.mxf',
         displayName: 'video.mxf',
         sizeBytes: 500000000,
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
       }
 
       const downloadPromise = streamDownloadService.downloadFileServiceWorker(asset, {
@@ -238,7 +238,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         displayName: 'document.pdf',
         sizeBytes: totalBytes,
         crc32c: expectedCrc32c,
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         contentType: 'application/pdf',
       }
 
@@ -272,7 +272,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         name: 'massive_render.mxf',
         displayName: 'massive_render.mxf',
         sizeBytes: 250 * 1024 * 1024, // 250MB (>200MB limit)
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
       }
 
       await expect(
@@ -307,7 +307,7 @@ describe('Cross-Browser Fallbacks & Multi-Strategy Downloader (Safari SW, Memory
         name: 'render_master.tar',
         displayName: 'render_master.tar',
         sizeBytes: 500 * 1024 * 1024, // 500MB
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
       }
 
       await expect(

@@ -9,7 +9,7 @@ describe('ManifestExporterEngine (AUX-07)', () => {
       name: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
       displayName: 'reel04_cam_A_raw.mxf',
       type: 'file',
-      bucket: 'partner-raw-master-archives-2026',
+      bucket: 'test-studio-vault-2026',
       sizeBytes: 18_400_000_000,
       formattedSize: '18.40 GB',
       storageClass: 'ARCHIVE',
@@ -27,7 +27,7 @@ describe('ManifestExporterEngine (AUX-07)', () => {
       name: 'feature_films/reel_04/metadata_manifest, "quotes".json',
       displayName: 'metadata_manifest, "quotes".json',
       type: 'file',
-      bucket: 'partner-raw-master-archives-2026',
+      bucket: 'test-studio-vault-2026',
       sizeBytes: 4_200,
       formattedSize: '4.20 KB',
       storageClass: 'STANDARD',
@@ -42,7 +42,7 @@ describe('ManifestExporterEngine (AUX-07)', () => {
 
   it('generates compliant RFC 4180 CSV manifest with proper column headers and escaping', () => {
     const csv = ManifestExporterEngine.generateCsv({
-      bucketName: 'partner-raw-master-archives-2026',
+      bucketName: 'test-studio-vault-2026',
       items: sampleItems,
     })
 
@@ -65,13 +65,13 @@ describe('ManifestExporterEngine (AUX-07)', () => {
 
   it('generates structured JSON manifest with complete metadata and itemized costs', () => {
     const jsonStr = ManifestExporterEngine.generateJson({
-      bucketName: 'gs://partner-raw-master-archives-2026',
+      bucketName: 'gs://test-studio-vault-2026',
       items: sampleItems,
     })
 
     const parsed = JSON.parse(jsonStr)
     expect(parsed.manifestVersion).toBe('1.0.0')
-    expect(parsed.bucket).toBe('gs://partner-raw-master-archives-2026')
+    expect(parsed.bucket).toBe('gs://test-studio-vault-2026')
     expect(parsed.itemCount).toBe(2)
     expect(parsed.totalBytes).toBe(18400004200)
     expect(parsed.items).toHaveLength(2)
@@ -82,7 +82,7 @@ describe('ManifestExporterEngine (AUX-07)', () => {
 
   it('respects Free Trial account flag in manifest calculations', () => {
     const jsonStr = ManifestExporterEngine.generateJson({
-      bucketName: 'partner-raw-master-archives-2026',
+      bucketName: 'test-studio-vault-2026',
       items: sampleItems,
       isFreeTrial: true,
     })

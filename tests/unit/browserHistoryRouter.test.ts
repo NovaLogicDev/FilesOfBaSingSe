@@ -8,26 +8,26 @@ describe('BrowserHistoryRouterEngine Unit Tests', () => {
 
   describe('serializeHash()', () => {
     it('should serialize root directory correctly', () => {
-      const hash = BrowserHistoryRouterEngine.serializeHash('partner-raw-master-archives-2026', '')
-      expect(hash).toBe('#/browse/partner-raw-master-archives-2026/')
+      const hash = BrowserHistoryRouterEngine.serializeHash('test-studio-vault-2026', '')
+      expect(hash).toBe('#/browse/test-studio-vault-2026/')
     })
 
     it('should strip gs:// prefix from bucket name', () => {
-      const hash = BrowserHistoryRouterEngine.serializeHash('gs://partner-raw-master-archives-2026', '')
-      expect(hash).toBe('#/browse/partner-raw-master-archives-2026/')
+      const hash = BrowserHistoryRouterEngine.serializeHash('gs://test-studio-vault-2026', '')
+      expect(hash).toBe('#/browse/test-studio-vault-2026/')
     })
 
     it('should serialize single folder correctly', () => {
-      const hash = BrowserHistoryRouterEngine.serializeHash('partner-raw-master-archives-2026', 'feature_films/')
-      expect(hash).toBe('#/browse/partner-raw-master-archives-2026/feature_films/')
+      const hash = BrowserHistoryRouterEngine.serializeHash('test-studio-vault-2026', 'feature_films/')
+      expect(hash).toBe('#/browse/test-studio-vault-2026/feature_films/')
     })
 
     it('should serialize deep nested directory path correctly', () => {
       const hash = BrowserHistoryRouterEngine.serializeHash(
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         'feature_films/reel_04/camera_raw/'
       )
-      expect(hash).toBe('#/browse/partner-raw-master-archives-2026/feature_films/reel_04/camera_raw/')
+      expect(hash).toBe('#/browse/test-studio-vault-2026/feature_films/reel_04/camera_raw/')
     })
 
     it('should append trailing slash if missing on folder prefix', () => {
@@ -48,10 +48,10 @@ describe('BrowserHistoryRouterEngine Unit Tests', () => {
 
   describe('parseHash()', () => {
     it('should parse root hash correctly', () => {
-      const parsed = BrowserHistoryRouterEngine.parseHash('#/browse/partner-raw-master-archives-2026/')
+      const parsed = BrowserHistoryRouterEngine.parseHash('#/browse/test-studio-vault-2026/')
       expect(parsed).toEqual({
         view: 'browse',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         prefix: '',
         isValid: true,
       })
@@ -59,11 +59,11 @@ describe('BrowserHistoryRouterEngine Unit Tests', () => {
 
     it('should parse nested folder hash correctly', () => {
       const parsed = BrowserHistoryRouterEngine.parseHash(
-        '#/browse/partner-raw-master-archives-2026/feature_films/reel_04/'
+        '#/browse/test-studio-vault-2026/feature_films/reel_04/'
       )
       expect(parsed).toEqual({
         view: 'browse',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         prefix: 'feature_films/reel_04/',
         isValid: true,
       })
@@ -71,11 +71,11 @@ describe('BrowserHistoryRouterEngine Unit Tests', () => {
 
     it('should decode URI encoded segments properly', () => {
       const parsed = BrowserHistoryRouterEngine.parseHash(
-        '#/browse/partner-raw-master-archives-2026/reel%2004/scene%231/'
+        '#/browse/test-studio-vault-2026/reel%2004/scene%231/'
       )
       expect(parsed).toEqual({
         view: 'browse',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         prefix: 'reel 04/scene#1/',
         isValid: true,
       })

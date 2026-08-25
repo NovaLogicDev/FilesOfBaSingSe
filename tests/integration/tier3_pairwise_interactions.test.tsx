@@ -69,7 +69,7 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
     // Run preflight with new project ID
     const preflight = await gcsClientService.run4PointPreflight(
       'ya29.test-token',
-      'partner-raw-master-archives-2026',
+      'test-studio-vault-2026',
       usePersistentStore.getState().savedProjectId,
     )
     expect(preflight.bucketReachable).toBe(true)
@@ -180,7 +180,7 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
       'sound_stems/dialogue_isolated_master.wav',
     ]
     const gcloudCmd = CliGeneratorEngine.generateGcloudCommand({
-      bucketName: 'partner-raw-master-archives-2026',
+      bucketName: 'test-studio-vault-2026',
       selectedPaths,
       userProject: 'color-suite-prod-2026',
       destinationDir: './master_ingest/',
@@ -197,14 +197,14 @@ describe('Tier 3 - Cross-Feature Pairwise Interactions', () => {
   it('Pairwise 8: Generating diagnostic report during active stream captures memory heap and masked project', () => {
     ObservabilityService.info('STREAM', 'Micro-chunk pipe active')
     const report = ObservabilityService.generateReport(
-      'gs://partner-raw-master-archives-2026',
+      'gs://test-studio-vault-2026',
       'client-media-project-2026',
     )
 
     expect(report.heapMemoryMB).toBe(11.4)
     expect(report.activeProjectIdMasked).toBe('clie***-2026')
     expect(report.recentLogs.length).toBeGreaterThan(0)
-    expect(report.activeBucket).toContain('partner-raw-master-archives-2026')
+    expect(report.activeBucket).toContain('test-studio-vault-2026')
   })
 
   // 9. Toast Notifications + Download Lifecycle

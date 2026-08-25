@@ -14,9 +14,9 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usePersistentStore.setState({
-      savedBucketName: 'gs://partner-raw-master-archives-2026',
+      savedBucketName: 'gs://test-studio-vault-2026',
       savedProjectId: 'client-media-project-2026',
-      recentBuckets: ['gs://mediaserverrecovery'],
+      recentBuckets: ['gs://test-recovery-vault'],
       isFreeTrialAccount: true,
       customPricing: {
         archiveRetrievalPerGB: 0.05,
@@ -71,7 +71,7 @@ describe('Unit - Module 9: GCPConfigCenterModalShell', () => {
 
     // 3. Target GCS Bucket
     expect(screen.getByText(/3\. Target GCS Bucket/i)).toBeDefined()
-    expect(screen.getByText('gs://partner-raw-master-archives-2026')).toBeDefined()
+    expect(screen.getByText('gs://test-studio-vault-2026')).toBeDefined()
 
     // 4. Cost Governance & Rates
     expect(screen.getByText(/4\. Cost Governance & Rate Card/i)).toBeDefined()

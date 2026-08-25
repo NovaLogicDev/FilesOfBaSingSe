@@ -78,7 +78,7 @@ function createMockFileHandle(
 
 describe('M4 Deep Adversarial Stress Harness — Volatile RAM & Abort Latency', () => {
   const sampleToken = 'ya29.deep_adversarial_m4_valid_token'
-  const sampleBucket = 'partner-raw-master-archives-2026'
+  const sampleBucket = 'test-studio-vault-2026'
   const sampleProject = 'basingse-media-dl-1234'
   let originalFetch: typeof globalThis.fetch
 

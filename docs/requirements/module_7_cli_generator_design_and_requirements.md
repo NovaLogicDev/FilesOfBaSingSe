@@ -76,9 +76,9 @@ flowchart LR
 |  | $ multi-threaded high-performance transfer command:                                          |  |
 |  |                                                                                              |  |
 |  | gcloud storage cp \                                                                          |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf \         |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf \         |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov \       |  |
+|  |   gs://my-bucket/feature_films/reel_04/reel04_cam_A_raw.mxf \                                |  |
+|  |   gs://my-bucket/feature_films/reel_04/reel04_cam_B_raw.mxf \                                |  |
+|  |   gs://my-bucket/feature_films/reel_04/reel04_prores_proxy.mov \                              |  |
 |  |   ./destination_folder/ \                                                                    |  |
 |  |   --billing-project=client-prod-media-2026                                                   |  |
 |  +----------------------------------------------------------------------------------------------+  |

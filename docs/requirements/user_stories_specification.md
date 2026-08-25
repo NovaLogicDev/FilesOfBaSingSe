@@ -304,7 +304,7 @@ Provide comprehensive, technical object inspection including cryptographic hashe
 1. **Given** a user clicks the `[Info]` button or double-clicks any file row, **When** triggered, **Then** a slide-out drawer smoothly opens from the right side of the screen.
 2. **Given** the drawer is open, **When** rendered, **Then** it presents:
    - **Object Full Path**: (e.g., `feature_films/reel_04/reel04_cam_A_raw.mxf`).
-   - **Bucket**: `gs://partner-raw-master-archives-2026`.
+   - **Bucket**: `gs://media-vault-bucket`.
    - **Content-Type**: (e.g., `application/mxf` or `video/quicktime`).
    - **Exact Size**: (e.g., `18,400,000,000 bytes (18.40 GB / 17.13 GiB)`).
    - **Storage Class**: `ARCHIVE` with cold tier warning badge.
@@ -502,16 +502,16 @@ Empower technical users, data engineers, and Firefox users with pre-formatted, 1
 2. **Given** the modal opens, **When** rendering Option A (Modern `gcloud storage`), **Then** it produces:
    ```bash
    gcloud storage cp \
-     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf \
-     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf \
-     gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_prores_proxy.mov \
+     gs://media-vault-bucket/feature_films/reel_04/reel04_cam_A_raw.mxf \
+     gs://media-vault-bucket/feature_films/reel_04/reel04_cam_B_raw.mxf \
+     gs://media-vault-bucket/feature_films/reel_04/reel04_prores_proxy.mov \
      ./destination_folder/ \
      --billing-project=basingse-media-dl-2026
    ```
 3. **Given** Option B (Legacy `gsutil`), **When** toggled, **Then** it produces:
    ```bash
    gsutil -u basingse-media-dl-2026 -m cp -r \
-     gs://partner-raw-master-archives-2026/feature_films/reel_04/ .
+     gs://media-vault-bucket/feature_films/reel_04/ .
    ```
 4. **Given** the command box, **When** the user clicks `[Copy Command]`, **Then** the text copies to clipboard with visual toast feedback.
 
@@ -688,7 +688,7 @@ flowchart TD
 #### Acceptance Criteria
 1. **Given** an expired session or silent refresh failure on a configured workspace, **When** detected, **Then** the UI renders a prominent **"Resume Google Cloud Session"** card:
    - Displays the user's email hint: *"Welcome back, Taylor (taylor@freelance-edit.com)"*.
-   - Summarizes configured parameters: *"Billed Project: `client-prod-2026` | Target Bucket: `gs://partner-raw-master-archives-2026`"*.
+   - Summarizes configured parameters: *"Billed Project: `client-prod-2026` | Target Bucket: `gs://media-vault-bucket`"*.
    - Prominently features a primary button: `[ ⚡ Reconnect Google Session (1-Click) ]`.
    - Offers secondary action: `[ Switch Account / Reconfigure ]`.
 2. **Given** the user clicks `[ ⚡ Reconnect Google Session ]`, **When** the GIS OAuth popup completes, **Then**:
@@ -783,8 +783,8 @@ flowchart TD
 **So that** opening that link takes the recipient directly to that exact folder path inside the bucket.
 
 #### Acceptance Criteria
-1. **Given** a deep link URL in the address bar (e.g. `https://media.basingse.io/#/browse/partner-raw-master-archives-2026/feature_films/reel_04/`), **When** the page loads:
-   - The application parses `bucketName` (`partner-raw-master-archives-2026`) and `prefix` (`feature_films/reel_04/`).
+1. **Given** a deep link URL in the address bar (e.g. `https://media.basingse.io/#/browse/media-vault-bucket/feature_films/reel_04/`), **When** the page loads:
+   - The application parses `bucketName` (`media-vault-bucket`) and `prefix` (`feature_films/reel_04/`).
    - If the user has an existing session (or silent session restoration succeeds via Module 10), the application bypasses the onboarding wizard and loads that exact deep-linked folder directory immediately.
    - The breadcrumb bar reflects the full deep-linked hierarchy upon initial render.
 2. **Given** an unauthenticated user opens a deep link, **When** they complete Google Sign-In:
@@ -962,7 +962,7 @@ flowchart TD
 **So that** I know immediately whether I need to attach a GCP billing project or if downloads will be free of charge to my account.
 
 #### Acceptance Criteria
-1. **Given** a target bucket input (e.g. `gs://open-cinematic-assets` or `gs://partner-raw-master-archives-2026`), **When** preflight executes, **Then** the application issues a probe request `GET https://storage.googleapis.com/storage/v1/b/{bucket}` with OAuth Bearer token **without** attaching `userProject`.
+1. **Given** a target bucket input (e.g. `gs://open-cinematic-assets` or `gs://media-vault-bucket`), **When** preflight executes, **Then** the application issues a probe request `GET https://storage.googleapis.com/storage/v1/b/{bucket}` with OAuth Bearer token **without** attaching `userProject`.
 2. **Given** the probe response:
    - If `HTTP 200 OK` and `metadata.billing?.requesterPays !== true` $\rightarrow$ classified as **`owner-pays`**.
    - If `HTTP 400 Bad Request` with `UserProjectMissing` (or `metadata.billing?.requesterPays === true`) $\rightarrow$ classified as **`requester-pays`**.

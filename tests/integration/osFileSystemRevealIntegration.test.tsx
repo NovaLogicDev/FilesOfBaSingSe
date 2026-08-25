@@ -17,7 +17,7 @@ describe('OS File System Feedback & Reveal Integration Tests (Module 12 / Epic 1
     useToastStore.setState({ toasts: [] })
 
     usePersistentStore.setState({
-      savedBucketName: 'gs://partner-raw-master-archives-2026',
+      savedBucketName: 'gs://test-studio-vault-2026',
       savedProjectId: 'client-prod-media-2026',
       hasCompletedOnboarding: true,
       preferredDownloadStrategy: 'fsaa',

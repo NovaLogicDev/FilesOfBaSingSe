@@ -16,7 +16,7 @@ describe('Tier 1 - F6: Safari SW Stream Interceptor & Universal Fallbacks', () =
 
   it('generates multi-threaded gcloud storage cp CLI commands with billing project flag', () => {
     const command = CliGeneratorEngine.generateGcloudCommand({
-      bucketName: 'gs://partner-raw-master-archives-2026',
+      bucketName: 'gs://test-studio-vault-2026',
       selectedPaths: [
         'feature_films/reel_04/reel04_cam_A_raw.mxf',
         'feature_films/reel_04/reel04_cam_B_raw.mxf',
@@ -26,22 +26,22 @@ describe('Tier 1 - F6: Safari SW Stream Interceptor & Universal Fallbacks', () =
     })
 
     expect(command).toContain('gcloud storage cp')
-    expect(command).toContain('gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf')
-    expect(command).toContain('gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_B_raw.mxf')
+    expect(command).toContain('gs://test-studio-vault-2026/feature_films/reel_04/reel04_cam_A_raw.mxf')
+    expect(command).toContain('gs://test-studio-vault-2026/feature_films/reel_04/reel04_cam_B_raw.mxf')
     expect(command).toContain('./local_drop/')
     expect(command).toContain('--billing-project=freelance-vfx-lead')
   })
 
   it('generates legacy gsutil commands with -u project flag and multi-threading (-m)', () => {
     const command = CliGeneratorEngine.generateGsutilCommand({
-      bucketName: 'partner-raw-master-archives-2026',
+      bucketName: 'test-studio-vault-2026',
       selectedPaths: ['sound_stems/dialogue_isolated_master.wav'],
       userProject: 'audio-post-2026',
       destinationDir: '/Volumes/Scratch/Audio/',
     })
 
     expect(command).toContain('gsutil -u audio-post-2026 -m cp')
-    expect(command).toContain('gs://partner-raw-master-archives-2026/sound_stems/dialogue_isolated_master.wav')
+    expect(command).toContain('gs://test-studio-vault-2026/sound_stems/dialogue_isolated_master.wav')
     expect(command).toContain('/Volumes/Scratch/Audio/')
   })
 

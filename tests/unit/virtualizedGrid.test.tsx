@@ -332,13 +332,13 @@ describe('Unit - Milestone 6: High-Density 10,000+ Windowed Virtualized Asset Gr
       renderWithProviders(
         <BreadcrumbNav
           currentPrefix="feature_films/reel_04/scene_01/"
-          bucketName="partner-raw-master-archives-2026"
+          bucketName="test-studio-vault-2026"
           onNavigatePrefix={onNavigatePrefix}
         />,
       )
 
       expect(screen.getByText(/gs:\/\//i)).toBeInTheDocument()
-      expect(screen.getByText(/partner-raw-master-archives-2026/i)).toBeInTheDocument()
+      expect(screen.getByText(/test-studio-vault-2026/i)).toBeInTheDocument()
       expect(screen.getByText('feature_films')).toBeInTheDocument()
       expect(screen.getByText('reel_04')).toBeInTheDocument()
       expect(screen.getByText('scene_01')).toBeInTheDocument()

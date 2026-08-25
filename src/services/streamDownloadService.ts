@@ -291,6 +291,13 @@ export class StreamDownloadService {
     const userProject = (options.userProject || '').trim()
     const token = (options.oauthToken || '').trim()
 
+    if (!cleanBucket) {
+      throw new GCSClientError('INVALID_ARGUMENT', 'No GCS bucket specified.', {
+        bucket: '',
+        userProject,
+      })
+    }
+
     if (!token) {
       throw new GCSClientError('UNAUTHENTICATED', 'No OAuth access token provided.', {
         bucket: cleanBucket,
@@ -740,6 +747,13 @@ export class StreamDownloadService {
     const userProject = (options.userProject || '').trim()
     const token = (options.oauthToken || '').trim()
 
+    if (!cleanBucket) {
+      throw new GCSClientError('INVALID_ARGUMENT', 'No GCS bucket specified.', {
+        bucket: '',
+        userProject,
+      })
+    }
+
     if (!token) {
       throw new GCSClientError('UNAUTHENTICATED', 'No OAuth access token provided.', {
         bucket: cleanBucket,
@@ -987,6 +1001,13 @@ export class StreamDownloadService {
     const cleanObject = options.objectName.replace(/^\/+/, '')
     const userProject = (options.userProject || '').trim()
     const token = (options.oauthToken || '').trim()
+
+    if (!cleanBucket) {
+      throw new GCSClientError('INVALID_ARGUMENT', 'No GCS bucket specified.', {
+        bucket: '',
+        userProject,
+      })
+    }
 
     if (!token) {
       throw new GCSClientError('UNAUTHENTICATED', 'No OAuth access token provided.', {

@@ -16,7 +16,7 @@ import { resetAllStores } from '../helpers/testUtils'
 
 describe('M3 Challenger - Empirical Adversarial Stress & Fuzz Suite for GCS Client & 4-Point Preflight Handshake', () => {
   const sampleToken = 'ya29.sample_adversarial_m3_test_token'
-  const sampleBucket = 'partner-raw-master-archives-2026'
+  const sampleBucket = 'test-studio-vault-2026'
   const sampleProject = 'demo-client-media-2026'
   let originalFetch: typeof globalThis.fetch
 
@@ -44,8 +44,8 @@ describe('M3 Challenger - Empirical Adversarial Stress & Fuzz Suite for GCS Clie
         expect(gcsClientService.cleanBucketName('   \t\n  gs://padded-bucket/  \r\n ')).toBe('padded-bucket')
       })
 
-      it('returns fallback safely for empty, null, undefined, or malformed inputs', () => {
-        const defaultFallback = 'partner-raw-master-archives-2026'
+      it('returns empty string safely for empty, null, undefined, or malformed inputs without fallback', () => {
+        const defaultFallback = ''
         expect(gcsClientService.cleanBucketName('')).toBe(defaultFallback)
         expect(gcsClientService.cleanBucketName('    ')).toBe(defaultFallback)
         expect(gcsClientService.cleanBucketName('gs://')).toBe(defaultFallback)

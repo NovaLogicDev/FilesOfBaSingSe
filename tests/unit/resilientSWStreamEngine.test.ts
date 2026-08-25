@@ -26,7 +26,7 @@ describe('Engine 4: ResilientSWStreamEngine Unit Tests', () => {
     const abortController = new AbortController()
 
     const streamId = await ResilientSWStreamEngine.streamToBrowser({
-      bucketName: 'gs://partner-raw-master-archives-2026',
+      bucketName: 'gs://test-studio-vault-2026',
       objectName: 'footage/reel01.mxf',
       suggestedFilename: 'reel01.mxf',
       totalBytes: 524288000,
@@ -41,7 +41,7 @@ describe('Engine 4: ResilientSWStreamEngine Unit Tests', () => {
     expect(swService.register).toHaveBeenCalled()
     expect(swService.registerStreamTicket).toHaveBeenCalledWith(
       expect.objectContaining({
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         object: 'footage/reel01.mxf',
         filename: 'reel01.mxf',
         totalBytes: 524288000,

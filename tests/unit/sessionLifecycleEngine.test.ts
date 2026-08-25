@@ -16,7 +16,7 @@ describe('SessionLifecycleEngine (MOD-10 & Engine 8)', () => {
       const eligible = SessionLifecycleEngine.shouldBypassOnboarding(
         true,
         'client-prod-media-2026',
-        'gs://partner-raw-master-archives-2026',
+        'gs://test-studio-vault-2026',
       )
       expect(eligible).toBe(true)
     })
@@ -25,7 +25,7 @@ describe('SessionLifecycleEngine (MOD-10 & Engine 8)', () => {
       const eligible = SessionLifecycleEngine.shouldBypassOnboarding(
         false,
         'client-prod-media-2026',
-        'gs://partner-raw-master-archives-2026',
+        'gs://test-studio-vault-2026',
       )
       expect(eligible).toBe(false)
     })
@@ -55,7 +55,7 @@ describe('SessionLifecycleEngine (MOD-10 & Engine 8)', () => {
       // Setup persistent store state
       usePersistentStore.getState().setHasCompletedOnboarding(true)
       usePersistentStore.getState().setSavedProjectId('client-prod-2026')
-      usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+      usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
       usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
 
       // Mock gisAuthService.refreshTokenSilent
@@ -80,7 +80,7 @@ describe('SessionLifecycleEngine (MOD-10 & Engine 8)', () => {
     it('handles interaction_required / third-party cookie blockage gracefully', async () => {
       usePersistentStore.getState().setHasCompletedOnboarding(true)
       usePersistentStore.getState().setSavedProjectId('client-prod-2026')
-      usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+      usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
       usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
 
       vi.spyOn(gisAuthService, 'refreshTokenSilent').mockRejectedValueOnce(

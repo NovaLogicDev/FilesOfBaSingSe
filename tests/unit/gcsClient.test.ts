@@ -16,7 +16,7 @@ import { resetAllStores } from '../helpers/testUtils'
 
 describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Preflight Handshake', () => {
   const sampleToken = 'ya29.sample_gcs_test_token'
-  const sampleBucket = 'partner-raw-master-archives-2026'
+  const sampleBucket = 'test-studio-vault-2026'
   const sampleProject = 'client-media-project-2026'
   let originalFetch: typeof globalThis.fetch
 
@@ -52,11 +52,11 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
       expect(gcsClientService.cleanBucketName('gs://my-bucket///')).toBe('my-bucket')
     })
 
-    it('returns default fallback when given empty or whitespace-only input', () => {
-      expect(gcsClientService.cleanBucketName('')).toBe('partner-raw-master-archives-2026')
-      expect(gcsClientService.cleanBucketName('   ')).toBe('partner-raw-master-archives-2026')
-      expect(gcsClientService.cleanBucketName('gs://')).toBe('partner-raw-master-archives-2026')
-      expect(gcsClientService.cleanBucketName(null as any)).toBe('partner-raw-master-archives-2026')
+    it('returns empty string when given empty or whitespace-only input without fallback', () => {
+      expect(gcsClientService.cleanBucketName('')).toBe('')
+      expect(gcsClientService.cleanBucketName('   ')).toBe('')
+      expect(gcsClientService.cleanBucketName('gs://')).toBe('')
+      expect(gcsClientService.cleanBucketName(null as any)).toBe('')
     })
 
     it('allows custom fallback', () => {
@@ -66,7 +66,7 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
 
   describe('validateBucketName', () => {
     it('accepts valid bucket names according to Google Cloud rules', () => {
-      expect(gcsClientService.validateBucketName('partner-raw-master-archives-2026').valid).toBe(true)
+      expect(gcsClientService.validateBucketName('custom-media-vault').valid).toBe(true)
       expect(gcsClientService.validateBucketName('my-bucket-123').valid).toBe(true)
       expect(gcsClientService.validateBucketName('bucket.with.dots').valid).toBe(true)
       expect(gcsClientService.validateBucketName('bucket_with_underscores').valid).toBe(true)
@@ -137,9 +137,9 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
     it('converts raw GCSObject into normalized AssetItem for UI display', () => {
       const rawObject: GCSObject = {
         kind: 'storage#object',
-        id: 'partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf/1721038935129482',
+        id: 'test-studio-vault-2026/feature_films/reel_04/reel04_cam_A_raw.mxf/1721038935129482',
         name: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         generation: '1721038935129482',
         metageneration: '1',
         contentType: 'application/mxf',
@@ -156,7 +156,7 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
       expect(item.name).toBe('feature_films/reel_04/reel04_cam_A_raw.mxf')
       expect(item.displayName).toBe('reel04_cam_A_raw.mxf')
       expect(item.type).toBe('file')
-      expect(item.bucket).toBe('partner-raw-master-archives-2026')
+      expect(item.bucket).toBe('test-studio-vault-2026')
       expect(item.sizeBytes).toBe(18_400_000_000)
       expect(item.formattedSize).toBe('18.4 GB')
       expect(item.storageClass).toBe('ARCHIVE')
@@ -168,9 +168,9 @@ describe('GCSClientService - Live GCS JSON REST API v1 Client & 4-Point Prefligh
     it('identifies directory folders if name ends with /', () => {
       const rawFolder: GCSObject = {
         kind: 'storage#object',
-        id: 'partner-raw-master-archives-2026/feature_films/reel_04/',
+        id: 'test-studio-vault-2026/feature_films/reel_04/',
         name: 'feature_films/reel_04/',
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         generation: '1',
         contentType: 'application/x-directory',
         storageClass: 'STANDARD',

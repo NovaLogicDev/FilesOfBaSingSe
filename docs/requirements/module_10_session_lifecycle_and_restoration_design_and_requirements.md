@@ -64,7 +64,7 @@ flowchart TD
   - If silent token re-acquisition fails (due to third-party cookie restrictions, expired Google session, or browser privacy partitions), the application shall **not** reset the user's configured project or bucket.
   - Instead, the workspace shall render an elegant **Session Re-Authentication Card** (or Header Reconnect Prompt):
     - Displays user identity hint: *"Welcome back, Taylor (taylor@freelance-edit.com)"*.
-    - Context summary: *"Active Project: `client-media-prod-2026` | Bucket: `gs://partner-raw-master-archives-2026`"*.
+    - Context summary: *"Active Project: `client-media-prod-2026` | Bucket: `gs://media-vault`"*.
     - Primary Action: `[ ⚡ Reconnect Google Session (1-Click) ]`.
     - Secondary Action: `[ Switch Account / Reconfigure ]`.
   - Clicking "Reconnect Google Session" launches the standard GIS popup. Upon authorization, the user is immediately returned to their exact directory path without stepping through the onboarding wizard.
@@ -376,7 +376,7 @@ export class SessionLifecycleEngine {
 |  |                                                                                              |  |
 |  | ACTIVE CONFIGURATION:                                                                        |  |
 |  | • Billed Project: client-prod-media-2026                                                      |  |
-|  | • Target Bucket:  gs://partner-raw-master-archives-2026                                       |  |
+|  | • Target Bucket:  gs://media-vault                                                           |  |
 |  |                                                                                              |  |
 |  | [ ⚡ Reconnect Google Session (1-Click) ]             [ Switch Account / Reconfigure ]        |  |
 |  +----------------------------------------------------------------------------------------------+  |

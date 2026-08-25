@@ -191,7 +191,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
           storageClass: 'STANDARD',
         },
         {
-          bucketName: 'partner-raw-master-archives-2026',
+          bucketName: 'test-studio-vault-2026',
           objectName: '50gb_master_reel.mxf',
           userProject: 'basingse-media-dl-1001',
           oauthToken: 'ya29.test-multi-gb',
@@ -224,7 +224,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
 
       await expect(
         streamDownloadService.downloadFileMemoryBlob(asset250MB, {
-          bucketName: 'partner-raw-master-archives-2026',
+          bucketName: 'test-studio-vault-2026',
           objectName: 'large_archive_250mb.tar',
           userProject: 'basingse-media-dl-1001',
           oauthToken: 'ya29.test-token',
@@ -267,7 +267,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
         streamDownloadService.downloadFileFSAA(
           { name: 'failing_stream.mxf', sizeBytes: 1000 },
           {
-            bucketName: 'partner-raw-master-archives-2026',
+            bucketName: 'test-studio-vault-2026',
             objectName: 'failing_stream.mxf',
             userProject: 'basingse-media-dl-1001',
             oauthToken: 'ya29.valid-token',
@@ -305,7 +305,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
         streamDownloadService.downloadFileFSAA(
           { name: 'null_body.mxf', sizeBytes: 100 },
           {
-            bucketName: 'partner-raw-master-archives-2026',
+            bucketName: 'test-studio-vault-2026',
             objectName: 'null_body.mxf',
             userProject: 'basingse-media-dl-1001',
             oauthToken: 'ya29.valid-token',
@@ -327,7 +327,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
         streamDownloadService.downloadFileFSAA(
           { name: 'cors_blocked.mxf', sizeBytes: 100 },
           {
-            bucketName: 'partner-raw-master-archives-2026',
+            bucketName: 'test-studio-vault-2026',
             objectName: 'cors_blocked.mxf',
             userProject: 'basingse-media-dl-1001',
             oauthToken: 'ya29.valid-token',
@@ -385,7 +385,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
           crc32c: calculated.base64,
         },
         {
-          bucketName: 'partner-raw-master-archives-2026',
+          bucketName: 'test-studio-vault-2026',
           objectName: 'corrupted_bit.mxf',
           userProject: 'basingse-media-dl-1001',
           oauthToken: 'ya29.test-token',
@@ -456,8 +456,8 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
     it('normalizes bizarre, malformed, or nested bucket and prefix paths cleanly', () => {
       expect(gcsClientService.cleanBucketName('gs://my-bucket///')).toBe('my-bucket')
       expect(gcsClientService.cleanBucketName('   GS://ARCHIVE-VAULT/  ')).toBe('ARCHIVE-VAULT')
-      expect(gcsClientService.cleanBucketName('')).toBe('partner-raw-master-archives-2026')
-      expect(gcsClientService.cleanBucketName('///')).toBe('partner-raw-master-archives-2026')
+      expect(gcsClientService.cleanBucketName('')).toBe('')
+      expect(gcsClientService.cleanBucketName('///')).toBe('')
 
       // Bucket validation rules
       expect(gcsClientService.validateBucketName('ab').valid).toBe(false) // Too short
@@ -557,7 +557,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
 
     it('service worker stream ticket registration and abort lifecycle', async () => {
       const ticket = {
-        bucket: 'partner-raw-master-archives-2026',
+        bucket: 'test-studio-vault-2026',
         object: 'master.mxf',
         userProject: 'basingse-media-dl-1001',
         token: 'ya29.sample-token',
@@ -672,7 +672,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
       // 1. Missing token
       const resultNoToken = await gcsClientService.run4PointPreflight(
         '',
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         'basingse-media-dl-1001',
       )
       expect(resultNoToken.oauthTokenValid).toBe(false)
@@ -683,7 +683,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
       const expiredSoonTimestamp = Date.now() + 30 * 1000
       const resultExpiring = await gcsClientService.run4PointPreflight(
         'ya29.expiring-token',
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         'basingse-media-dl-1001',
         expiredSoonTimestamp,
       )
@@ -694,7 +694,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
     it('identifies missing userProject on Requester-Pays bucket in step 2', async () => {
       const result = await gcsClientService.run4PointPreflight(
         'ya29.valid-token',
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         '', // Missing userProject
       )
       expect(result.oauthTokenValid).toBe(true)
@@ -723,7 +723,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
 
       const result = await gcsClientService.run4PointPreflight(
         'ya29.valid-token',
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         'basingse-media-dl-1001',
       )
 
@@ -764,8 +764,8 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
             ok: true,
             status: 200,
             json: async () => ({
-              id: 'partner-raw-master-archives-2026',
-              name: 'partner-raw-master-archives-2026',
+              id: 'test-studio-vault-2026',
+              name: 'test-studio-vault-2026',
               billing: { requesterPays: true },
             }),
           } as any
@@ -784,7 +784,7 @@ describe('Tier 5 - Adversarial Coverage Hardening & Edge-Case Stress Suite', () 
 
       const result = await gcsClientService.run4PointPreflight(
         'ya29.healthy-token',
-        'partner-raw-master-archives-2026',
+        'test-studio-vault-2026',
         'basingse-media-dl-1001',
       )
 

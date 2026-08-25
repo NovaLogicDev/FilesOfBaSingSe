@@ -16,7 +16,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
     window.history.replaceState(null, '', '/')
 
     usePersistentStore.setState({
-      savedBucketName: 'partner-raw-master-archives-2026',
+      savedBucketName: 'test-studio-vault-2026',
       savedProjectId: 'client-prod-media-2026',
       hasCompletedOnboarding: true,
       lastAuthUserEmail: 'alex@production-studio.com',
@@ -55,11 +55,11 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
           folders: [],
           files: [
             {
-              id: 'partner-raw-master-archives-2026/feature_films/reel_04/cam_A.mxf',
+              id: 'test-studio-vault-2026/feature_films/reel_04/cam_A.mxf',
               name: 'feature_films/reel_04/cam_A.mxf',
               displayName: 'cam_A.mxf',
               type: 'file',
-              bucket: 'partner-raw-master-archives-2026',
+              bucket: 'test-studio-vault-2026',
               sizeBytes: 1024 * 1024 * 500,
               formattedSize: '500.00 MB',
               storageClass: 'STANDARD',
@@ -106,12 +106,12 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
     await waitFor(() => {
       expect(pushSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          bucket: 'partner-raw-master-archives-2026',
+          bucket: 'test-studio-vault-2026',
           prefix: 'feature_films/',
           source: 'user_interaction',
         }),
         '',
-        '#/browse/partner-raw-master-archives-2026/feature_films/'
+        '#/browse/test-studio-vault-2026/feature_films/'
       )
     })
 
@@ -129,11 +129,11 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
     await waitFor(() => {
       expect(pushSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          bucket: 'partner-raw-master-archives-2026',
+          bucket: 'test-studio-vault-2026',
           prefix: 'feature_films/reel_04/',
         }),
         '',
-        '#/browse/partner-raw-master-archives-2026/feature_films/reel_04/'
+        '#/browse/test-studio-vault-2026/feature_films/reel_04/'
       )
     })
 
@@ -142,7 +142,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
       expect(screen.getByText('cam_A.mxf')).toBeInTheDocument()
     })
 
-    // Breadcrumbs should render: [gs://partner-raw-master-archives-2026] > [feature_films] > [reel_04]
+    // Breadcrumbs should render: [gs://test-studio-vault-2026] > [feature_films] > [reel_04]
     expect(screen.getByText('feature_films')).toBeInTheDocument()
     expect(screen.getByText('reel_04')).toBeInTheDocument()
 
@@ -158,7 +158,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
           prefix: 'feature_films/',
         }),
         '',
-        '#/browse/partner-raw-master-archives-2026/feature_films/'
+        '#/browse/test-studio-vault-2026/feature_films/'
       )
     })
   })
@@ -184,7 +184,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
     await act(async () => {
       const popStateEvent = new PopStateEvent('popstate', {
         state: {
-          bucket: 'partner-raw-master-archives-2026',
+          bucket: 'test-studio-vault-2026',
           prefix: '',
           timestamp: Date.now(),
           source: 'popstate',
@@ -200,7 +200,7 @@ describe('Browser History & URL Synchronization Integration Tests (Module 11 / E
   })
 
   it('should hydrate deep link on boot from initial window.location.hash', async () => {
-    window.location.hash = '#/browse/partner-raw-master-archives-2026/feature_films/reel_04/'
+    window.location.hash = '#/browse/test-studio-vault-2026/feature_films/reel_04/'
 
     render(<AppShell />)
 

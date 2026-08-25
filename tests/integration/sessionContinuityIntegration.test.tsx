@@ -25,7 +25,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     usePersistentStore.getState().setHasCompletedOnboarding(true)
     usePersistentStore.getState().setAutoRestoreSessionOnReload(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
-    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
     usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
     usePersistentStore.getState().setLastAuthUserName('Taylor (Colorist)')
 
@@ -78,7 +78,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     // 1. Setup persistent session hints
     usePersistentStore.getState().setHasCompletedOnboarding(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
-    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
     usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
 
     // 2. Mock silent refresh rejection (e.g. cookies blocked)
@@ -94,7 +94,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     expect(card).toBeInTheDocument()
     expect(within(card).getByText(/Resume Google Cloud Session/i)).toBeInTheDocument()
     expect(within(card).getByText(/client-media-prod-2026/i)).toBeInTheDocument()
-    expect(within(card).getByText(/gs:\/\/partner-raw-master-archives-2026/i)).toBeInTheDocument()
+    expect(within(card).getByText(/gs:\/\/test-studio-vault-2026/i)).toBeInTheDocument()
 
     // 5. Mock interactive signIn when user clicks 1-click reconnect
     vi.spyOn(gisAuthService, 'signIn').mockImplementation(async () => {
@@ -153,7 +153,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     // 1. Setup authenticated returning user with active session
     usePersistentStore.getState().setHasCompletedOnboarding(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
-    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
     useRuntimeStore.getState().setAuth('ya29.expired-token', 'taylor@freelance-edit.com', 'Taylor', undefined, 3600)
 
     let listAttempt = 0
@@ -202,7 +202,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     // 1. Setup persistent preferences
     usePersistentStore.getState().setHasCompletedOnboarding(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
-    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
     usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
 
     // 2. Set auth in runtimeStore (which writes to sessionStorage)
@@ -241,7 +241,7 @@ describe('Session Continuity & Onboarding Bypass Integration (MOD-10 & Epic 10)'
     // 1. Setup persistent preferences
     usePersistentStore.getState().setHasCompletedOnboarding(true)
     usePersistentStore.getState().setSavedProjectId('client-media-prod-2026')
-    usePersistentStore.getState().setSavedBucketName('gs://partner-raw-master-archives-2026')
+    usePersistentStore.getState().setSavedBucketName('gs://test-studio-vault-2026')
     usePersistentStore.getState().setLastAuthUserEmail('taylor@freelance-edit.com')
 
     // 2. Simulate Tab A writing to localStorage app session vault

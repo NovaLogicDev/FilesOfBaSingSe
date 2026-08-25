@@ -48,7 +48,7 @@ describe('ObservabilityService (Logging & Sanitized Diagnostics)', () => {
     ObservabilityService.info('PREFLIGHT', 'Handshake completed with 4 green checkpoints')
 
     const report = ObservabilityService.generateReport(
-      'gs://partner-raw-master-archives-2026',
+      'gs://client-media-vault',
       'client-media-project-2026',
     )
 

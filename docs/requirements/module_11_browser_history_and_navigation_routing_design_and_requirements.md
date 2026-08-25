@@ -5,7 +5,7 @@
 
 ### 1. Executive Summary & Problem Statement
 
-In media production environments, client users (video editors, VFX supervisors, colorists, and post-production leads) navigate deep, nested directory hierarchies within Google Cloud Storage buckets (e.g., `gs://partner-raw-master-archives-2026/feature_films/reel_04/camera_raw/scene_12A/`). 
+In media production environments, client users (video editors, VFX supervisors, colorists, and post-production leads) navigate deep, nested directory hierarchies within Google Cloud Storage buckets (e.g., `gs://client-media-vault/feature_films/reel_04/camera_raw/scene_12A/`). 
 
 #### The Problem:
 1. **Broken Browser History Traversal**: In a standard client-side SPA state model, clicking through breadcrumb segments or folder rows updates only local React component state (`useState` / Zustand). When a user naturally presses their browser's **Back** or **Forward** buttons (or uses keyboard shortcuts `Alt+Left`, `Alt+Right`, `Cmd+[`, `Cmd+]`, or mouse navigation buttons), the browser navigates entirely away from the application page or reloads the unauthenticated root, causing immediate context loss and workflow disruption.
@@ -44,8 +44,8 @@ flowchart TD
     ```
     #/browse/{bucketName}/{encodedPrefix}
     ```
-    - Example Root: `#/browse/partner-raw-master-archives-2026/`
-    - Example Nested: `#/browse/partner-raw-master-archives-2026/feature_films/reel_04/`
+    - Example Root: `#/browse/client-media-vault/`
+    - Example Nested: `#/browse/client-media-vault/feature_films/reel_04/`
   - **Query-Param Fallback Schema** (supported as alias on input):
     ```
     #/browse?bucket={bucketName}&prefix={encodedPrefix}
@@ -164,10 +164,10 @@ sequenceDiagram
     participant GCS as GCS REST API
 
     User->>Breadcrumb: Clicks "feature_films" (navigating up from reel_04)
-    Breadcrumb->>Router: navigateToPrefix("feature_films/", "partner-raw-master-archives-2026")
-    Router->>Browser: pushState({ bucket, prefix: "feature_films/", timestamp }, "", "#/browse/partner-raw-master-archives-2026/feature_films/")
+    Breadcrumb->>Router: navigateToPrefix("feature_films/", "client-media-vault")
+    Router->>Browser: pushState({ bucket, prefix: "feature_films/", timestamp }, "", "#/browse/client-media-vault/feature_films/")
     Router->>App: onPrefixChange("feature_films/")
-    App->>Breadcrumb: Update active segments: [gs://] > [partner-raw-master-archives-2026] > [feature_films]
+    App->>Breadcrumb: Update active segments: [gs://] > [client-media-vault] > [feature_films]
     App->>GCS: GET /o?delimiter=/&prefix=feature_films/&userProject=...
     GCS-->>App: Returns folders & files
     App-->>User: Renders directory in <150ms

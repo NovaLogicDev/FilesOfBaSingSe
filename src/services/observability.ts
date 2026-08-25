@@ -71,8 +71,8 @@ export class ObservabilityService {
    * Generates a fully sanitized diagnostic report payload.
    */
   public static generateReport(
-    activeBucket: string = 'gs://partner-raw-master-archives-2026',
-    activeProjectId: string = 'client-media-project-2026',
+    activeBucket: string = '',
+    activeProjectId: string = '',
   ): DiagnosticReport {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'
     let browserEngine: 'Chromium' | 'WebKit' | 'Gecko' | 'Unknown' = 'Unknown'

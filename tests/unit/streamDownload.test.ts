@@ -511,7 +511,7 @@ describe('StreamDownloadService (Native Chromium 4MB Micro-Chunk Direct-to-Disk 
       name: 'empty.txt',
       displayName: 'empty.txt',
       sizeBytes: 0,
-      bucket: 'partner-raw-master-archives-2026',
+      bucket: 'test-studio-vault-2026',
     }
     const { handle, isClosed } = createMockFileHandle(asset.displayName)
 
@@ -551,7 +551,7 @@ describe('StreamDownloadService (Native Chromium 4MB Micro-Chunk Direct-to-Disk 
     vi.stubGlobal('fetch', fetchMock)
 
     await streamDownloadService.downloadFileFSAA(asset, {
-      bucketName: 'gs://partner-raw-master-archives-2026/',
+      bucketName: 'gs://test-studio-vault-2026/',
       objectName: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
       userProject: 'my-billing-project-99',
       oauthToken: 'secret-token-xyz',
@@ -559,7 +559,7 @@ describe('StreamDownloadService (Native Chromium 4MB Micro-Chunk Direct-to-Disk 
     })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://storage.googleapis.com/storage/v1/b/partner-raw-master-archives-2026/o/feature_films%2Freel_04%2Freel04_cam_A_raw.mxf?alt=media&userProject=my-billing-project-99',
+      'https://storage.googleapis.com/storage/v1/b/test-studio-vault-2026/o/feature_films%2Freel_04%2Freel04_cam_A_raw.mxf?alt=media&userProject=my-billing-project-99',
       expect.objectContaining({
         method: 'GET',
         headers: {

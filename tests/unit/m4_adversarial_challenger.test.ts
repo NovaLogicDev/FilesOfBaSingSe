@@ -159,7 +159,7 @@ function createMockReadableStream(
 
 describe('M4 Adversarial Challenger - Stream Engine & CRC32c Empirical Stress Suite', () => {
   const sampleToken = 'ya29.sample_adversarial_m4_valid_token'
-  const sampleBucket = 'partner-raw-master-archives-2026'
+  const sampleBucket = 'test-studio-vault-2026'
   const sampleProject = 'basingse-media-dl-1234'
   let originalFetch: typeof globalThis.fetch
 
@@ -971,7 +971,7 @@ describe('M4 Adversarial Challenger - Stream Engine & CRC32c Empirical Stress Su
       vi.stubGlobal('fetch', fetchSpy)
 
       await streamDownloadService.downloadFileFSAA(asset, {
-        bucketName: 'gs://partner-raw-master-archives-2026/',
+        bucketName: 'gs://test-studio-vault-2026/',
         objectName: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
         userProject: 'my-custom-billing-project-2026',
         oauthToken: 'ya29.valid-oauth-bearer-token',
@@ -981,7 +981,7 @@ describe('M4 Adversarial Challenger - Stream Engine & CRC32c Empirical Stress Su
       expect(fetchSpy).toHaveBeenCalledTimes(1)
       const [calledUrl, calledOptions] = fetchSpy.mock.calls[0]
       expect(calledUrl).toBe(
-        'https://storage.googleapis.com/storage/v1/b/partner-raw-master-archives-2026/o/feature_films%2Freel_04%2Freel04_cam_A_raw.mxf?alt=media&userProject=my-custom-billing-project-2026',
+        'https://storage.googleapis.com/storage/v1/b/test-studio-vault-2026/o/feature_films%2Freel_04%2Freel04_cam_A_raw.mxf?alt=media&userProject=my-custom-billing-project-2026',
       )
       expect(calledOptions.headers.Authorization).toBe('Bearer ya29.valid-oauth-bearer-token')
     })

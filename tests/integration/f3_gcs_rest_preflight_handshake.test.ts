@@ -11,7 +11,7 @@ describe('Tier 1 - F3: GCS REST Querying & 4-Point Preflight Handshake', () => {
   })
 
   it('performs delimiter-based virtual directory slicing at root level (delimiter=/)', async () => {
-    const listing = await gcsClientService.listObjects(testToken, 'partner-raw-master-archives-2026', {
+    const listing = await gcsClientService.listObjects(testToken, 'test-studio-vault-2026', {
       prefix: '',
       delimiter: '/',
       userProject: 'client-media-project-2026',
@@ -23,7 +23,7 @@ describe('Tier 1 - F3: GCS REST Querying & 4-Point Preflight Handshake', () => {
   })
 
   it('slices nested virtual directories and returns leaf media objects', async () => {
-    const listing = await gcsClientService.listObjects(testToken, 'partner-raw-master-archives-2026', {
+    const listing = await gcsClientService.listObjects(testToken, 'test-studio-vault-2026', {
       prefix: 'sound_stems/',
       delimiter: '/',
       userProject: 'client-media-project-2026',
@@ -39,7 +39,7 @@ describe('Tier 1 - F3: GCS REST Querying & 4-Point Preflight Handshake', () => {
   })
 
   it('extracts complete GCS object metadata including generation and checksums', async () => {
-    const listing = await gcsClientService.listObjects(testToken, 'partner-raw-master-archives-2026', {
+    const listing = await gcsClientService.listObjects(testToken, 'test-studio-vault-2026', {
       prefix: 'feature_films/reel_04/',
       delimiter: '/',
       userProject: 'client-media-project-2026',
@@ -56,7 +56,7 @@ describe('Tier 1 - F3: GCS REST Querying & 4-Point Preflight Handshake', () => {
   it('executes successful 4-point preflight handshake with active userProject', async () => {
     const preflight = await gcsClientService.run4PointPreflight(
       testToken,
-      'partner-raw-master-archives-2026',
+      'test-studio-vault-2026',
       'client-media-project-2026',
     )
 
@@ -79,7 +79,7 @@ describe('Tier 1 - F3: GCS REST Querying & 4-Point Preflight Handshake', () => {
   it('fails preflight with actionable remediation when userProject is omitted', async () => {
     const preflight = await gcsClientService.run4PointPreflight(
       testToken,
-      'partner-raw-master-archives-2026',
+      'test-studio-vault-2026',
       '',
     )
 

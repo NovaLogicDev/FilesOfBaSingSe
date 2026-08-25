@@ -127,7 +127,7 @@ flowchart LR
 |                                                                                                    |
 |  [ PERSISTENT LOCALSTORAGE ] (Non-Sensitive User Preferences & Session Hints Only)                 |
 |  • Client GCP Project ID String (e.g., "client-prod-media-2026")                                   |
-|  • Target GCS Bucket URI (e.g., "gs://partner-raw-master-archives-2026")                           |
+|  • Target GCS Bucket URI (e.g., "gs://your-bucket-name")                                             |
 |  • Recent Bucket History Array (Last 5 visited buckets)                                            |
 |  • Onboarding Completion Flag (hasCompletedOnboarding: boolean)                                    |
 |  • Last Authenticated User Email Hint (lastAuthUserEmail: string)                                  |

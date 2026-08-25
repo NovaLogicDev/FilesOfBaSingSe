@@ -33,7 +33,7 @@ flowchart LR
 - **FR-6.1**: Smooth slide-out panel from the right edge (380px fixed width on desktop, full-width overlay on tablet/mobile).
 - **FR-6.2**: Comprehensive technical property display:
   - Object Full Path (e.g. `feature_films/reel_04/reel04_cam_A_raw.mxf`).
-  - Bucket URI (`gs://partner-raw-master-archives-2026`).
+  - Bucket URI (`gs://bucket-name`).
   - MIME Content-Type (e.g. `application/mxf`, `video/quicktime`, `audio/wav`).
   - Exact Byte Count & Decimal/Binary formats (e.g. `18,400,000,000 bytes (18.40 GB / 17.13 GiB)`).
   - Storage Class with badge (`ARCHIVE`, `COLDLINE`, `STANDARD`).

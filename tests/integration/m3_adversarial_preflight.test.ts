@@ -12,7 +12,7 @@ import { resetAllStores } from '../helpers/testUtils'
 
 describe('M3 Adversarial Empirical Verification - 4-Point Preflight Edge Cases & Zero-Backend Liability', () => {
   const token = 'ya29.adversarial_test_token_2026'
-  const bucket = 'partner-raw-master-archives-2026'
+  const bucket = 'test-studio-vault-2026'
   const userProject = 'client-billing-prod-2026'
   let originalFetch: typeof globalThis.fetch
   let interceptedRequests: { url: string; init?: RequestInit }[] = []

@@ -119,7 +119,7 @@ describe('Tier 4 - Scenario 2: Full End-to-End Onboarding to Verified Direct-to-
     })
 
     const bucketInput = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
-    fireEvent.change(bucketInput, { target: { value: 'gs://partner-raw-master-archives-2026' } })
+    fireEvent.change(bucketInput, { target: { value: 'gs://test-studio-vault-2026' } })
 
     // Advance to Step 4
     const continueToPreflightBtn = screen.getByRole('button', { name: /continue/i })

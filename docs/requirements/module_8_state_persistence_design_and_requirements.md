@@ -41,7 +41,7 @@ flowchart TD
 - **FR-8.1**: Volatile Credential Storage: OAuth access tokens, expiration countdowns, and active download `AbortController` instances reside exclusively in volatile Zustand state.
 - **FR-8.2**: LocalStorage Persistence: Automatically synchronizes non-sensitive client preferences:
   - `savedProjectId`: string (e.g. `"client-prod-media-2026"`).
-  - `savedBucketName`: string (e.g. `"partner-raw-master-archives-2026"`).
+  - `savedBucketName`: string (e.g. `"my-bucket"`).
   - `activeBucketBillingMode`: `'requester-pays' | 'owner-pays'`.
   - `recentBuckets`: array of strings (capped at 5 items).
   - `recentBucketModes`: mapping of bucket name to billing mode.

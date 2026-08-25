@@ -15,7 +15,7 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     vi.restoreAllMocks()
     usePersistentStore.setState({
       savedProjectId: 'client-media-project-2026',
-      savedBucketName: 'gs://partner-raw-master-archives-2026',
+      savedBucketName: 'gs://test-studio-vault-2026',
     })
     useRuntimeStore.setState({
       oauthToken: 'mock-oauth-token',
@@ -297,7 +297,7 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     // Step 3: Enter bucket
     fireEvent.click(screen.getByText(/3\. Target Bucket/i))
     const bucketInputEl = screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)
-    fireEvent.change(bucketInputEl, { target: { value: 'gs://mediaserverrecovery' } })
+    fireEvent.change(bucketInputEl, { target: { value: 'gs://test-recovery-vault' } })
 
     // Step 4: Navigate to Preflight
     fireEvent.click(screen.getByText(/4\. Preflight/i))
@@ -306,7 +306,7 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     await waitFor(() => {
       expect(preflightSpy).toHaveBeenCalledWith(
         'live-token-for-step-4',
-        'mediaserverrecovery',
+        'test-recovery-vault',
         'media-prod-2026',
         undefined,
       )
@@ -348,7 +348,7 @@ describe('OnboardingWizardShell - GIS Auth & Step 2 Smart GCP Setup Flow', () =>
     // Verify input has neutral placeholder and no recent buckets section is rendered
     expect(screen.getByPlaceholderText(/gs:\/\/your-bucket-name/i)).toBeInTheDocument()
     expect(screen.queryByText(/Recently Used Buckets/i)).not.toBeInTheDocument()
-    expect(screen.queryByText('gs://mediaserverrecovery')).not.toBeInTheDocument()
+    expect(screen.queryByText('gs://test-recovery-vault')).not.toBeInTheDocument()
   })
 })
 

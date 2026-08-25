@@ -13,9 +13,9 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usePersistentStore.setState({
-      savedBucketName: 'gs://partner-raw-master-archives-2026',
+      savedBucketName: 'gs://test-studio-vault-2026',
       recentBuckets: [
-        'gs://mediaserverrecovery',
+        'gs://test-recovery-vault',
       ],
       savedProjectId: 'client-media-project-2026',
     })
@@ -33,7 +33,7 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
       />,
     )
 
-    expect(screen.getByText('gs://partner-raw-master-archives-2026')).toBeDefined()
+    expect(screen.getByText('gs://test-studio-vault-2026')).toBeDefined()
     expect(screen.queryByText(/Target GCS Bucket Switcher/i)).toBeNull()
   })
 
@@ -49,7 +49,7 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
     fireEvent.click(trigger)
 
     expect(screen.getByText(/Target GCS Bucket Switcher/i)).toBeDefined()
-    expect(screen.getByText('gs://mediaserverrecovery')).toBeDefined()
+    expect(screen.getByText('gs://test-recovery-vault')).toBeDefined()
   })
 
   it('allows switching to a recent bucket with 1 click', async () => {
@@ -67,7 +67,7 @@ describe('Unit - Module 9: BucketSwitcherPopover', () => {
     fireEvent.click(switchButtons[0])
 
     await waitFor(() => {
-      expect(onBucketSwitchMock).toHaveBeenCalledWith('gs://mediaserverrecovery')
+      expect(onBucketSwitchMock).toHaveBeenCalledWith('gs://test-recovery-vault')
     })
   })
 

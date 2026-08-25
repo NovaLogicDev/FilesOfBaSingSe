@@ -112,7 +112,7 @@ describe('SwService (Safari Service Worker Lifecycle & Stream Interceptor Manage
 
   it('registers one-time volatile stream tickets with unique streamIds without URL token exposure', async () => {
     const ticket: StreamTicket = {
-      bucket: 'partner-raw-master-archives-2026',
+      bucket: 'test-studio-vault-2026',
       object: 'feature_films/reel_04/reel04_cam_A_raw.mxf',
       userProject: 'basingse-media-dl-1234',
       token: 'ya29.secret-volatile-ram-token',

@@ -105,10 +105,10 @@ flowchart TD
 #### 3.1 Header Bucket Switcher Popover Wireframe
 ```
 +-------------------------------------------------------------------------+
-| [Layers] gs://partner-raw-master-archives-2026 [▾]                      |
+| [Layers] gs://media-vault [▾]                                           |
 +-------------------------------------------------------------------------+
 | CONNECTED BUCKET                                                        |
-| ● gs://partner-raw-master-archives-2026 (Active)                        |
+| ● gs://media-vault (Active)                                             |
 |                                                                         |
 | RECENT BUCKETS                                                          |
 | ↳ gs://avatar-fire-nation-stems-2026                 [ Switch ]         |
@@ -137,7 +137,7 @@ flowchart TD
 |  [ Switch Account ]     [ Refresh Token ]            [ Switch Project ]               |
 |                                                                                       |
 |  [ 3. TARGET GCS BUCKET ]                            [ 4. COST & RATE CARD ]          |
-|  Bucket: gs://partner-raw-master-archives-2026       Archive: $0.05/GB                |
+|  Bucket: gs://media-vault                            Archive: $0.05/GB                |
 |  Region: US Multi-Region                             Coldline: $0.02/GB | Egress: $0.12|
 |  Requester-Pays: Enforced ●                          Contract: Standard GCP Rates     |
 |  CORS Headers: x-goog-hash, Content-Length Exposed   Free Trial Credit: Active ($300) |

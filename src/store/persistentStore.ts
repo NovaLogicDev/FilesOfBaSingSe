@@ -55,8 +55,8 @@ export const usePersistentStore = create<PersistentPreferences>()(
         set({ savedProjectId: projectId.trim() }),
 
       setSavedBucketName: (bucketName) => {
-        const clean = bucketName.replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim()
-        set({ savedBucketName: `gs://${clean}` })
+        const clean = (bucketName || '').replace(/^gs:\/\//i, '').replace(/\/+$/, '').trim()
+        set({ savedBucketName: clean ? `gs://${clean}` : '' })
       },
 
       addRecentBucket: (bucketName) =>

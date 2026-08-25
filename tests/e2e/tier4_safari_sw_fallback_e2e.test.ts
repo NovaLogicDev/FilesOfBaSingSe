@@ -11,7 +11,7 @@ describe('Tier 4 - Scenario 4: Safari SW Stream Interception & Firefox CLI Routi
   it('routes Firefox users directly to automated multi-threaded CLI generator', () => {
     // Generate CLI commands with pre-filled parameters for full directory
     const gcloudScript = CliGeneratorEngine.generateGcloudCommand({
-      bucketName: 'gs://partner-raw-master-archives-2026',
+      bucketName: 'gs://test-studio-vault-2026',
       selectedPaths: [
         'feature_films/reel_04/reel04_cam_A_raw.mxf',
         'sound_stems/mix_stems_master_bundle.tar',
@@ -26,7 +26,7 @@ describe('Tier 4 - Scenario 4: Safari SW Stream Interception & Firefox CLI Routi
     expect(gcloudScript).toContain('mix_stems_master_bundle.tar')
 
     const gsutilScript = CliGeneratorEngine.generateGsutilCommand({
-      bucketName: 'partner-raw-master-archives-2026',
+      bucketName: 'test-studio-vault-2026',
       selectedPaths: ['vfx_plates/plate_040_earthbending_4k.dpx'],
       userProject: 'firefox-client-media',
       destinationDir: './vfx/',
@@ -38,7 +38,7 @@ describe('Tier 4 - Scenario 4: Safari SW Stream Interception & Firefox CLI Routi
   it('verifies Safari diagnostics logging and Service Worker health reporting', () => {
     ObservabilityService.info('SERVICE_WORKER', 'Registered download interceptor scope=/')
     const report = ObservabilityService.generateReport(
-      'gs://partner-raw-master-archives-2026',
+      'gs://test-studio-vault-2026',
       'safari-client-2026',
     )
 

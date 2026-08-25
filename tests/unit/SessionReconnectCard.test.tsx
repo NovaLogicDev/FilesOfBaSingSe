@@ -11,7 +11,7 @@ describe('SessionReconnectCard Component (Screen 7)', () => {
         userEmail="taylor@freelance-edit.com"
         userName="Taylor (Colorist)"
         savedProjectId="client-prod-media-2026"
-        savedBucketName="gs://partner-raw-master-archives-2026"
+        savedBucketName="gs://test-studio-vault-2026"
         onReconnect={vi.fn()}
         onReconfigure={vi.fn()}
       />,
@@ -22,7 +22,7 @@ describe('SessionReconnectCard Component (Screen 7)', () => {
     expect(screen.getByText(/Welcome back, Taylor \(Colorist\)!/i)).toBeInTheDocument()
     expect(screen.getByText(/taylor@freelance-edit\.com/i)).toBeInTheDocument()
     expect(screen.getByText(/client-prod-media-2026/i)).toBeInTheDocument()
-    expect(screen.getByText(/gs:\/\/partner-raw-master-archives-2026/i)).toBeInTheDocument()
+    expect(screen.getByText(/gs:\/\/test-studio-vault-2026/i)).toBeInTheDocument()
     expect(screen.getByTestId('reconnect-button')).toBeInTheDocument()
     expect(screen.getByTestId('reconfigure-button')).toBeInTheDocument()
   })
@@ -36,7 +36,7 @@ describe('SessionReconnectCard Component (Screen 7)', () => {
         userEmail="taylor@freelance-edit.com"
         userName="Taylor"
         savedProjectId="client-prod-media-2026"
-        savedBucketName="gs://partner-raw-master-archives-2026"
+        savedBucketName="gs://test-studio-vault-2026"
         onReconnect={handleReconnect}
         onReconfigure={vi.fn()}
       />,
@@ -56,7 +56,7 @@ describe('SessionReconnectCard Component (Screen 7)', () => {
         userEmail="taylor@freelance-edit.com"
         userName="Taylor"
         savedProjectId="client-prod-media-2026"
-        savedBucketName="gs://partner-raw-master-archives-2026"
+        savedBucketName="gs://test-studio-vault-2026"
         onReconnect={vi.fn()}
         onReconfigure={handleReconfigure}
       />,
@@ -73,7 +73,7 @@ describe('SessionReconnectCard Component (Screen 7)', () => {
         userEmail="taylor@freelance-edit.com"
         userName="Taylor"
         savedProjectId="client-prod-media-2026"
-        savedBucketName="gs://partner-raw-master-archives-2026"
+        savedBucketName="gs://test-studio-vault-2026"
         onReconnect={vi.fn()}
         onReconfigure={vi.fn()}
         errorMessage="Third-party cookies partitioned in Safari"

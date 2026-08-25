@@ -40,7 +40,7 @@ export class GCSClientService {
    * - Trims whitespace
    * - Defaults to fallback if empty
    */
-  public cleanBucketName(bucket: string, fallback: string = 'partner-raw-master-archives-2026'): string {
+  public cleanBucketName(bucket: string, fallback: string = ''): string {
     if (!bucket || typeof bucket !== 'string') return fallback
     const cleaned = bucket
       .trim()
@@ -155,6 +155,13 @@ export class GCSClientService {
   ): Promise<GCSBucket> {
     const cleanBucket = this.cleanBucketName(bucket)
 
+    if (!cleanBucket) {
+      throw new GCSClientError('INVALID_ARGUMENT', 'No GCS bucket specified.', {
+        bucket: '',
+        userProject,
+      })
+    }
+
     if (!token || token.trim() === '') {
       throw new GCSClientError('UNAUTHENTICATED', 'No OAuth access token provided.', {
         bucket: cleanBucket,
@@ -268,6 +275,13 @@ export class GCSClientService {
   ): Promise<DirectoryListingResult> {
     const cleanBucket = this.cleanBucketName(bucket)
     const { userProject, maxResults = 250, pageToken, delimiter = '/' } = options
+
+    if (!cleanBucket) {
+      throw new GCSClientError('INVALID_ARGUMENT', 'No GCS bucket specified.', {
+        bucket: '',
+        userProject,
+      })
+    }
 
     if (!token || token.trim() === '') {
       throw new GCSClientError('UNAUTHENTICATED', 'No OAuth access token provided.', {
@@ -478,6 +492,46 @@ export class GCSClientService {
         rawError: 'TOKEN_EXPIRED',
         errorMessage: 'OAuth access token is missing or expired.',
         remediationStep: 'Sign in with your Google account in Step 1 to obtain a fresh token.',
+      }
+    }
+
+    // If bucket is missing
+    if (!cleanBucket) {
+      const bucketStep: PreflightStep = {
+        id: 'bucket',
+        name: 'Requester-Pays Enforced',
+        description: 'Validates bucket reachability and billing attribution.',
+        status: 'failed',
+        detail: 'No target GCS bucket specified.',
+        errorMessage: 'Bucket name cannot be empty.',
+        remediation: 'Specify a target Google Cloud Storage bucket.',
+      }
+      const iamStep: PreflightStep = {
+        id: 'iam',
+        name: 'IAM Object Viewer Granted',
+        description: 'Probes roles/storage.objectViewer permission on bucket.',
+        status: 'failed',
+        detail: 'Cannot evaluate IAM permissions without a target bucket.',
+      }
+      const corsStep: PreflightStep = {
+        id: 'cors',
+        name: 'CORS Preflight Headers OK',
+        description: 'Validates browser CORS preflight and exposure headers.',
+        status: 'failed',
+        detail: 'Preflight probe could not execute without a target bucket.',
+      }
+
+      return {
+        oauthTokenValid: true,
+        oauthExpiresInSeconds,
+        bucketReachable: false,
+        requesterPaysActive: false,
+        iamViewerGranted: false,
+        corsConfigured: false,
+        steps: [tokenStep, bucketStep, iamStep, corsStep],
+        rawError: 'INVALID_ARGUMENT',
+        errorMessage: 'Bucket name cannot be empty.',
+        remediationStep: 'Specify a target Google Cloud Storage bucket.',
       }
     }
 

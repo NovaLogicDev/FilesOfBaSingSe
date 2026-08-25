@@ -263,6 +263,9 @@ globalThis.fetch = async (input: any, init?: any) => {
       } as any
     }
 
+    const bucketMatch = url.match(/\/b\/([^/?]+)/)
+    const mockBucketName = bucketMatch ? decodeURIComponent(bucketMatch[1]) : 'test-bucket'
+
     return {
       ok: true,
       status: 200,
@@ -274,7 +277,7 @@ globalThis.fetch = async (input: any, init?: any) => {
       }),
       body: isMedia ? stream : undefined,
       json: async () => ({
-        name: 'partner-raw-master-archives-2026',
+        name: mockBucketName,
         billing: { requesterPays: true },
         cors: [
           {

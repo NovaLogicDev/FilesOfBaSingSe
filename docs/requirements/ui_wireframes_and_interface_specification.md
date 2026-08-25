@@ -114,9 +114,9 @@ flowchart LR
 
 ```
 +----------------------------------------------------------------------------------------------------+
-|  [Logo] Files of Ba Sing Se  |  [gs://partner-raw-master-archives-2026 v]  | [Billed: client-prod] [Av]|
+|  [Logo] Files of Ba Sing Se  |  [gs://media-vault-bucket v]  | [Billed: client-prod] [Av]|
 +----------------------------------------------------------------------------------------------------+
-|  Breadcrumbs: [ gs:// ] > [ partner-raw-master-archives-2026 ] > [ feature_films ] > [ reel_04 ]   |
+|  Breadcrumbs: [ gs:// ] > [ media-vault-bucket ] > [ feature_films ] > [ reel_04 ]   |
 +----------------------------------------------------------------------------------------------------+
 |                                                                                                    |
 |  +----------------------------------------------------------------------------------------------+  |
@@ -244,7 +244,7 @@ flowchart LR
 |  |                                                                                              |  |
 |  | [MODE A: REQUESTER-PAYS BUCKET (Includes --billing-project)]                                 |  |
 |  | gcloud storage cp \                                                                          |  |
-|  |   gs://partner-raw-master-archives-2026/feature_films/reel_04/reel04_cam_A_raw.mxf \         |  |
+|  |   gs://media-vault-bucket/feature_films/reel_04/reel04_cam_A_raw.mxf \         |  |
 |  |   ./destination_folder/ \                                                                    |  |
 |  |   --billing-project=client-prod-media-2026                                                   |  |
 |  |                                                                                              |  |
@@ -302,10 +302,10 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ```
 +-------------------------------------------------------------------------+
-| [Layers] gs://partner-raw-master-archives-2026 [▾]                      |
+| [Layers] gs://media-vault-bucket [▾]                      |
 +-------------------------------------------------------------------------+
 | CONNECTED BUCKET                                                        |
-| ● gs://partner-raw-master-archives-2026 [Requester-Pays 🛡️] (Active)   |
+| ● gs://media-vault-bucket [Requester-Pays 🛡️] (Active)   |
 |                                                                         |
 | RECENT BUCKETS                                                          |
 | ↳ gs://open-cinematic-assets             [Owner-Pays 🎁]    [ Switch ]  |
@@ -365,7 +365,7 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ```
 +----------------------------------------------------------------------------------------------------+
-|  [Logo] Files of Ba Sing Se  | [gs://partner-raw-master-archives-2026] | [Billed: client-prod]     |
+|  [Logo] Files of Ba Sing Se  | [gs://media-vault-bucket] | [Billed: client-prod]     |
 +----------------------------------------------------------------------------------------------------+
 |                                                                                                    |
 |  +----------------------------------------------------------------------------------------------+  |
@@ -377,7 +377,7 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 |  |                                                                                              |  |
 |  | ACTIVE CONFIGURATION:                                                                        |  |
 |  | • Billed Project: client-prod-media-2026                                                      |  |
-|  | • Target Bucket:  gs://partner-raw-master-archives-2026                                       |  |
+|  | • Target Bucket:  gs://media-vault-bucket                                       |  |
 |  |                                                                                              |  |
 |  | [ ⚡ Reconnect Google Session (1-Click) ]             [ Switch Account / Reconfigure ]        |  |
 |  +----------------------------------------------------------------------------------------------+  |
@@ -407,13 +407,13 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ```
 +----------------------------------------------------------------------------------------------------+
-|  URL Bar: https://media.basingse.io/#/browse/partner-raw-master-archives-2026/feature_films/reel_04/  |
+|  URL Bar: https://media.basingse.io/#/browse/media-vault-bucket/feature_films/reel_04/  |
 +----------------------------------------------------------------------------------------------------+
 |  [ ⬅️ Back (Alt+←) ]  [ ➡️ Fwd (Alt+→) ]                                                             |
 |                                                                                                    |
 |  BREADCRUMB TRAIL (Interactive & Focusable):                                                       |
 |  +----------------------------------------------------------------------------------------------+  |
-|  | [ gs://partner-raw-master-archives-2026 ] > [ feature_films ] > [ reel_04 (Active) ]         |  |
+|  | [ gs://media-vault-bucket ] > [ feature_films ] > [ reel_04 (Active) ]         |  |
 |  |   ^ clickable (root)                         ^ clickable           ^ current location (bold) |  |
 |  +----------------------------------------------------------------------------------------------+  |
 |                                                                                                    |
@@ -433,8 +433,8 @@ Standardized, human-friendly error cards replace cryptic raw HTTP codes:
 
 ### Behavioral Specifications
 1. **Bidirectional URL & Breadcrumb Sync**:
-   - Clicking `feature_films` navigates to `#/browse/partner-raw-master-archives-2026/feature_films/` and pushes a new browser history entry.
-   - Clicking `gs://partner-raw-master-archives-2026` returns to root `#/browse/partner-raw-master-archives-2026/`.
+   - Clicking `feature_films` navigates to `#/browse/media-vault-bucket/feature_films/` and pushes a new browser history entry.
+   - Clicking `gs://media-vault-bucket` returns to root `#/browse/media-vault-bucket/`.
    - Browser Back button traversal pops state and restores the exact ancestor view in $<16\text{ ms}$.
 2. **Keyboard Navigation Support**:
    - `Tab` / `Shift+Tab` cycles focus sequentially through breadcrumb buttons.
